@@ -1,0 +1,80 @@
+<mat-sidenav-container class="h-screen">
+  <!-- Sidenav -->
+  <mat-sidenav #sidenav mode="side" [opened]="isOpen" class="bg-gray-900 text-white" [fixedInViewport]="true">
+    <!-- Logo y Título -->
+    <div class="p-4 flex items-center">
+      <img src="assets/logo.png" alt="Logo" class="h-8 w-8 mr-3">
+      <h1 class="text-xl font-bold">Tickets TI</h1>
+    </div>
+
+    <mat-divider class="border-gray-700"></mat-divider>
+
+    <!-- Menú de Navegación -->
+    <mat-nav-list>
+      <ng-container *ngFor="let item of navItems">
+        <a mat-list-item [routerLink]="item.route" routerLinkActive="bg-indigo-900">
+          <mat-icon class="mr-3">{{ item.icon }}</mat-icon>
+          <span>{{ item.name }}</span>
+        </a>
+      </ng-container>
+
+      <!-- Sección Admin (si el usuario tiene rol admin) -->
+      <ng-container *ngIf="(currentUser$ | async)?.role === 'admin'">
+        <mat-divider class="border-gray-700 my-2"></mat-divider>
+        <div class="pl-4 py-2 text-xs text-gray-400">ADMINISTRACIÓN</div>
+
+        <ng-container *ngFor="let item of adminItems">
+          <a mat-list-item [routerLink]="item.route" routerLinkActive="bg-indigo-900">
+            <mat-icon class="mr-3">{{ item.icon }}</mat-icon>
+            <span>{{ item.name }}</span>
+          </a>
+        </ng-container>
+      </ng-container>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <!-- Contenido Principal -->
+  <mat-sidenav-content>
+    <!-- Toolbar -->
+    <mat-toolbar color="primary" class="shadow-md">
+      <button mat-icon-button (click)="toggleSidenav()">
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <span class="flex-1">Sistema de Tickets TI</span>
+
+      <!-- Perfil de Usuario -->
+      <div class="flex items-center" *ngIf="currentUser$ | async as user">
+        <button mat-button [matMenuTriggerFor]="userMenu" class="flex items-center">
+          <div *ngIf="user.photoURL; else avatarPlaceholder" class="w-8 h-8 rounded-full overflow-hidden mr-2">
+            <img [src]="user.photoURL" alt="Foto de perfil" class="w-full h-full object-cover">
+          </div>
+          <ng-template #avatarPlaceholder>
+            <div class="w-8 h-8 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center mr-2">
+              {{ (user.displayName || user.email || 'U')[0].toUpperCase() }}
+            </div>
+          </ng-template>
+
+          <span class="hidden sm:block">{{ user.displayName || user.email }}</span>
+          <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+
+        <mat-menu #userMenu="matMenu">
+          <button mat-menu-item [routerLink]="['/perfil']">
+            <mat-icon>account_circle</mat-icon>
+            <span>Mi perfil</span>
+          </button>
+          <button mat-menu-item (click)="logout()">
+            <mat-icon>exit_to_app</mat-icon>
+            <span>Cerrar sesión</span>
+          </button>
+        </mat-menu>
+      </div>
+    </mat-toolbar>
+
+    <!-- Contenido de las Rutas -->
+    <div class="container-fluid">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

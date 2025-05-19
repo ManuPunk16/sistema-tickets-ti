@@ -1,0 +1,114 @@
+<div class="p-4 md:p-6">
+  <div class="flex items-center mb-6">
+    <button mat-icon-button [routerLink]="['/tickets']" matTooltip="Volver">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h1 class="text-2xl font-bold ml-2">{{ isEditMode ? 'Editar Ticket' : 'Crear Nuevo Ticket' }}</h1>
+  </div>
+
+  <div *ngIf="loading" class="flex justify-center my-8">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div class="max-w-3xl mx-auto">
+      <mat-card>
+        <mat-card-content class="p-4">
+          <form [formGroup]="ticketForm" (ngSubmit)="onSubmit()">
+            <div class="grid grid-cols-1 gap-6">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Título</mat-label>
+                <input matInput formControlName="title" placeholder="Resumen breve del problema">
+                <mat-error *ngIf="ticketForm.get('title')?.hasError('required')">
+                  El título es obligatorio
+                </mat-error>
+                <mat-error *ngIf="ticketForm.get('title')?.hasError('maxlength')">
+                  El título no puede exceder 100 caracteres
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Descripción</mat-label>
+                <textarea matInput formControlName="description" rows="6"
+                  placeholder="Describe detalladamente el problema o solicitud"></textarea>
+                <mat-error *ngIf="ticketForm.get('description')?.hasError('required')">
+                  La descripción es obligatoria
+                </mat-error>
+                <mat-error *ngIf="ticketForm.get('description')?.hasError('maxlength')">
+                  La descripción no puede exceder 2000 caracteres
+                </mat-error>
+              </mat-form-field>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Categoría</mat-label>
+                  <mat-select formControlName="category">
+                    <mat-option *ngFor="let cat of categories" [value]="cat.value">
+                      {{ cat.label }}
+                    </mat-option>
+                  </mat-select>
+                  <mat-error *ngIf="ticketForm.get('category')?.hasError('required')">
+                    La categoría es obligatoria
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Prioridad</mat-label>
+                  <mat-select formControlName="priority">
+                    <mat-option *ngFor="let pri of priorities" [value]="pri.value">
+                      {{ pri.label }}
+                    </mat-option>
+                  </mat-select>
+                  <mat-error *ngIf="ticketForm.get('priority')?.hasError('required')">
+                    La prioridad es obligatoria
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Departamento</mat-label>
+                  <mat-select formControlName="department">
+                    <mat-option *ngFor="let dept of departments$ | async" [value]="dept">
+                      {{ dept }}
+                    </mat-option>
+                  </mat-select>
+                  <mat-error *ngIf="ticketForm.get('department')?.hasError('required')">
+                    El departamento es obligatorio
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Tiempo estimado (minutos)</mat-label>
+                  <input matInput formControlName="estimatedTime" type="number" min="0">
+                  <mat-error *ngIf="ticketForm.get('estimatedTime')?.hasError('min')">
+                    El tiempo debe ser mayor o igual a cero
+                  </mat-error>
+                  <mat-error *ngIf="ticketForm.get('estimatedTime')?.hasError('max')">
+                    El tiempo debe ser menor a 10000 minutos
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div *ngIf="!isEditMode">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Archivos adjuntos (opcional)</label>
+                <app-file-upload (filesSelected)="onFilesSelected($event)"></app-file-upload>
+              </div>
+
+              <div class="flex justify-end mt-4 gap-3">
+                <button mat-stroked-button type="button" [routerLink]="['/tickets']">Cancelar</button>
+                <button mat-raised-button color="primary" type="submit"
+                  [disabled]="ticketForm.invalid || submitLoading">
+                  <div class="flex items-center">
+                    <mat-spinner *ngIf="submitLoading" diameter="20" class="mr-2"></mat-spinner>
+                    <span>{{ isEditMode ? 'Actualizar' : 'Crear' }} Ticket</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </ng-container>
+</div>

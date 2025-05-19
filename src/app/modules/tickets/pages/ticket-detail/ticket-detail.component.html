@@ -1,0 +1,213 @@
+<div class="p-4 md:p-6">
+  <div class="flex items-center mb-6">
+    <button mat-icon-button [routerLink]="['/tickets']" matTooltip="Volver">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h1 class="text-2xl font-bold ml-2">Detalles del Ticket</h1>
+  </div>
+
+  <div *ngIf="loading" class="flex justify-center my-8">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading && ticket">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Información Principal -->
+      <div class="lg:col-span-2">
+        <mat-card class="mb-6">
+          <mat-card-header>
+            <mat-card-title class="flex items-center">
+              <h2 class="text-xl font-semibold">{{ ticket.title }}</h2>
+              <span class="ml-auto px-3 py-1 rounded-full text-sm"
+                [ngClass]="getStatusClass(ticket.status)">
+                {{ ticket.status | titlecase }}
+              </span>
+            </mat-card-title>
+            <mat-card-subtitle class="mt-1">
+              <span class="px-2 py-1 rounded text-xs font-semibold"
+                [ngClass]="getPriorityClass(ticket.priority)">
+                {{ ticket.priority | titlecase }}
+              </span>
+              <span class="ml-2 text-sm text-gray-500">{{ ticket.category | titlecase }}</span>
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content class="p-4">
+            <p class="whitespace-pre-line text-gray-700">{{ ticket.description }}</p>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+              <div>
+                <p class="text-gray-500 mb-1">Departamento</p>
+                <p class="font-medium">{{ ticket.department }}</p>
+              </div>
+
+              <div>
+                <p class="text-gray-500 mb-1">Creado por</p>
+                <p class="font-medium">{{ ticket.createdByName }}</p>
+              </div>
+
+              <div>
+                <p class="text-gray-500 mb-1">Asignado a</p>
+                <p class="font-medium">{{ ticket.assignedToName || 'Sin asignar' }}</p>
+              </div>
+
+              <div>
+                <p class="text-gray-500 mb-1">Creado</p>
+                <p class="font-medium">{{ formatDate(ticket.createdAt) }}</p>
+              </div>
+
+              <div>
+                <p class="text-gray-500 mb-1">Última actualización</p>
+                <p class="font-medium">{{ formatDate(ticket.updatedAt) }}</p>
+              </div>
+
+              <div *ngIf="ticket.resolvedAt">
+                <p class="text-gray-500 mb-1">Resuelto</p>
+                <p class="font-medium">{{ formatDate(ticket.resolvedAt) }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="ticket.attachments && ticket.attachments.length > 0" class="mt-6">
+              <h3 class="text-lg font-medium mb-2">Archivos Adjuntos</h3>
+              <div class="flex flex-wrap gap-2">
+                <a *ngFor="let attachment of ticket.attachments"
+                  [href]="attachment"
+                  target="_blank"
+                  class="flex items-center px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200">
+                  <mat-icon class="text-gray-600">attach_file</mat-icon>
+                  <span class="ml-2 text-sm">{{ attachment.split('/').pop() }}</span>
+                </a>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <mat-card-actions *ngIf="(currentUser$ | async) as user">
+            <div class="flex justify-end p-2">
+              <ng-container *ngIf="user.role === 'admin' || ticket.createdBy === user.uid">
+                <button mat-stroked-button color="primary" [routerLink]="['/tickets/editar', ticket.id]"
+                  [disabled]="ticket.status === 'resuelto' || ticket.status === 'cerrado'">
+                  <mat-icon class="mr-1">edit</mat-icon>
+                  Editar
+                </button>
+              </ng-container>
+            </div>
+          </mat-card-actions>
+        </mat-card>
+
+        <!-- Comentarios y Timeline -->
+        <mat-card>
+          <mat-card-content>
+            <mat-tab-group animationDuration="0ms">
+              <mat-tab label="Comentarios">
+                <div class="p-3">
+                  <app-ticket-comment-form *ngIf="ticket.status !== 'cerrado'"
+                    (commentSubmitted)="addComment($event, ticket.id)">
+                  </app-ticket-comment-form>
+
+                  <div class="mt-4">
+                    <app-ticket-comments-list [comments]="ticket.comments || []"></app-ticket-comments-list>
+                  </div>
+                </div>
+              </mat-tab>
+
+              <mat-tab label="Línea de Tiempo">
+                <div class="p-3">
+                  <app-ticket-timeline [ticket]="ticket"></app-ticket-timeline>
+                </div>
+              </mat-tab>
+
+              <mat-tab label="Archivos" *ngIf="ticket.attachments && ticket.attachments.length > 0">
+                <div class="p-3">
+                  <app-ticket-files [files]="ticket.attachments"></app-ticket-files>
+                </div>
+              </mat-tab>
+            </mat-tab-group>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <!-- Panel Lateral -->
+      <div class="lg:col-span-1">
+        <!-- Actualizar Estado -->
+        <mat-card class="mb-6" *ngIf="canChangeStatus(currentUser$ | async)">
+          <mat-card-header>
+            <mat-card-title>
+              <h3 class="text-lg font-medium">Actualizar Estado</h3>
+            </mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content class="px-4 pt-4">
+            <form [formGroup]="statusForm" (ngSubmit)="updateStatus()">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Estado</mat-label>
+                <mat-select formControlName="status">
+                  <mat-option *ngFor="let status of availableStatuses" [value]="status.value">
+                    {{ status.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-full" *ngIf="(currentUser$ | async)?.role === 'admin'">
+                <mat-label>Asignar a</mat-label>
+                <mat-select formControlName="assignTo">
+                  <mat-option [value]="">Sin asignar</mat-option>
+                  <mat-option *ngFor="let user of supportUsers$ | async" [value]="user.uid">
+                    {{ user.displayName || user.email }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Comentario (opcional)</mat-label>
+                <textarea matInput rows="3" formControlName="comment"
+                  placeholder="Añade un comentario sobre este cambio de estado"></textarea>
+              </mat-form-field>
+
+              <div class="flex justify-end">
+                <button type="submit" mat-raised-button color="primary" [disabled]="loading || statusForm.invalid">
+                  <mat-spinner *ngIf="loading" [diameter]="24" class="mr-2"></mat-spinner>
+                  <span>Actualizar</span>
+                </button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Información Adicional -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>
+              <h3 class="text-lg font-medium">Información Adicional</h3>
+            </mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content class="p-4">
+            <div *ngIf="ticket.estimatedTime" class="mb-4">
+              <p class="text-gray-500 mb-1">Tiempo estimado</p>
+              <p class="font-medium">{{ ticket.estimatedTime }} minutos</p>
+            </div>
+
+            <div *ngIf="ticket.actualTime" class="mb-4">
+              <p class="text-gray-500 mb-1">Tiempo real</p>
+              <p class="font-medium">{{ ticket.actualTime }} minutos</p>
+            </div>
+
+            <div *ngIf="ticket.statusNote" class="mb-4">
+              <p class="text-gray-500 mb-1">Nota de estado</p>
+              <p class="whitespace-pre-line">{{ ticket.statusNote }}</p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+  </ng-container>
+
+  <div *ngIf="!loading && !ticket" class="text-center py-8">
+    <mat-icon class="text-gray-400 text-7xl">error_outline</mat-icon>
+    <p class="text-xl font-medium mt-4">No se pudo encontrar el ticket</p>
+    <p class="text-gray-500 mt-2">El ticket solicitado no existe o ha sido eliminado</p>
+    <button mat-raised-button color="primary" class="mt-4" [routerLink]="['/tickets']">
+      Ver todos los tickets
+    </button>
+  </div>
+</div>
