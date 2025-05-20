@@ -14,7 +14,7 @@ import {
   onAuthStateChanged
 } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
-import { Observable, from, map, of, switchMap, catchError, throwError, tap, BehaviorSubject } from 'rxjs';
+import { Observable, from, map, of, switchMap, catchError, throwError, tap, BehaviorSubject, timeout } from 'rxjs';
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';
 import { isMobile } from '../utils/platform.utils';
@@ -28,6 +28,9 @@ export class AuthService {
   currentAuthUser: any = null;
   private readonly ALLOWED_DOMAINS = ['gmail.com', 'empresa.com']; // Dominios permitidos
 
+  // Añade una variable para controlar el estado de inicialización
+  private authInitialized = false;
+  
   constructor(
     private auth: Auth,
     private firestore: Firestore,
@@ -342,5 +345,147 @@ export class AuthService {
   // Verificar si el usuario está autenticado
   isLoggedIn(): boolean {
     return !!this.currentAuthUser;
+  }
+
+  // Método para manejar la inicialización de autenticación
+  initializeAuth(): Observable<void> {
+    // Si ya inicializamos, retornar inmediatamente
+    if (this.authInitialized) {
+      return of(void 0);
+    }
+    
+    return new Observable<void>(observer => {
+      console.log('Iniciando autenticación...');
+      
+      // Primero intentamos recuperar cualquier resultado de redirección
+      try {
+        from(getRedirectResult(this.auth)).pipe(
+          catchError(error => {
+            console.error('Error al obtener resultado de redirección:', error);
+            return of(null);
+          })
+        ).subscribe(result => {
+          if (result && result.user) {
+            console.log('Usuario autenticado por redirección:', result.user.email);
+            // Procesar el resultado si existe
+            this.processRedirectUser(result.user);
+          }
+        });
+      } catch (error) {
+        console.error('Error general al procesar redirección:', error);
+      }
+      
+      // Luego configuramos el listener de estado de autenticación
+      const unsubscribe = onAuthStateChanged(this.auth, (firebaseUser) => {
+        console.log('Estado de autenticación detectado:', firebaseUser?.email || 'No autenticado');
+        this.currentAuthUser = firebaseUser;
+        
+        if (firebaseUser) {
+          // Usuario ya autenticado
+          this.getUserProfile(firebaseUser.uid).subscribe({
+            next: profile => {
+              // Si el perfil existe pero está inactivo o pendiente, hacer logout
+              if (profile && (profile.role === 'inactive' || profile.role === 'pending')) {
+                this.logout().subscribe(() => {
+                  this.zone.run(() => {
+                    this.router.navigate(['/auth/login'], { 
+                      queryParams: { 
+                        message: profile.role === 'inactive' ? 'accountInactive' : 'pendingApproval' 
+                      } 
+                    });
+                  });
+                  
+                  this.authInitialized = true;
+                  observer.next();
+                  observer.complete();
+                });
+                return;
+              }
+              
+              // Usuario válido
+              this.userProfileSubject.next(profile);
+              this.authInitialized = true;
+              observer.next();
+              observer.complete();
+            },
+            error: err => {
+              console.error('Error al obtener perfil durante inicialización:', err);
+              this.authInitialized = true;
+              observer.error(err);
+            }
+          });
+        } else {
+          // No hay usuario autenticado
+          this.userProfileSubject.next(null);
+          this.authInitialized = true;
+          observer.next();
+          observer.complete();
+        }
+        
+        // No hacemos unsubscribe para mantener el listener activo
+        // y detectar cambios en la sesión mientras la aplicación está abierta
+        // unsubscribe();
+      }, error => {
+        console.error('Error durante la inicialización de Auth:', error);
+        this.authInitialized = true;
+        observer.error(error);
+      });
+    }).pipe(
+      // Añadir un timeout para evitar esperas infinitas
+      timeout(10000),
+      catchError(err => {
+        console.error('Timeout o error en inicialización de autenticación:', err);
+        this.authInitialized = true;
+        return of(void 0);
+      })
+    );
+  }
+  
+  // Método para procesar el usuario de redirección
+  private processRedirectUser(user: any) {
+    // Verificar si el usuario existe y su rol
+    this.getUserRole(user.uid).pipe(
+      switchMap(role => {
+        if (!role) {
+          // Nuevo usuario: crear perfil pendiente
+          return this.createUserProfile(user.uid, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || user.email?.split('@')[0] || '',
+            photoURL: user.photoURL,
+            role: 'pending',
+            createdAt: new Date().toISOString(),
+            authProvider: 'google'
+          }).pipe(
+            tap(() => {
+              this.logout().subscribe(() => {
+                this.zone.run(() => {
+                  this.router.navigate(['/auth/login'], { 
+                    queryParams: { message: 'pendingApproval' } 
+                  });
+                });
+              });
+            })
+          );
+        } else if (role === 'inactive' || role === 'pending') {
+          // Usuario inactivo o pendiente
+          return this.logout().pipe(
+            tap(() => {
+              this.zone.run(() => {
+                this.router.navigate(['/auth/login'], { 
+                  queryParams: { 
+                    message: role === 'inactive' ? 'accountInactive' : 'pendingApproval' 
+                  } 
+                });
+              });
+            })
+          );
+        } else {
+          // Usuario válido - actualizar último acceso
+          this.updateLastLogin(user.uid);
+          return of(null);
+        }
+      })
+    ).subscribe();
   }
 }

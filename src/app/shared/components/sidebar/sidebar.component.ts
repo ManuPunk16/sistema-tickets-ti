@@ -8,7 +8,7 @@ import { UserProfile } from '../../../core/models/user.model';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <div class="hidden lg:block w-64 bg-gradient-to-b from-gray-900 to-indigo-900 text-white h-full overflow-y-auto fixed">
+    <div class="w-64 bg-gradient-to-b from-gray-900 to-indigo-900 text-white h-full overflow-y-auto">
       <div class="p-6 flex flex-col h-full">
         <!-- Navegación -->
         <nav class="space-y-2 flex-grow">
@@ -107,12 +107,7 @@ import { UserProfile } from '../../../core/models/user.model';
       </div>
     </div>
   `,
-  styles: [`
-    :host {
-      height: calc(100vh - 64px);
-      display: block;
-    }
-  `]
+  styles: []
 })
 export class SidebarComponent {
   @Input() user: UserProfile | null = null;

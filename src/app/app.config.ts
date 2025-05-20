@@ -18,9 +18,11 @@ import {
 } from '@angular/fire/firestore';
 import { 
   getAuth, 
-  provideAuth, 
-  connectAuthEmulator,
-  browserLocalPersistence
+  provideAuth,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  browserSessionPersistence
 } from '@angular/fire/auth';
 import { getStorage, provideStorage } from '@angular/fire/storage';
 import { environment } from '../environments/environment';
@@ -48,10 +50,15 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAuth(() => {
       const auth = getAuth();
-      
-      // No intentamos configurar la persistencia aquí para evitar errores
-      // La persistencia de autenticación es manejada automáticamente por Firebase
-      
+      // Configurar persistencia explícita - mejorado para dispositivos móviles
+      try {
+        const persistence = isMobile() && !isIOS() ? browserLocalPersistence : indexedDBLocalPersistence;
+        auth.setPersistence(persistence).catch(err => 
+          console.warn("Error configurando persistencia:", err)
+        );
+      } catch (err) {
+        console.warn("No se pudo configurar la persistencia:", err);
+      }
       return auth;
     }),
     provideStorage(() => getStorage()),

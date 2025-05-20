@@ -1,2 +1,35 @@
 @use "tailwindcss";
 
+/* Agrega estos estilos para ajustar el layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: #f5f7fa; /* Color de fondo sutil */
+}
+
+/* Ajuste para el contenido principal */
+.mat-sidenav-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Ajustes para evitar desbordamiento horizontal */
+.container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Estilos para paginas con mucho contenido */
+.scrollable-content {
+  overflow-y: auto;
+  height: calc(100vh - 64px);
+}
+
