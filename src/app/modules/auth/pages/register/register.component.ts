@@ -58,19 +58,22 @@ export class RegisterComponent {
     this.isLoading = true;
     const { email, password, displayName } = this.registerForm.value;
 
-    this.authService.register(email, password, displayName)
-      .then(() => {
+    this.authService.register(email, password, displayName).subscribe({
+      next: () => {
+        // Este bloque no se ejecutará debido a que register siempre lanza un error
         this.snackBar.open('Registro exitoso. ¡Bienvenido!', 'Cerrar', {
           duration: 3000
         });
         this.router.navigate(['/dashboard']);
-      })
-      .catch(error => {
+      },
+      error: (error: Error) => { // Tipo explícito para evitar el error TS7006
         this.isLoading = false;
-        this.snackBar.open('Error al registrarse: ' + this.getErrorMessage(error), 'Cerrar', {
+        this.snackBar.open('Registro completado: ' + error.message, 'Cerrar', {
           duration: 5000
         });
-      });
+        this.router.navigate(['/auth/login']);
+      }
+    });
   }
 
   loginWithGoogle() {

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import {
   Auth,
   GoogleAuthProvider,
@@ -11,7 +11,7 @@ import {
   user
 } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
-import { Observable, from, map, of, switchMap } from 'rxjs';
+import { Observable, from, map, of, switchMap, catchError } from 'rxjs';
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';
 
@@ -21,7 +21,12 @@ import { Router } from '@angular/router';
 export class AuthService {
   user$: Observable<any>;
 
-  constructor(private auth: Auth, private firestore: Firestore, private router: Router) {
+  constructor(
+    private auth: Auth,
+    private firestore: Firestore,
+    private router: Router,
+    private zone: NgZone
+  ) {
     this.user$ = user(this.auth);
   }
 
@@ -43,44 +48,94 @@ export class AuthService {
     );
   }
 
-  async register(email: string, password: string, displayName?: string): Promise<void> {
-    const credential = await createUserWithEmailAndPassword(this.auth, email, password);
-    await this.createUserProfile(credential.user.uid, {
-      email,
-      displayName: displayName || email.split('@')[0],
-      role: 'user',
-      createdAt: new Date().toISOString()
-    });
-  }
-
   // Método para registrar usuarios desde el panel de admin (retorna UserCredential)
   registerUser(email: string, password: string): Observable<UserCredential> {
     return from(createUserWithEmailAndPassword(this.auth, email, password));
   }
 
-  login(email: string, password: string) {
-    return from(signInWithEmailAndPassword(this.auth, email, password));
+  // Agregar método de registro para usuarios normales (no administradores)
+  register(email: string, password: string, displayName?: string): Observable<void> {
+    return from(createUserWithEmailAndPassword(this.auth, email, password)).pipe(
+      switchMap(credential => {
+        const uid = credential.user.uid;
+        return this.createUserProfile(uid, {
+          email,
+          displayName: displayName || email.split('@')[0],
+          role: 'pending', // Los usuarios registrados quedan pendientes de aprobación
+          createdAt: new Date().toISOString()
+        });
+      }),
+      switchMap(() => {
+        // Cerrar la sesión automáticamente después de registrar para que requiera aprobación
+        return this.logout();
+      }),
+      map(() => {
+        throw new Error('Su cuenta ha sido creada y está pendiente de aprobación por un administrador.');
+      })
+    );
+  }
+
+  login(email: string, password: string): Observable<UserCredential> {
+    return from(signInWithEmailAndPassword(this.auth, email, password)).pipe(
+      switchMap(credential => {
+        return this.getUserRole(credential.user.uid).pipe(
+          map(role => {
+            if (!role || role === 'inactive') {
+              // Usuario no autorizado o inactivo
+              this.logout();
+              throw new Error('Su cuenta no está activada. Contacte al administrador.');
+            }
+            return credential;
+          })
+        );
+      })
+    );
   }
 
   loginWithGoogle() {
-    return from(signInWithPopup(this.auth, new GoogleAuthProvider())).pipe(
-      switchMap(async (result) => {
-        // Verificar si el perfil existe, de lo contrario crearlo
+    return this.zone.runOutsideAngular(() => {
+      const provider = new GoogleAuthProvider();
+      // Configuración completa para evitar problemas CORS
+      provider.setCustomParameters({
+        prompt: 'select_account',
+        login_hint: 'user@example.com',
+        // Opciones que mejoran compatibilidad con políticas de seguridad
+        display: 'popup'
+      });
+      
+      // Usar signInWithRedirect en lugar de popup si sigues teniendo problemas
+      // return from(signInWithRedirect(this.auth, provider));
+      return from(signInWithPopup(this.auth, provider));
+    }).pipe(
+      switchMap(result => {
         const user = result.user;
-        const userRef = doc(this.firestore, 'users', user.uid);
-        const userDoc = await getDoc(userRef);
-
-        if (!userDoc.exists()) {
-          await this.createUserProfile(user.uid, {
-            email: user.email,
-            displayName: user.displayName || user.email?.split('@')[0] || '',
-            photoURL: user.photoURL,
-            role: 'user',
-            createdAt: new Date().toISOString()
-          });
-        }
-
-        return result;
+        
+        // Verificar si el usuario ya existe en nuestra base de datos
+        return this.getUserRole(user.uid).pipe(
+          switchMap(role => {
+            if (!role) {
+              // Usuario nuevo desde Google - ponerlo como pendiente
+              return this.createUserProfile(user.uid, {
+                email: user.email,
+                displayName: user.displayName || user.email?.split('@')[0] || '',
+                photoURL: user.photoURL,
+                role: 'pending', // Estado pendiente
+                createdAt: new Date().toISOString()
+              }).pipe(
+                map(() => {
+                  this.logout();
+                  throw new Error('Su cuenta está pendiente de aprobación por un administrador.');
+                })
+              );
+            } else if (role === 'inactive' || role === 'pending') {
+              // Usuario existente pero no aprobado o inactivo
+              this.logout();
+              throw new Error('Su cuenta está pendiente de aprobación o ha sido desactivada.');
+            }
+            
+            return of(result);
+          })
+        );
       })
     );
   }
@@ -106,11 +161,30 @@ export class AuthService {
     }));
   }
 
-  private createUserProfile(uid: string, data: any) {
-    const userRef = doc(this.firestore, 'users', uid);
-    return setDoc(userRef, {
-      ...data,
-      updatedAt: new Date().toISOString()
+  // Método que devuelve una Promise<void>, no un Observable
+  createUserProfile(uid: string, data: any): Observable<void> {
+    return this.zone.runOutsideAngular(() => {
+      const userRef = doc(this.firestore, 'users', uid);
+      return from(setDoc(userRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      }));
+    });
+  }
+
+  // Método para verificar el rol del usuario
+  getUserRole(uid: string): Observable<string | null> {
+    return this.zone.runOutsideAngular(() => {
+      const userRef = doc(this.firestore, 'users', uid);
+      return from(getDoc(userRef)).pipe(
+        map(snapshot => {
+          if (snapshot.exists()) {
+            return snapshot.data()['role'];
+          }
+          return null;
+        }),
+        catchError(() => of(null))
+      );
     });
   }
 }

@@ -3,14 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-login',
@@ -18,15 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatSnackBarModule,
-    MatCheckboxModule,
-    MatProgressSpinnerModule
+    RouterLink
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
@@ -75,7 +60,11 @@ export class LoginComponent {
       },
       error: (err) => {
         this.isLoading = false;
-        this.snackBar.open('Error al iniciar sesión con Google: ' + this.getErrorMessage(err), 'Cerrar', {
+        console.error('Error de autenticación:', err);
+        
+        // Mensaje más amigable según el tipo de error
+        const message = this.getErrorMessage(err);
+        this.snackBar.open(message, 'Cerrar', {
           duration: 5000
         });
       }
@@ -83,17 +72,21 @@ export class LoginComponent {
   }
 
   private getErrorMessage(error: any): string {
-    switch(error.code) {
-      case 'auth/invalid-credential':
-        return 'Credenciales inválidas';
-      case 'auth/wrong-password':
-        return 'Contraseña incorrecta';
-      case 'auth/user-not-found':
-        return 'Usuario no encontrado';
-      case 'auth/invalid-email':
-        return 'Email inválido';
-      default:
-        return error.message;
+    if (error.message?.includes('pending')) {
+      return 'Su cuenta está pendiente de aprobación por un administrador.';
     }
+    if (error.code === 'auth/popup-closed-by-user') {
+      return 'El proceso de inicio de sesión fue cancelado.';
+    }
+    if (error.code === 'auth/network-request-failed') {
+      return 'Error de red. Por favor, verifica tu conexión.';
+    }
+    
+    // Si Firebase no puede conectarse a la base de datos
+    if (error.message?.includes('Failed to get document')) {
+      return 'Error al acceder a la base de datos. Por favor, contacta al administrador.';
+    }
+    
+    return error.message || 'Error al iniciar sesión. Inténtalo de nuevo.';
   }
 }
