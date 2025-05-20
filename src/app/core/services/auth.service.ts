@@ -8,10 +8,12 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  user
+  user,
+  signInWithRedirect,
+  getRedirectResult
 } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
-import { Observable, from, map, of, switchMap, catchError } from 'rxjs';
+import { Observable, from, map, of, switchMap, catchError, throwError, tap } from 'rxjs';
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';
 
@@ -20,6 +22,7 @@ import { Router } from '@angular/router';
 })
 export class AuthService {
   user$: Observable<any>;
+  private readonly ALLOWED_DOMAINS = ['gmail.com', 'empresa.com']; // Dominios permitidos
 
   constructor(
     private auth: Auth,
@@ -92,50 +95,75 @@ export class AuthService {
     );
   }
 
-  loginWithGoogle() {
+  loginWithGoogle(): Observable<UserCredential> {
     return this.zone.runOutsideAngular(() => {
       const provider = new GoogleAuthProvider();
-      // Configuración completa para evitar problemas CORS
+      
+      // Mejor configuración para evitar problemas CORS
       provider.setCustomParameters({
-        prompt: 'select_account',
-        login_hint: 'user@example.com',
-        // Opciones que mejoran compatibilidad con políticas de seguridad
-        display: 'popup'
+        prompt: 'select_account'
       });
       
-      // Usar signInWithRedirect en lugar de popup si sigues teniendo problemas
-      // return from(signInWithRedirect(this.auth, provider));
-      return from(signInWithPopup(this.auth, provider));
+      // Utiliza signInWithRedirect en navegadores móviles
+      if (this.isMobileDevice()) {
+        signInWithRedirect(this.auth, provider);
+        return from(getRedirectResult(this.auth));
+      } else {
+        return from(signInWithPopup(this.auth, provider));
+      }
     }).pipe(
       switchMap(result => {
+        if (!result) {
+          return throwError(() => new Error('No se pudo completar el inicio de sesión con Google'));
+        }
+        
         const user = result.user;
         
-        // Verificar si el usuario ya existe en nuestra base de datos
+        // Verificar dominio permitido para mayor seguridad
+        if (!this.isAllowedDomain(user.email)) {
+          return this.logout().pipe(
+            switchMap(() => throwError(() => new Error('Solo se permiten correos corporativos o dominios autorizados')))
+          );
+        }
+        
+        // Verificar si el usuario ya existe en la base de datos
         return this.getUserRole(user.uid).pipe(
           switchMap(role => {
             if (!role) {
-              // Usuario nuevo desde Google - ponerlo como pendiente
+              // Nuevo usuario: crear perfil con estado pendiente
               return this.createUserProfile(user.uid, {
+                uid: user.uid,
                 email: user.email,
                 displayName: user.displayName || user.email?.split('@')[0] || '',
                 photoURL: user.photoURL,
-                role: 'pending', // Estado pendiente
-                createdAt: new Date().toISOString()
+                role: 'pending',
+                createdAt: new Date().toISOString(),
+                authProvider: 'google'
               }).pipe(
-                map(() => {
-                  this.logout();
-                  throw new Error('Su cuenta está pendiente de aprobación por un administrador.');
-                })
+                switchMap(() => this.logout()),
+                switchMap(() => throwError(() => new Error('Su cuenta ha sido creada pero requiere aprobación por un administrador')))
               );
-            } else if (role === 'inactive' || role === 'pending') {
-              // Usuario existente pero no aprobado o inactivo
-              this.logout();
-              throw new Error('Su cuenta está pendiente de aprobación o ha sido desactivada.');
+            } else if (role === 'inactive') {
+              return this.logout().pipe(
+                switchMap(() => throwError(() => new Error('Su cuenta ha sido desactivada. Contacte al administrador')))
+              );
+            } else if (role === 'pending') {
+              return this.logout().pipe(
+                switchMap(() => throwError(() => new Error('Su cuenta está pendiente de aprobación por un administrador')))
+              );
             }
             
+            // Actualizar último acceso
+            this.updateLastLogin(user.uid);
             return of(result);
           })
         );
+      }),
+      catchError(error => {
+        if (error.code === 'auth/popup-closed-by-user') {
+          return throwError(() => new Error('Inicio de sesión cancelado por el usuario'));
+        }
+        return throwError(() => error);
       })
     );
   }
@@ -186,5 +214,27 @@ export class AuthService {
         catchError(() => of(null))
       );
     });
+  }
+
+  // Métodos auxiliares
+  private isAllowedDomain(email: string | null): boolean {
+    if (!email) return false;
+    
+    // Si no hay restricciones de dominio definidas, permitir cualquiera
+    if (this.ALLOWED_DOMAINS.length === 0) return true;
+    
+    const domain = email.split('@')[1];
+    return this.ALLOWED_DOMAINS.includes(domain);
+  }
+  
+  private isMobileDevice(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+  
+  private updateLastLogin(uid: string): void {
+    const userRef = doc(this.firestore, 'users', uid);
+    updateDoc(userRef, {
+      lastLogin: new Date().toISOString()
+    }).catch(error => console.error('Error updating last login:', error));
   }
 }

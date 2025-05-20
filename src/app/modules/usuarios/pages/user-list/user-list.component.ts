@@ -43,7 +43,7 @@ import { UserProfile } from '../../../../core/models/user.model';
     <div class="p-4 md:p-6">
       <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Gestión de Usuarios</h1>
-        <button mat-raised-button color="primary" [routerLink]="['/usuarios/nuevo']">
+        <button mat-raised-button color="primary" [routerLink]="['/auth/register']">
           <mat-icon class="mr-2">person_add</mat-icon>
           Nuevo Usuario
         </button>

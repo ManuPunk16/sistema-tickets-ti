@@ -1,95 +1,242 @@
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-  <div class="w-full max-w-md space-y-8">
-    <div class="text-center">
-      <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Crear una cuenta</h2>
-      <p class="mt-2 text-center text-sm text-gray-600">
-        Regístrate para reportar y dar seguimiento a tickets
-      </p>
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 px-4 py-12 sm:px-6 lg:px-8">
+  <div class="w-full max-w-md">
+    <!-- Logo y encabezado -->
+    <div class="text-center mb-10">
+      <div class="mx-auto h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center mb-4 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.415l.707-.708zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Crear Nueva Cuenta</h2>
+      <p class="mt-3 text-gray-600">Registro de nuevo usuario al sistema</p>
     </div>
 
-    <mat-card class="p-6">
-      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="space-y-4">
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Nombre</mat-label>
-          <input matInput formControlName="displayName" placeholder="Tu nombre">
-          <mat-icon matPrefix>person</mat-icon>
-          <mat-error *ngIf="registerForm.get('displayName')?.hasError('required')">
-            El nombre es obligatorio
-          </mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Correo electrónico</mat-label>
-          <input matInput formControlName="email" placeholder="nombre@ejemplo.com" type="email">
-          <mat-icon matPrefix>email</mat-icon>
-          <mat-error *ngIf="registerForm.get('email')?.hasError('required')">
-            El correo es obligatorio
-          </mat-error>
-          <mat-error *ngIf="registerForm.get('email')?.hasError('email')">
-            Ingrese un correo electrónico válido
-          </mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Contraseña</mat-label>
-          <input matInput formControlName="password" [type]="hidePassword ? 'password' : 'text'">
-          <mat-icon matPrefix>lock</mat-icon>
-          <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" type="button">
-            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          <mat-error *ngIf="registerForm.get('password')?.hasError('required')">
-            La contraseña es obligatoria
-          </mat-error>
-          <mat-error *ngIf="registerForm.get('password')?.hasError('minlength')">
-            La contraseña debe tener al menos 6 caracteres
-          </mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full">
-          <mat-label>Confirmar contraseña</mat-label>
-          <input matInput formControlName="confirmPassword" [type]="hideConfirmPassword ? 'password' : 'text'">
-          <mat-icon matPrefix>lock</mat-icon>
-          <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" type="button">
-            <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          <mat-error *ngIf="registerForm.get('confirmPassword')?.hasError('required')">
-            Confirme su contraseña
-          </mat-error>
-          <mat-error *ngIf="registerForm.hasError('passwordMismatch')">
-            Las contraseñas no coinciden
-          </mat-error>
-        </mat-form-field>
-
-        <div class="pt-4">
-          <button mat-raised-button color="primary" type="submit" class="w-full" [disabled]="registerForm.invalid || isLoading">
-            <div class="flex items-center justify-center">
-              <mat-spinner diameter="20" *ngIf="isLoading" class="mr-2"></mat-spinner>
-              <span>Registrarse</span>
+    <!-- Tarjeta de formulario -->
+    <div class="bg-white py-8 px-6 shadow-2xl rounded-2xl">
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="space-y-6">
+        <!-- Nombre input -->
+        <div>
+          <label for="displayName" class="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+              </svg>
             </div>
-          </button>
+            <input
+              formControlName="displayName"
+              id="displayName"
+              type="text"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="Nombre completo"
+            />
+          </div>
+          <p *ngIf="registerForm.get('displayName')?.hasError('required') && registerForm.get('displayName')?.touched" class="mt-1 text-sm text-red-600">
+            El nombre es obligatorio
+          </p>
         </div>
 
-        <div class="text-center my-2 text-gray-500">o</div>
-
-        <button mat-stroked-button (click)="loginWithGoogle()" type="button" class="w-full">
-          <div class="flex items-center justify-center">
-            <svg class="h-5 w-5 mr-2" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            Continuar con Google
+        <!-- Email input -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+              </svg>
+            </div>
+            <input
+              formControlName="email"
+              id="email"
+              type="email"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="nombre@ejemplo.com"
+            />
           </div>
-        </button>
+          <p *ngIf="registerForm.get('email')?.hasError('required') && registerForm.get('email')?.touched" class="mt-1 text-sm text-red-600">
+            El correo es obligatorio
+          </p>
+          <p *ngIf="registerForm.get('email')?.hasError('email') && registerForm.get('email')?.touched" class="mt-1 text-sm text-red-600">
+            Ingrese un correo electrónico válido
+          </p>
+        </div>
+
+        <!-- Password input -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <input
+              formControlName="password"
+              id="password"
+              [type]="hidePassword ? 'password' : 'text'"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="••••••••"
+            />
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <button
+                type="button"
+                (click)="hidePassword = !hidePassword"
+                class="text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg *ngIf="hidePassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                </svg>
+                <svg *ngIf="!hidePassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p *ngIf="registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched" class="mt-1 text-sm text-red-600">
+            La contraseña es obligatoria
+          </p>
+          <p *ngIf="registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched" class="mt-1 text-sm text-red-600">
+            La contraseña debe tener al menos 6 caracteres
+          </p>
+        </div>
+
+        <!-- Confirm Password input -->
+        <div>
+          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <input
+              formControlName="confirmPassword"
+              id="confirmPassword"
+              [type]="hideConfirmPassword ? 'password' : 'text'"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="••••••••"
+            />
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <button
+                type="button"
+                (click)="hideConfirmPassword = !hideConfirmPassword"
+                class="text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <svg *ngIf="hideConfirmPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                </svg>
+                <svg *ngIf="!hideConfirmPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p *ngIf="registerForm.get('confirmPassword')?.hasError('required') && registerForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600">
+            Confirme la contraseña
+          </p>
+          <p *ngIf="registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600">
+            Las contraseñas no coinciden
+          </p>
+        </div>
+
+        <!-- Rol select -->
+        <div>
+          <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <select
+              formControlName="role"
+              id="role"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
+            >
+              <option value="user">Usuario</option>
+              <option value="support">Soporte</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Departamento -->
+        <div>
+          <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-2-8H7v4h6V5zm2 0h1v4h-1V5zm1 6h-1v2h1v-2zm-7-1H7v4h6v-4zm8 3h1v2h-1v-2zm-8 3H7v2h6v-2zm2 0h1v2h-1v-2z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <select
+              formControlName="department"
+              id="department"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
+            >
+              <option value="">Sin departamento</option>
+              <option *ngFor="let dept of departments$ | async" [value]="dept">{{ dept }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cargo/Posición -->
+        <div>
+          <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+          <div class="relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
+                <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+              </svg>
+            </div>
+            <input
+              formControlName="position"
+              id="position"
+              type="text"
+              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="Cargo o posición"
+            />
+          </div>
+        </div>
+
+        <!-- Botón de registro -->
+        <div class="pt-2">
+          <button
+            type="submit"
+            [disabled]="registerForm.invalid || isLoading"
+            class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
+          >
+            <div *ngIf="isLoading" class="absolute left-0 inset-y-0 flex items-center pl-3">
+              <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <span>Crear cuenta</span>
+          </button>
+        </div>
       </form>
 
+      <!-- Footer -->
       <div class="mt-6 text-center text-sm">
-        ¿Ya tienes una cuenta?
-        <a [routerLink]="['/auth/login']" class="text-indigo-600 hover:text-indigo-800">
-          Inicia sesión
+        <a [routerLink]="['/usuarios']" class="text-indigo-600 hover:text-indigo-500">
+          Volver al listado de usuarios
         </a>
       </div>
-    </mat-card>
+    </div>
+
+    <!-- Información adicional -->
+    <div class="mt-8 text-center text-xs text-gray-500">
+      <p>Puede asignar diferentes roles al usuario que está registrando:</p>
+      <p class="mt-1"><strong>Usuario</strong>: Puede crear y ver sus tickets</p>
+      <p class="mt-1"><strong>Soporte</strong>: Puede gestionar tickets y dar respuesta</p>
+      <p class="mt-1"><strong>Administrador</strong>: Control total del sistema</p>
+    </div>
   </div>
 </div>

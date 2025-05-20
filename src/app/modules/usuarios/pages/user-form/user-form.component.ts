@@ -38,7 +38,7 @@ import { Observable, switchMap, tap } from 'rxjs';
         <button mat-icon-button [routerLink]="['/usuarios']" matTooltip="Volver">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        <h1 class="text-2xl font-bold ml-2">{{ isEditMode ? 'Editar' : 'Nuevo' }} Usuario</h1>
+        <h1 class="text-2xl font-bold ml-2">Editar Usuario</h1>
       </div>
 
       <mat-card>
@@ -160,36 +160,41 @@ export class UserFormComponent implements OnInit {
   ngOnInit(): void {
     this.route.params.subscribe(params => {
       const id = params['id'];
-      if (id) {
-        this.isEditMode = true;
-        this.userId = id;
-        this.loading = true;
+      if (!id) {
+        // Ya no manejamos la creación aquí, redirigir a register
+        this.router.navigate(['/auth/register']);
+        return;
+      }
+      
+      // Solo manejar la edición
+      this.isEditMode = true;
+      this.userId = id;
+      this.loading = true;
 
-        this.userService.getUserById(id).subscribe({
-          next: (user) => {
-            if (user) {
-              this.userForm.patchValue({
-                email: user.email,
-                displayName: user.displayName,
-                role: user.role,
-                department: user.department,
-                position: user.position
-              });
+      this.userService.getUserById(id).subscribe({
+        next: (user) => {
+          if (user) {
+            this.userForm.patchValue({
+              email: user.email,
+              displayName: user.displayName,
+              role: user.role,
+              department: user.department,
+              position: user.position
+            });
 
-              // Contraseña no se edita
-              this.userForm.get('password')?.disable();
-            } else {
-              this.snackBar.open('Usuario no encontrado', 'Cerrar', { duration: 3000 });
-              this.router.navigate(['/usuarios']);
-            }
-            this.loading = false;
-          },
-          error: (error) => {
-            this.snackBar.open(`Error al cargar usuario: ${error.message}`, 'Cerrar', { duration: 3000 });
+            // Contraseña no se edita
+            this.userForm.get('password')?.disable();
+          } else {
+            this.snackBar.open('Usuario no encontrado', 'Cerrar', { duration: 3000 });
             this.router.navigate(['/usuarios']);
           }
-        });
-      }
+          this.loading = false;
+        },
+        error: (error) => {
+          this.snackBar.open(`Error al cargar usuario: ${error.message}`, 'Cerrar', { duration: 3000 });
+          this.router.navigate(['/usuarios']);
+        }
+      });
     });
   }
 

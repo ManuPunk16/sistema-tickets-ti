@@ -1,16 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { PasswordMatchValidator } from '../../validators/password-match.validator';
+import { UserService } from '../../../../core/services/user.service';
+import { DepartmentService } from '../../../../core/services/department.service';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-register',
@@ -18,89 +15,125 @@ import { PasswordMatchValidator } from '../../validators/password-match.validato
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatSnackBarModule,
-    MatProgressSpinnerModule
+    RouterLink
   ],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss']
 })
-export class RegisterComponent {
+export class RegisterComponent implements OnInit {
   registerForm: FormGroup;
   isLoading = false;
   hidePassword = true;
   hideConfirmPassword = true;
+  departments$: Observable<string[]> | null = null;
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
+    private userService: UserService,
+    private departmentService: DepartmentService,
     private router: Router,
     private snackBar: MatSnackBar
   ) {
+    // Mejorar el formulario para incluir los campos departamento y cargo
     this.registerForm = this.fb.group({
       displayName: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required]]
+      confirmPassword: ['', [Validators.required]],
+      role: ['user', [Validators.required]],
+      department: [''],
+      position: ['']
     }, {
       validators: PasswordMatchValidator.match('password', 'confirmPassword')
     });
+    
+    // Cargar departamentos si está disponible el servicio
+    try {
+      this.departments$ = this.departmentService.getDepartments();
+    } catch (error) {
+      console.error('Error al cargar departamentos:', error);
+    }
   }
 
-  onSubmit() {
-    if (this.registerForm.invalid) return;
-
-    this.isLoading = true;
-    const { email, password, displayName } = this.registerForm.value;
-
-    this.authService.register(email, password, displayName).subscribe({
-      next: () => {
-        // Este bloque no se ejecutará debido a que register siempre lanza un error
-        this.snackBar.open('Registro exitoso. ¡Bienvenido!', 'Cerrar', {
+  ngOnInit(): void {
+    // Verificar si el usuario actual es admin, de lo contrario redireccionar
+    this.authService.getCurrentUser().subscribe(user => {
+      if (!user || user.role !== 'admin') {
+        this.snackBar.open('Solo administradores pueden registrar nuevos usuarios', 'Cerrar', {
           duration: 3000
         });
         this.router.navigate(['/dashboard']);
-      },
-      error: (error: Error) => { // Tipo explícito para evitar el error TS7006
-        this.isLoading = false;
-        this.snackBar.open('Registro completado: ' + error.message, 'Cerrar', {
-          duration: 5000
-        });
-        this.router.navigate(['/auth/login']);
       }
     });
   }
 
-  loginWithGoogle() {
+  onSubmit(): void {
+    if (this.registerForm.invalid) return;
+
     this.isLoading = true;
-    this.authService.loginWithGoogle().subscribe({
-      next: () => {
-        this.router.navigate(['/dashboard']);
+    const { email, password, displayName, role, department, position } = this.registerForm.value;
+
+    // Registro directo por el administrador (no pasa por estado pending)
+    this.authService.registerUser(email, password).subscribe({
+      next: (credential) => {
+        // Crear el perfil con el rol seleccionado
+        const uid = credential.user.uid;
+        this.authService.createUserProfile(uid, {
+          uid,
+          email,
+          displayName,
+          role, // El rol seleccionado por el admin
+          department: department || null,
+          position: position || null,
+          createdAt: new Date().toISOString(),
+          createdBy: 'admin'
+        }).subscribe({
+          next: () => {
+            this.snackBar.open(`Usuario ${displayName} creado exitosamente con rol de ${this.getRoleText(role)}`, 'Cerrar', {
+              duration: 5000
+            });
+            this.router.navigate(['/usuarios']);
+          },
+          error: (err) => {
+            this.handleError(err);
+          }
+        });
       },
       error: (err) => {
-        this.isLoading = false;
-        this.snackBar.open('Error al registrarse con Google: ' + this.getErrorMessage(err), 'Cerrar', {
-          duration: 5000
-        });
+        this.handleError(err);
       }
     });
   }
 
-  private getErrorMessage(error: any): string {
-    switch(error.code) {
-      case 'auth/email-already-in-use':
-        return 'La dirección de correo ya está en uso';
-      case 'auth/invalid-email':
-        return 'Email inválido';
-      case 'auth/weak-password':
-        return 'La contraseña es demasiado débil';
-      default:
-        return error.message;
+  private getRoleText(role: string): string {
+    switch (role) {
+      case 'admin': return 'Administrador';
+      case 'support': return 'Soporte';
+      case 'user': return 'Usuario';
+      default: return role;
     }
+  }
+
+  private handleError(error: any): void {
+    this.isLoading = false;
+    
+    let errorMessage = 'Ocurrió un error durante el registro';
+    
+    if (error.code === 'auth/email-already-in-use') {
+      errorMessage = 'Este correo electrónico ya está registrado';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'El correo electrónico no es válido';
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = 'La contraseña es demasiado débil';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    console.error('Error de registro:', error);
+    
+    this.snackBar.open(errorMessage, 'Cerrar', {
+      duration: 5000
+    });
   }
 }
