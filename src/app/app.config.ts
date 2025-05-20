@@ -56,21 +56,28 @@ export const appConfig: ApplicationConfig = {
       return firestore;
     }),
 
-    // Provee Auth
+    // Provee Auth con configuración mejorada
     provideAuth(() => {
       const auth = getAuth();
-      // Configurar persistencia explícita - mejorado para dispositivos móviles
-      // Aquí el `try...catch` es útil si hay problemas al establecer la persistencia
+      
+      // Configuración de persistencia optimizada
       try {
-        const persistence = isMobile() && !isIOS() ? browserLocalPersistence : indexedDBLocalPersistence;
+        // En móviles Android usar localStorage, en iOS y Desktop usar IndexedDB
+        const persistence = isMobile() && !isIOS() 
+          ? browserLocalPersistence 
+          : indexedDBLocalPersistence;
+          
         auth.setPersistence(persistence)
-          .catch(err =>
-            // Solo advertir, no detener la app si falla la persistencia
-            console.warn("Error configurando persistencia de Firebase Auth:", err)
-          );
+          .catch(err => console.warn("Error configurando persistencia:", err));
+          
+        // Configurar un observador de cambios de estado que se activa inmediatamente
+        auth.onAuthStateChanged(() => {}, (error) => {
+          console.error("Error en onAuthStateChanged:", error);
+        });
       } catch (err) {
-        console.warn("No se pudo configurar la persistencia de Firebase Auth (catch externo):", err);
+        console.warn("No se pudo configurar Firebase Auth:", err);
       }
+      
       return auth;
     }),
 

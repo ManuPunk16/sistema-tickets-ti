@@ -37,6 +37,32 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit() {
+    // Primero verificamos si hay un resultado de redirección
+    this.authService.checkRedirectResult().subscribe({
+      next: (result) => {
+        if (result) {
+          // La redirección fue exitosa y ya tenemos un usuario
+          console.log('Usuario autenticado por redirección:', result.user.email);
+          this.router.navigate(['/dashboard']);
+          return; // Importante: salir para evitar la ejecución del resto del código
+        }
+        
+        // Continuar con la lógica normal cuando no hay resultado de redirección
+        this.continueInitialization();
+      },
+      error: (err) => {
+        console.error('Error al procesar resultado de redirección:', err);
+        this.snackBar.open(this.getErrorMessage(err), 'Cerrar', {
+          duration: 6000
+        });
+        // Continuar con la inicialización normal
+        this.continueInitialization();
+      }
+    });
+  }
+
+  // Método auxiliar para continuar la inicialización después de verificar redirección
+  private continueInitialization() {
     // Verificar si el usuario ya está autenticado
     if (this.authService.isLoggedIn()) {
       this.router.navigate(['/dashboard']);
