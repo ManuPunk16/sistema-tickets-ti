@@ -12,7 +12,7 @@ export const AUTH_ROUTES: Routes = [
   { 
     path: 'register', 
     component: RegisterComponent,
-    canActivate: [AdminGuard]  // Solo admins pueden acceder a la página de registro
+    canActivate: [AdminGuard]  // Asegura que solo administradores accedan
   },
   { 
     path: 'forgot-password', 

@@ -7,7 +7,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { PasswordMatchValidator } from '../../validators/password-match.validator';
 import { UserService } from '../../../../core/services/user.service';
 import { DepartmentService } from '../../../../core/services/department.service';
+import { NavbarComponent } from '../../../../shared/components/navbar/navbar.component';
 import { Observable } from 'rxjs';
+import { UserProfile } from '../../../../core/models/user.model';
 
 @Component({
   selector: 'app-register',
@@ -15,7 +17,8 @@ import { Observable } from 'rxjs';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink
+    RouterLink,
+    NavbarComponent
   ],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss']
@@ -26,6 +29,7 @@ export class RegisterComponent implements OnInit {
   hidePassword = true;
   hideConfirmPassword = true;
   departments$: Observable<string[]> | null = null;
+  currentUser$: Observable<UserProfile | null>;
 
   constructor(
     private fb: FormBuilder,
@@ -35,6 +39,8 @@ export class RegisterComponent implements OnInit {
     private router: Router,
     private snackBar: MatSnackBar
   ) {
+    this.currentUser$ = this.authService.getCurrentUser();
+
     // Mejorar el formulario para incluir los campos departamento y cargo
     this.registerForm = this.fb.group({
       displayName: ['', [Validators.required]],

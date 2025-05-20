@@ -1,69 +1,55 @@
-import { Injectable } from '@angular/core';
-import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
-import { Observable, map, take } from 'rxjs';
+import { inject } from '@angular/core';
+import { Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
 import { AuthService } from '../services/auth.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
 
-@Injectable({
-  providedIn: 'root'
-})
-export class AuthorizedUserGuard implements CanActivate {
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-    private snackBar: MatSnackBar
-  ) {}
+export const AuthorizedUserGuard = async (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot
+) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
 
-  canActivate(
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ): Observable<boolean> {
-    return this.authService.getCurrentUser().pipe(
-      take(1),
-      map(user => {
-        // Permitir acceso solo a usuarios con rol válido (no pending ni inactive)
-        if (!user) {
-          this.router.navigate(['/auth/login'], { 
-            queryParams: { returnUrl: state.url }
-          });
-          return false;
+  try {
+    // Verificar si el usuario está logueado usando la propiedad sincrónica
+    if (!authService.isLoggedIn()) {
+      // Si no hay usuario autenticado, redirigir al login
+      router.navigate(['/auth/login'], {
+        queryParams: {
+          message: 'loginRequired',
+          returnUrl: state.url
         }
+      });
+      return false;
+    }
+    
+    // Obtener el perfil del usuario
+    const user = await firstValueFrom(authService.getCurrentUser());
+    
+    // Verificar si el usuario tiene un perfil válido
+    if (!user) {
+      router.navigate(['/auth/login'], {
+        queryParams: {
+          message: 'loginRequired',
+          returnUrl: state.url
+        }
+      });
+      return false;
+    }
 
-        // Verificar si el rol es válido
-        const validRoles = ['admin', 'support', 'user'];
-        // Todos los posibles roles incluyendo los no válidos
-        const allRoles = [...validRoles, 'pending', 'inactive'] as const;
-        const isValidRole = validRoles.includes(user.role as typeof allRoles[number]);
-        
-        if (!isValidRole) {
-          // Si el usuario está pendiente o inactivo
-          this.authService.logout().subscribe();
-          
-          if ((user.role as typeof allRoles[number]) === 'pending') {
-            this.snackBar.open('Su cuenta está pendiente de aprobación por un administrador', 'Cerrar', {
-              duration: 5000
-            });
-          } else {
-            this.snackBar.open('Su cuenta ha sido desactivada', 'Cerrar', {
-              duration: 5000
-            });
-          }
-          
-          return false;
-        }
-        
-        // Verificar restricción adicional de rol si existe
-        const requiredRoles = route.data['roles'] as string[];
-        if (requiredRoles && !requiredRoles.includes(user.role)) {
-          this.snackBar.open('No tiene permisos para acceder a esta sección', 'Cerrar', {
-            duration: 5000
-          });
-          this.router.navigate(['/dashboard']);
-          return false;
-        }
-        
-        return true;
-      })
-    );
+    // Verificar si el rol es válido
+    const roles = route.data['roles'] as Array<string>;
+    if (roles && roles.length > 0 && !roles.includes(user.role)) {
+      router.navigate(['/dashboard']);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error en AuthorizedUserGuard:', error);
+    router.navigate(['/auth/login'], {
+      queryParams: { message: 'sessionExpired' }
+    });
+    return false;
   }
-}
+};
