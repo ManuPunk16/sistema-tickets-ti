@@ -1,6 +1,6 @@
-import { Injectable, NgZone, inject } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import {
-  Auth,
+  Auth, // Inyectamos el servicio Auth de AngularFire
   GoogleAuthProvider,
   UserCredential,
   createUserWithEmailAndPassword,
@@ -8,16 +8,17 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  user,
   signInWithRedirect,
-  getRedirectResult,
-  onAuthStateChanged
-} from '@angular/fire/auth';
+} from '@angular/fire/auth'; // Asegúrate de importar Auth desde aquí
 import { Firestore, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
 import { Observable, from, map, of, switchMap, catchError, throwError, tap, BehaviorSubject, timeout } from 'rxjs';
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';
 import { isMobile } from '../utils/platform.utils';
+
+// Importa los observables específicos de AngularFire
+import { getRedirectResult as _getRedirectResult } from '@angular/fire/auth'; // Renombrado para evitar conflicto
+import { authState } from 'rxfire/auth'; // Importar authState de rxfire/auth
 
 @Injectable({
   providedIn: 'root'
@@ -28,116 +29,36 @@ export class AuthService {
   currentAuthUser: any = null;
   private readonly ALLOWED_DOMAINS = ['gmail.com', 'empresa.com']; // Dominios permitidos
 
-  // Añade una variable para controlar el estado de inicialización
   private authInitialized = false;
-  
+
   constructor(
-    private auth: Auth,
+    private auth: Auth, // **Inyectado de AngularFire, no del SDK nativo**
     private firestore: Firestore,
     private router: Router,
-    private zone: NgZone
+    private zone: NgZone // Sigue siendo útil para ciertas operaciones de navegación o UI
   ) {
-    // Observables para el usuario actual
-    this.user$ = user(this.auth);
-    
-    // Manejar cambio de estado de autenticación
-    onAuthStateChanged(this.auth, (firebaseUser) => {
-      this.currentAuthUser = firebaseUser;
-      if (firebaseUser) {
-        this.getUserProfile(firebaseUser.uid).subscribe(profile => {
-          this.userProfileSubject.next(profile);
-        });
-      } else {
-        this.userProfileSubject.next(null);
-      }
-    });
-    
-    // Gestionar resultado de la redirección al inicio
-    this.handleRedirectResult();
+    // Aquí usamos authState de rxfire/auth que es zone-aware
+    this.user$ = authState(this.auth);
+
+    // No necesitas llamar a nada aquí, initializeAuth se encarga.
   }
 
   // Maneja el resultado de la redirección de Google
-  private handleRedirectResult() {
-    try {
-      from(getRedirectResult(this.auth)).pipe(
-        catchError(error => {
-          console.error('Error al obtener resultado de redirección:', error);
-          return of(null);
-        })
-      ).subscribe(result => {
-        if (result && result.user) {
-          // Usuario autenticado por redirección
-          console.log('Usuario autenticado por redirección:', result.user.email);
-          
-          // Verificar el estado del usuario en Firestore
-          this.getUserRole(result.user.uid).pipe(
-            switchMap(role => {
-              if (!role) {
-                // Nuevo usuario: crear perfil con estado pendiente
-                return this.createUserProfile(result.user.uid, {
-                  uid: result.user.uid,
-                  email: result.user.email,
-                  displayName: result.user.displayName || result.user.email?.split('@')[0] || '',
-                  photoURL: result.user.photoURL,
-                  role: 'pending',
-                  createdAt: new Date().toISOString(),
-                  authProvider: 'google'
-                }).pipe(
-                  tap(() => {
-                    // Cerrar sesión y mostrar mensaje
-                    this.logout().subscribe(() => {
-                      // Usar zone.run para asegurar que Angular detecte los cambios
-                      this.zone.run(() => {
-                        this.router.navigate(['/auth/login'], { 
-                          queryParams: { message: 'pendingApproval' } 
-                        });
-                      });
-                    });
-                  })
-                );
-              } else if (role === 'inactive') {
-                // Usuario inactivo
-                return this.logout().pipe(
-                  tap(() => {
-                    this.zone.run(() => {
-                      this.router.navigate(['/auth/login'], { 
-                        queryParams: { message: 'accountInactive' } 
-                      });
-                    });
-                  })
-                );
-              } else if (role === 'pending') {
-                // Usuario pendiente
-                return this.logout().pipe(
-                  tap(() => {
-                    this.zone.run(() => {
-                      this.router.navigate(['/auth/login'], { 
-                        queryParams: { message: 'pendingApproval' } 
-                      });
-                    });
-                  })
-                );
-              } else {
-                // Usuario válido - navegar al dashboard
-                this.updateLastLogin(result.user.uid);
-                this.zone.run(() => {
-                  this.router.navigate(['/dashboard']);
-                });
-                return of(null);
-              }
-            })
-          ).subscribe();
-        }
-      });
-    } catch (error) {
-      console.error('Error al manejar la redirección:', error);
-    }
+  // Este método privado ahora es interno, llamado por initializeAuth
+  private handleRedirectResultInternal(): Observable<UserCredential | null> {
+    // Usar la función de getRedirectResult de AngularFire
+    return from(_getRedirectResult(this.auth)).pipe( // Usa el alias para getRedirectResult
+      catchError(error => {
+        console.error('Error al obtener resultado de redirección:', error);
+        return of(null);
+      })
+    );
   }
 
   getCurrentUser(): Observable<UserProfile | null> {
     return this.userProfileSubject.asObservable();
   }
-  
+
   getUserProfile(uid: string): Observable<UserProfile | null> {
     const userRef = doc(this.firestore, 'users', uid);
     return from(getDoc(userRef)).pipe(
@@ -154,7 +75,6 @@ export class AuthService {
     );
   }
 
-  // Método para registrar usuarios desde el panel de admin (retorna UserCredential)
   registerUser(email: string, password: string): Observable<UserCredential> {
     return from(createUserWithEmailAndPassword(this.auth, email, password));
   }
@@ -174,8 +94,7 @@ export class AuthService {
                 switchMap(() => throwError(() => new Error('Su cuenta está pendiente de aprobación')))
               );
             }
-            
-            // Actualizar último acceso
+
             this.updateLastLogin(credential.user.uid);
             return of(credential);
           })
@@ -184,102 +103,95 @@ export class AuthService {
     );
   }
 
-  // Método revisado para login con Google
-  loginWithGoogle(): Observable<UserCredential | null> {
-    // Usar zone.run para ejecutar dentro del contexto Angular
-    return this.zone.run(() => {
-      try {
-        const provider = new GoogleAuthProvider();
-        
-        // Mejor configuración para evitar problemas CORS
-        provider.setCustomParameters({
-          prompt: 'select_account'
-        });
-        
-        if (this.isMobileDevice()) {
-          console.log("Detectado dispositivo móvil, usando signInWithRedirect");
-          
-          // Para móviles, usamos una promesa y luego la convertimos en observable
-          // para evitar errores de zona
-          try {
-            signInWithRedirect(this.auth, provider);
-            return of(null); // Retornar null ya que la redirección ocurrirá
-          } catch (error) {
-            console.error("Error en signInWithRedirect:", error);
-            return throwError(() => error);
+loginWithGoogle(): Observable<UserCredential | null> {
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+
+    if (this.isMobileDevice()) {
+      console.log("Detectado dispositivo móvil, usando signInWithRedirect");
+      // signInWithRedirect no retorna una promesa, inicia la redirección directamente.
+      // El resultado se manejará en initializeAuth() al volver a la app.
+      return from(signInWithRedirect(this.auth, provider)).pipe(
+          map(() => null), // Ya que redirige, no hay resultado inmediato
+          catchError(error => {
+              console.error("Error en signInWithRedirect:", error);
+              return throwError(() => error);
+          })
+      );
+    } else {
+      console.log("Detectado dispositivo de escritorio, usando signInWithPopup");
+      return from(signInWithPopup(this.auth, provider)).pipe(
+        switchMap(result => {
+          if (!result) {
+            return throwError(() => new Error('No se pudo completar el inicio de sesión con Google'));
           }
-        } else {
-          // Para escritorio, usar popup (más fluido)
-          console.log("Detectado dispositivo de escritorio, usando signInWithPopup");
-          return from(signInWithPopup(this.auth, provider)).pipe(
-            switchMap(result => {
-              if (!result) {
-                return throwError(() => new Error('No se pudo completar el inicio de sesión con Google'));
-              }
-              
-              const user = result.user;
-              
-              // Verificar dominio permitido
-              if (!this.isAllowedDomain(user.email)) {
+
+          const user = result.user;
+
+          if (!this.isAllowedDomain(user.email)) {
+            return this.logout().pipe(
+              switchMap(() => throwError(() => new Error('Solo se permiten correos corporativos o dominios autorizados')))
+            );
+          }
+
+          // La lógica para crear perfil, validar rol, y manejar estados
+          // 'pending'/'inactive' es correcta aquí para signInWithPopup.
+          // Se asume que initializeAuth() (con authState) manejará esto para signInWithRedirect
+          return this.getUserRole(user.uid).pipe(
+            switchMap(role => {
+              if (!role) {
+                return this.createUserProfile(user.uid, {
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName || user.email?.split('@')[0] || '',
+                  photoURL: user.photoURL,
+                  role: 'pending',
+                  createdAt: new Date().toISOString(),
+                  authProvider: 'google'
+                }).pipe(
+                  switchMap(() => this.logout()),
+                  switchMap(() => throwError(() => new Error('Su cuenta ha sido creada pero requiere aprobación por un administrador')))
+                );
+              } else if (role === 'inactive') {
                 return this.logout().pipe(
-                  switchMap(() => throwError(() => new Error('Solo se permiten correos corporativos o dominios autorizados')))
+                  switchMap(() => throwError(() => new Error('Su cuenta ha sido desactivada. Contacte al administrador')))
+                );
+              } else if (role === 'pending') {
+                return this.logout().pipe(
+                  switchMap(() => throwError(() => new Error('Su cuenta está pendiente de aprobación por un administrador')))
                 );
               }
-              
-              // Verificar si el usuario existe y su rol
-              return this.getUserRole(user.uid).pipe(
-                switchMap(role => {
-                  if (!role) {
-                    // Nuevo usuario: crear perfil pendiente
-                    return this.createUserProfile(user.uid, {
-                      uid: user.uid,
-                      email: user.email,
-                      displayName: user.displayName || user.email?.split('@')[0] || '',
-                      photoURL: user.photoURL,
-                      role: 'pending',
-                      createdAt: new Date().toISOString(),
-                      authProvider: 'google'
-                    }).pipe(
-                      switchMap(() => this.logout()),
-                      switchMap(() => throwError(() => new Error('Su cuenta ha sido creada pero requiere aprobación por un administrador')))
-                    );
-                  } else if (role === 'inactive') {
-                    return this.logout().pipe(
-                      switchMap(() => throwError(() => new Error('Su cuenta ha sido desactivada. Contacte al administrador')))
-                    );
-                  } else if (role === 'pending') {
-                    return this.logout().pipe(
-                      switchMap(() => throwError(() => new Error('Su cuenta está pendiente de aprobación por un administrador')))
-                    );
-                  }
-                  
-                  // Actualizar último acceso
-                  this.updateLastLogin(user.uid);
-                  return of(result);
-                })
-              );
-            }),
-            catchError(error => {
-              console.error("Error en signInWithPopup:", error);
-              if (error.code === 'auth/popup-closed-by-user') {
-                return throwError(() => new Error('Inicio de sesión cancelado por el usuario'));
-              }
-              return throwError(() => error);
+
+              this.updateLastLogin(user.uid);
+              return of(result);
             })
           );
-        }
-      } catch (error) {
-        console.error("Error general en loginWithGoogle:", error);
-        return throwError(() => error);
-      }
-    });
+        }),
+        catchError(error => {
+          console.error("Error en signInWithPopup:", error);
+          if (error.code === 'auth/popup-closed-by-user') {
+            return throwError(() => new Error('Inicio de sesión cancelado por el usuario'));
+          }
+          return throwError(() => error);
+        })
+      );
+    }
+  } catch (error) {
+    console.error("Error general en loginWithGoogle:", error);
+    return throwError(() => error);
   }
+}
 
   logout() {
     this.userProfileSubject.next(null);
     return from(signOut(this.auth)).pipe(
       tap(() => {
-        this.router.navigate(['/auth/login']);
+        this.zone.run(() => { // Asegúrate de que la navegación esté en la zona
+          this.router.navigate(['/auth/login']);
+        });
       })
     );
   }
@@ -304,23 +216,17 @@ export class AuthService {
     }));
   }
 
-  // Método auxiliar para detectar dispositivos móviles
   private isMobileDevice(): boolean {
     return isMobile();
   }
 
-  // Método auxiliar para verificar dominios permitidos
   private isAllowedDomain(email: string | null): boolean {
     if (!email) return false;
-    
-    // Si no hay restricciones de dominio definidas, permitir cualquiera
     if (this.ALLOWED_DOMAINS.length === 0) return true;
-    
     const domain = email.split('@')[1];
     return this.ALLOWED_DOMAINS.includes(domain);
   }
 
-  // Método para obtener el rol del usuario
   private getUserRole(uid: string): Observable<string | null> {
     const userRef = doc(this.firestore, 'users', uid);
     return from(getDoc(userRef)).pipe(
@@ -334,7 +240,6 @@ export class AuthService {
     );
   }
 
-  // Método para actualizar el último acceso
   private updateLastLogin(uid: string): void {
     const userRef = doc(this.firestore, 'users', uid);
     updateDoc(userRef, {
@@ -342,68 +247,57 @@ export class AuthService {
     }).catch(error => console.error('Error updating last login:', error));
   }
 
-  // Verificar si el usuario está autenticado
   isLoggedIn(): boolean {
     return !!this.currentAuthUser;
   }
 
-  // Método para manejar la inicialización de autenticación
   initializeAuth(): Observable<void> {
-    // Si ya inicializamos, retornar inmediatamente
-    if (this.authInitialized) {
-      return of(void 0);
-    }
-    
-    return new Observable<void>(observer => {
-      console.log('Iniciando autenticación...');
-      
-      // Primero intentamos recuperar cualquier resultado de redirección
-      try {
-        from(getRedirectResult(this.auth)).pipe(
-          catchError(error => {
-            console.error('Error al obtener resultado de redirección:', error);
-            return of(null);
-          })
-        ).subscribe(result => {
-          if (result && result.user) {
-            console.log('Usuario autenticado por redirección:', result.user.email);
-            // Procesar el resultado si existe
-            this.processRedirectUser(result.user);
-          }
-        });
-      } catch (error) {
-        console.error('Error general al procesar redirección:', error);
-      }
-      
-      // Luego configuramos el listener de estado de autenticación
-      const unsubscribe = onAuthStateChanged(this.auth, (firebaseUser) => {
-        console.log('Estado de autenticación detectado:', firebaseUser?.email || 'No autenticado');
-        this.currentAuthUser = firebaseUser;
-        
+  if (this.authInitialized) {
+    return of(void 0);
+  }
+
+  return new Observable<void>(observer => {
+    console.log('Iniciando autenticación...');
+
+    // Listener de estado de autenticación (onAuthStateChanged)
+    // Usamos authState de rxfire/auth, que ya es un Observable y zone-aware
+    // Este observable detectará automáticamente si un usuario se autentica
+    // ya sea por popup, email/pass o redirección.
+    const authStateSubscription = authState(this.auth).subscribe(firebaseUser => {
+      console.log('Estado de autenticación detectado:', firebaseUser?.email || 'No autenticado');
+      this.currentAuthUser = firebaseUser;
+
+      this.zone.run(() => {
         if (firebaseUser) {
-          // Usuario ya autenticado
-          this.getUserProfile(firebaseUser.uid).subscribe({
-            next: profile => {
-              // Si el perfil existe pero está inactivo o pendiente, hacer logout
-              if (profile && (profile.role === 'inactive' || profile.role === 'pending')) {
-                this.logout().subscribe(() => {
-                  this.zone.run(() => {
-                    this.router.navigate(['/auth/login'], { 
-                      queryParams: { 
-                        message: profile.role === 'inactive' ? 'accountInactive' : 'pendingApproval' 
-                      } 
-                    });
-                  });
-                  
-                  this.authInitialized = true;
-                  observer.next();
-                  observer.complete();
-                });
-                return;
+          // Si el usuario es nuevo y viene de redirección, créale el perfil.
+          // O si ya existe, obtenlo y valida su rol.
+          this.getUserProfile(firebaseUser.uid).pipe(
+            switchMap(profile => {
+              if (!profile) { // Si no existe el perfil, significa que es un usuario nuevo (ej. por Google Auth en redirección)
+                return this.createUserProfile(firebaseUser.uid, {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+                  photoURL: firebaseUser.photoURL,
+                  role: 'pending', // O el rol por defecto que quieras asignar a nuevos usuarios
+                  createdAt: new Date().toISOString(),
+                  authProvider: firebaseUser.providerData[0]?.providerId || 'google' // Asegúrate de obtener el proveedor
+                }).pipe(
+                  switchMap(() => this.logout()), // Desloguear si es 'pending'
+                  switchMap(() => throwError(() => new Error('Su cuenta ha sido creada pero requiere aprobación por un administrador')))
+                );
+              } else if (profile.role === 'inactive' || profile.role === 'pending') {
+                return this.logout().pipe(
+                  switchMap(() => throwError(() => new Error(profile.role === 'inactive' ? 'Su cuenta ha sido desactivada. Contacte al administrador' : 'Su cuenta está pendiente de aprobación')))
+                );
               }
-              
-              // Usuario válido
+              // Si todo está bien, actualiza el último login y emite el perfil.
+              this.updateLastLogin(firebaseUser.uid);
               this.userProfileSubject.next(profile);
+              return of(profile); // Emitir el perfil para que el flujo continúe
+            })
+          ).subscribe({
+            next: () => {
               this.authInitialized = true;
               observer.next();
               observer.complete();
@@ -415,77 +309,75 @@ export class AuthService {
             }
           });
         } else {
-          // No hay usuario autenticado
           this.userProfileSubject.next(null);
           this.authInitialized = true;
           observer.next();
           observer.complete();
         }
-        
-        // No hacemos unsubscribe para mantener el listener activo
-        // y detectar cambios en la sesión mientras la aplicación está abierta
-        // unsubscribe();
-      }, error => {
-        console.error('Error durante la inicialización de Auth:', error);
-        this.authInitialized = true;
-        observer.error(error);
       });
-    }).pipe(
-      // Añadir un timeout para evitar esperas infinitas
-      timeout(10000),
-      catchError(err => {
-        console.error('Timeout o error en inicialización de autenticación:', err);
-        this.authInitialized = true;
-        return of(void 0);
-      })
-    );
-  }
-  
+    });
+
+    // IMPORTANTE: Asegúrate de desuscribirte si el servicio se destruye,
+    // aunque para un servicio `providedIn: 'root'`, esto no es común.
+    // Opcionalmente, puedes añadir:
+    // return () => {
+    //   authStateSubscription.unsubscribe();
+    // };
+  }).pipe(
+    timeout(10000),
+    catchError(err => {
+      console.error('Timeout o error en inicialización de autenticación:', err);
+      this.authInitialized = true;
+      return of(void 0);
+    })
+  );
+}
+
   // Método para procesar el usuario de redirección
-  private processRedirectUser(user: any) {
-    // Verificar si el usuario existe y su rol
-    this.getUserRole(user.uid).pipe(
-      switchMap(role => {
-        if (!role) {
-          // Nuevo usuario: crear perfil pendiente
-          return this.createUserProfile(user.uid, {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName || user.email?.split('@')[0] || '',
-            photoURL: user.photoURL,
-            role: 'pending',
-            createdAt: new Date().toISOString(),
-            authProvider: 'google'
-          }).pipe(
-            tap(() => {
-              this.logout().subscribe(() => {
-                this.zone.run(() => {
-                  this.router.navigate(['/auth/login'], { 
-                    queryParams: { message: 'pendingApproval' } 
-                  });
-                });
-              });
-            })
-          );
-        } else if (role === 'inactive' || role === 'pending') {
-          // Usuario inactivo o pendiente
-          return this.logout().pipe(
-            tap(() => {
-              this.zone.run(() => {
-                this.router.navigate(['/auth/login'], { 
-                  queryParams: { 
-                    message: role === 'inactive' ? 'accountInactive' : 'pendingApproval' 
-                  } 
-                });
-              });
-            })
-          );
-        } else {
-          // Usuario válido - actualizar último acceso
-          this.updateLastLogin(user.uid);
-          return of(null);
-        }
-      })
-    ).subscribe();
-  }
+  // private processRedirectUser(user: any) {
+  //   this.getUserRole(user.uid).pipe(
+  //     switchMap(role => {
+  //       if (!role) {
+  //         return this.createUserProfile(user.uid, {
+  //           uid: user.uid,
+  //           email: user.email,
+  //           displayName: user.displayName || user.email?.split('@')[0] || '',
+  //           photoURL: user.photoURL,
+  //           role: 'pending',
+  //           createdAt: new Date().toISOString(),
+  //           authProvider: 'google'
+  //         }).pipe(
+  //           tap(() => {
+  //             this.logout().subscribe(() => {
+  //               this.zone.run(() => {
+  //                 this.router.navigate(['/auth/login'], {
+  //                   queryParams: { message: 'pendingApproval' }
+  //                 });
+  //               });
+  //             });
+  //           })
+  //         );
+  //       } else if (role === 'inactive' || role === 'pending') {
+  //         return this.logout().pipe(
+  //           tap(() => {
+  //             this.zone.run(() => {
+  //               this.router.navigate(['/auth/login'], {
+  //                 queryParams: {
+  //                   message: role === 'inactive' ? 'accountInactive' : 'pendingApproval'
+  //                 }
+  //               });
+  //             });
+  //           })
+  //         );
+  //       } else {
+  //         this.updateLastLogin(user.uid);
+  //         // Asegúrate de que la navegación si es necesaria esté dentro de zone.run
+  //         this.zone.run(() => {
+  //           this.router.navigate(['/dashboard']);
+  //         });
+  //         return of(null);
+  //       }
+  //     })
+  //   ).subscribe();
+  // }
 }

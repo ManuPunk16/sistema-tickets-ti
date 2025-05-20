@@ -4,25 +4,25 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 
 import { routes } from './app.routes';
-import { 
-  initializeApp, 
+import {
+  initializeApp,
   provideFirebaseApp
 } from '@angular/fire/app';
-import { 
-  getFirestore, 
+import {
+  getFirestore,
   provideFirestore,
-  connectFirestoreEmulator,
+  // connectFirestoreEmulator, // Solo si usas emuladores
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager
+  // persistentMultipleTabManager // Solo si necesitas soporte multi-tab
 } from '@angular/fire/firestore';
-import { 
-  getAuth, 
+import {
+  getAuth,
   provideAuth,
   browserLocalPersistence,
   indexedDBLocalPersistence,
-  initializeAuth,
-  browserSessionPersistence
+  // initializeAuth, // No necesitas esto aquí, getAuth() es suficiente
+  // browserSessionPersistence
 } from '@angular/fire/auth';
 import { getStorage, provideStorage } from '@angular/fire/storage';
 import { environment } from '../environments/environment';
@@ -38,30 +38,46 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(
       withInterceptors([authInterceptor])
     ),
+    // Provee la aplicación Firebase
     provideFirebaseApp(() => initializeApp(environment.firebase)),
+
+    // Provee Firestore
     provideFirestore(() => {
       const app = initializeApp(environment.firebase);
       // Usar configuración de caché más simple para evitar errores
+      // persistentLocalCache() es adecuado para la mayoría de los casos
       const firestore = initializeFirestore(app, {
         localCache: persistentLocalCache()
       });
-      
+      // Si usas emuladores, descomenta:
+      // if (environment.useEmulators) {
+      //   connectFirestoreEmulator(firestore, 'localhost', 8080);
+      // }
       return firestore;
     }),
+
+    // Provee Auth
     provideAuth(() => {
       const auth = getAuth();
       // Configurar persistencia explícita - mejorado para dispositivos móviles
+      // Aquí el `try...catch` es útil si hay problemas al establecer la persistencia
       try {
         const persistence = isMobile() && !isIOS() ? browserLocalPersistence : indexedDBLocalPersistence;
-        auth.setPersistence(persistence).catch(err => 
-          console.warn("Error configurando persistencia:", err)
-        );
+        auth.setPersistence(persistence)
+          .catch(err =>
+            // Solo advertir, no detener la app si falla la persistencia
+            console.warn("Error configurando persistencia de Firebase Auth:", err)
+          );
       } catch (err) {
-        console.warn("No se pudo configurar la persistencia:", err);
+        console.warn("No se pudo configurar la persistencia de Firebase Auth (catch externo):", err);
       }
       return auth;
     }),
+
+    // Provee Storage
     provideStorage(() => getStorage()),
+
+    // Importa el módulo de MatSnackBar
     importProvidersFrom(MatSnackBarModule)
   ],
 };
