@@ -61,29 +61,44 @@ export class ReportService {
    * Ejecuta una consulta a la colección de tickets con filtros de fecha
    * Función auxiliar reutilizable para todas las consultas
    */
-  private executeTicketsQuery(startDate?: Date, endDate?: Date): Observable<any[]> {
-    // Ejecutamos en contexto de inyección usando el injector directamente
+  public executeTicketsQuery(startDate?: Date, endDate?: Date): Observable<any[]> {
     return new Observable(subscriber => {
-      runInInjectionContext(this.injector, () => {
+      console.log('Iniciando consulta a Firestore');
+      const cleanup = runInInjectionContext(this.injector, () => {
         try {
           const ticketsCollection = collection(this.firestore, 'tickets');
           let ticketsQuery: Query<DocumentData> = ticketsCollection;
           
+          // Ajustar formato de fecha para consultas en Firestore
           if (startDate) {
+            console.log('Fecha inicio:', startDate.toISOString());
             ticketsQuery = query(ticketsQuery, where('createdAt', '>=', startDate.toISOString()));
           }
           
           if (endDate) {
-            ticketsQuery = query(ticketsQuery, where('createdAt', '<=', endDate.toISOString()));
+            // Ajustar la fecha de fin para incluir todo el día
+            const adjustedEndDate = new Date(endDate);
+            adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
+            adjustedEndDate.setSeconds(0, 0); // Resetear segundos y milisegundos para evitar problemas
+            console.log('Fecha fin (ajustada):', adjustedEndDate.toISOString());
+            ticketsQuery = query(ticketsQuery, where('createdAt', '<', adjustedEndDate.toISOString()));
           }
           
-          // Ahora collectionData se ejecuta dentro del contexto de inyección
-          const ticketsObservable = collectionData(ticketsQuery);
+          console.log('Query creado:', ticketsQuery);
           
-          // Nos suscribimos al resultado y lo pasamos al subscriber de nuestro Observable
+          const ticketsObservable = collectionData(ticketsQuery);
+          console.log('collectionData ejecutado correctamente');
+          
           const subscription = ticketsObservable.subscribe({
-            next: (data) => subscriber.next(data),
-            error: (err) => subscriber.error(err),
+            next: (data) => {
+              console.log(`Datos recibidos: ${data.length} documentos`);
+              // Solo enviar los datos reales, sin generar datos aleatorios
+              subscriber.next(data);
+            },
+            error: (err) => {
+              console.error('Error en consulta Firestore:', err);
+              subscriber.error(err);
+            },
             complete: () => subscriber.complete()
           });
           
@@ -92,18 +107,24 @@ export class ReportService {
             subscription.unsubscribe();
           };
         } catch (error) {
+          console.error('Error al ejecutar consulta:', error);
           subscriber.error(error);
-          subscriber.complete();
-          return undefined; // Aseguramos que la función retorne un valor en todos los casos
+          // Aseguramos que también se devuelve una función de limpieza en caso de error
+          return () => {};
         }
       });
+
+      // Devolvemos la función de limpieza cuando se desubscribe el observable
+      return cleanup;
     });
   }
 
   /**
    * Procesa los datos brutos de tickets para generar métricas generales
    */
-  private processTicketMetrics(tickets: any[]): TicketMetric {
+  public processTicketMetrics(tickets: any[]): TicketMetric {
+    console.log('Procesando datos de tickets:', tickets);
+    
     const metrics: TicketMetric = {
       totalTickets: tickets.length,
       openTickets: 0,
@@ -117,21 +138,32 @@ export class ReportService {
       resolvedLate: 0
     };
 
+    // Si no hay tickets, devolver los valores por defecto
+    if (tickets.length === 0) {
+      return metrics;
+    }
+
     let totalResolutionTime = 0;
     let resolvedCount = 0;
 
     tickets.forEach(ticket => {
+      // Usar valores por defecto si no están definidos
+      const status = ticket.status || 'nuevo';
+      const priority = ticket.priority || 'media';
+      const category = ticket.category || 'otro';
+      const department = ticket.department || 'Sin departamento';
+      
       // Contar por estado
-      metrics.ticketsByStatus[ticket.status] = (metrics.ticketsByStatus[ticket.status] || 0) + 1;
+      metrics.ticketsByStatus[status] = (metrics.ticketsByStatus[status] || 0) + 1;
       
       // Contar por prioridad
-      metrics.ticketsByPriority[ticket.priority] = (metrics.ticketsByPriority[ticket.priority] || 0) + 1;
+      metrics.ticketsByPriority[priority] = (metrics.ticketsByPriority[priority] || 0) + 1;
       
       // Contar por categoría
-      metrics.ticketsByCategory[ticket.category] = (metrics.ticketsByCategory[ticket.category] || 0) + 1;
+      metrics.ticketsByCategory[category] = (metrics.ticketsByCategory[category] || 0) + 1;
       
       // Contar por departamento
-      metrics.ticketsByDepartment[ticket.department] = (metrics.ticketsByDepartment[ticket.department] || 0) + 1;
+      metrics.ticketsByDepartment[department] = (metrics.ticketsByDepartment[department] || 0) + 1;
 
       // Calcular tiempo de resolución para tickets resueltos o cerrados
       if (ticket.status === 'resuelto' || ticket.status === 'cerrado') {
@@ -176,7 +208,7 @@ export class ReportService {
   /**
    * Procesa los datos brutos de tickets para generar métricas por usuario
    */
-  private processUserMetrics(tickets: any[]): UserMetric[] {
+  public processUserMetrics(tickets: any[]): UserMetric[] {
     const userMetrics = new Map<string, UserMetric>();
 
     tickets.forEach(ticket => {
@@ -229,7 +261,7 @@ export class ReportService {
   /**
    * Procesa los datos brutos de tickets para generar métricas por departamento
    */
-  private processDepartmentMetrics(tickets: any[]): DepartmentMetric[] {
+  public processDepartmentMetrics(tickets: any[]): DepartmentMetric[] {
     const departmentMetrics = new Map<string, DepartmentMetric>();
 
     tickets.forEach(ticket => {
@@ -279,7 +311,7 @@ export class ReportService {
   /**
    * Procesa los datos brutos de tickets para generar datos de series temporales
    */
-  private processTimeSeriesData(tickets: any[], interval: 'day' | 'week' | 'month'): TimeSeriesData {
+  public processTimeSeriesData(tickets: any[], interval: 'day' | 'week' | 'month'): TimeSeriesData {
     const timeSeriesData: TimeSeriesData = {
       created: [],
       resolved: []

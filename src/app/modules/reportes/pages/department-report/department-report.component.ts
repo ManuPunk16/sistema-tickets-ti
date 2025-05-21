@@ -299,100 +299,211 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
     const startDate = new Date(filters.startDate);
     const endDate = new Date(filters.endDate);
     
-    // Asegurarse de que la fecha de fin sea el final del día
-    endDate.setHours(23, 59, 59, 999);
+    console.log(`Generando reporte con fechas: ${startDate.toISOString()} - ${endDate.toISOString()}`);
     
     // Filtro por departamento si se ha seleccionado uno
     const selectedDepartment = filters.department || null;
     
-    // Combinar observables para obtener datos completos de departamentos
-    forkJoin({
-      departmentMetrics: this.reportService.getDepartmentMetrics(startDate, endDate),
-      ticketMetrics: this.reportService.getTicketMetrics(startDate, endDate)
-    })
-    .pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error generando informe de departamentos:', error);
-        return of({ departmentMetrics: [], ticketMetrics: null });
-      }),
-      finalize(() => {
-        this.loading = false;
-      }),
-      map(data => this.processDepartmentReport(data, selectedDepartment))
-    )
-    .subscribe({
-      next: (data) => {
-        if (data) {
-          this.reportData = data;
-          this.hasData = data.totalTickets > 0;
-        } else {
+    // Usar una única consulta y procesarla para ambos tipos de datos
+    this.reportService.executeTicketsQuery(startDate, endDate)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error generando informe de departamentos:', error);
+          this.loading = false;
+          this.hasData = false;
+          return of([]);
+        }),
+        map(tickets => {
+          // Procesar los mismos tickets para ambos tipos de métricas
+          const departmentMetrics = this.reportService.processDepartmentMetrics(tickets);
+          const ticketMetrics = this.reportService.processTicketMetrics(tickets);
+          return { departmentMetrics, ticketMetrics };
+        }),
+        finalize(() => {
+          // No establecer loading=false aquí, lo haremos en el suscriptor
+        })
+      )
+      .subscribe({
+        next: (data) => {
+          try {
+            console.log('Datos recibidos en generateReport:', data);
+            
+            // Procesar datos
+            const processedData = this.processDepartmentReport(data, selectedDepartment);
+            console.log('Datos después de procesamiento:', processedData);
+            
+            if (processedData) {
+              this.reportData = processedData;
+              this.hasData = true;
+              
+              // Imprimir datos para depuración
+              console.log('Datos a mostrar en el reporte:', this.reportData);
+              console.log('Estadísticas por departamento:', this.reportData.departmentStats);
+              console.log('Estado de hasData:', this.hasData);
+            }
+          } catch (err) {
+            console.error('Error en el procesamiento de datos:', err);
+            this.hasData = false;
+          } finally {
+            this.loading = false; // Siempre quitar el loading al final
+          }
+        },
+        error: (err) => {
+          console.error('Error en la suscripción:', err);
+          this.loading = false;
           this.hasData = false;
         }
-      }
-    });
+      });
   }
 
   private processDepartmentReport(data: any, selectedDepartment: string | null): DepartmentReport {
-    const { departmentMetrics, ticketMetrics } = data;
-    
-    // Filtrar por departamento si es necesario
-    const filteredDepartmentMetrics = selectedDepartment 
-      ? departmentMetrics.filter((dept: DepartmentMetric) => dept.department === selectedDepartment)
-      : departmentMetrics;
-    
-    // Calcular totales
-    const totalTickets = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
-      total + dept.ticketsCount, 0);
-    
-    // Calcular tickets resueltos
-    const totalResolved = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
-      total + dept.resolvedCount, 0);
-    
-    // Tasa de resolución
-    const resolutionRate = totalTickets > 0 
-      ? Math.round((totalResolved / totalTickets) * 100) 
-      : 0;
-    
-    // Tiempo promedio de resolución
-    const totalResolutionTime = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
-      total + (dept.avgResolutionTime * dept.resolvedCount), 0);
+    try {
+      const { departmentMetrics, ticketMetrics } = data;
       
-    const avgResolutionTime = totalResolved > 0 
-      ? Math.round(totalResolutionTime / totalResolved)
-      : 0;
-    
-    // Estadísticas por departamento
-    const departmentStats: DepartmentStat[] = filteredDepartmentMetrics.map((dept: DepartmentMetric) => {
-      const percentage = totalTickets > 0 
-        ? Math.round((dept.ticketsCount / totalTickets) * 100)
+      console.log('Procesando datos del reporte:');
+      console.log('- Métricas de departamentos:', departmentMetrics);
+      console.log('- Métricas de tickets:', ticketMetrics);
+      
+      // Verificar si tenemos algún dato para procesar
+      if (!departmentMetrics && (!ticketMetrics || !ticketMetrics.totalTickets)) {
+        console.log('No hay datos para procesar');
+        return {
+          totalTickets: 0,
+          avgResolutionTime: 0,
+          resolutionRate: 0,
+          departmentStats: [],
+          issueTypes: []
+        };
+      }
+      
+      // Si no hay datos en las métricas de departamentos, pero hay en ticketMetrics, crear uno
+      const deptMetricsArray = Array.isArray(departmentMetrics) ? [...departmentMetrics] : [];
+      
+      if (deptMetricsArray.length === 0 && ticketMetrics && ticketMetrics.ticketsByDepartment) {
+        // Extraer los datos de ticketMetrics
+        const departments = Object.keys(ticketMetrics.ticketsByDepartment || {});
+        
+        if (departments.length > 0) {
+          // Crear departamento genérico
+          departments.forEach(dept => {
+            deptMetricsArray.push({
+              department: dept,
+              ticketsCount: ticketMetrics.ticketsByDepartment[dept] || 0,
+              resolvedCount: 0,
+              avgResolutionTime: 0,
+              ticketsByCategory: ticketMetrics.ticketsByCategory || {},
+              ticketsByPriority: ticketMetrics.ticketsByPriority || {}
+            });
+          });
+          
+          console.log('Métricas de departamento creadas:', deptMetricsArray);
+        } else {
+          // Si no hay departamentos en ticketsByDepartment pero hay tickets, crear uno genérico
+          if (ticketMetrics.totalTickets > 0) {
+            deptMetricsArray.push({
+              department: "Sin clasificar",
+              ticketsCount: ticketMetrics.totalTickets,
+              resolvedCount: ticketMetrics.resolvedTickets || 0,
+              avgResolutionTime: ticketMetrics.avgResolutionTime || 0,
+              ticketsByCategory: ticketMetrics.ticketsByCategory || {},
+              ticketsByPriority: ticketMetrics.ticketsByPriority || {}
+            });
+            console.log('Creado departamento genérico para tickets sin departamento');
+          }
+        }
+      }
+      
+      // Filtrar por departamento si es necesario
+      const filteredDepartmentMetrics = selectedDepartment 
+        ? deptMetricsArray.filter((dept: DepartmentMetric) => dept.department === selectedDepartment)
+        : deptMetricsArray;
+      
+      console.log('Métricas de departamentos filtradas:', filteredDepartmentMetrics);
+      
+      // Calcular totales - asegurar que totalTickets sea al menos 1 si hay datos
+      const totalTickets = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+        total + dept.ticketsCount, 0) || (ticketMetrics?.totalTickets || 0);
+      
+      // Calcular tickets resueltos
+      const totalResolved = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+        total + dept.resolvedCount, 0);
+      
+      // Tasa de resolución
+      const resolutionRate = totalTickets > 0 
+        ? Math.round((totalResolved / totalTickets) * 100) 
         : 0;
       
-      const deptResolutionRate = dept.ticketsCount > 0 
-        ? Math.round((dept.resolvedCount / dept.ticketsCount) * 100)
+      // Tiempo promedio de resolución
+      const totalResolutionTime = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+        total + (dept.avgResolutionTime * dept.resolvedCount), 0);
+        
+      const avgResolutionTime = totalResolved > 0 
+        ? Math.round(totalResolutionTime / totalResolved)
         : 0;
+      
+      // Estadísticas por departamento
+      let departmentStats: DepartmentStat[] = filteredDepartmentMetrics.map((dept: DepartmentMetric) => {
+        const percentage = totalTickets > 0 
+          ? Math.round((dept.ticketsCount / totalTickets) * 100)
+          : 0;
+        
+        const deptResolutionRate = dept.ticketsCount > 0 
+          ? Math.round((dept.resolvedCount / dept.ticketsCount) * 100)
+          : 0;
+        
+        return {
+          department: dept.department,
+          ticketCount: dept.ticketsCount,
+          percentage,
+          avgResolutionTime: dept.avgResolutionTime,
+          resolutionRate: deptResolutionRate
+        };
+      }).sort((a: { ticketCount: number; }, b: { ticketCount: number; }) => b.ticketCount - a.ticketCount);
+      
+      // Calcular problemas más comunes por departamento
+      // Esto normalmente requeriría datos adicionales de tickets individuales
+      // Para una implementación real, podríamos necesitar una consulta adicional
+      const issueTypes: IssueStat[] = this.calculateMostCommonIssues(filteredDepartmentMetrics);
+      
+      // Al final, asegurémonos de que hay algún departamento para mostrar
+      if (departmentStats.length === 0 && totalTickets > 0) {
+        // Crear al menos un departamento genérico si hay tickets pero no hay stats
+        departmentStats.push({
+          department: "Sin clasificar",
+          ticketCount: totalTickets,
+          percentage: 100,
+          avgResolutionTime: avgResolutionTime,
+          resolutionRate: resolutionRate
+        });
+        
+        console.log('Stats genéricas creadas para mostrar datos:', departmentStats);
+      }
       
       return {
-        department: dept.department,
-        ticketCount: dept.ticketsCount,
-        percentage,
-        avgResolutionTime: dept.avgResolutionTime,
-        resolutionRate: deptResolutionRate
+        totalTickets: totalTickets || 0,
+        avgResolutionTime: avgResolutionTime || 0,
+        resolutionRate: resolutionRate || 0,
+        departmentStats: departmentStats || [],
+        issueTypes: issueTypes || []
       };
-    }).sort((a: { ticketCount: number; }, b: { ticketCount: number; }) => b.ticketCount - a.ticketCount);
-    
-    // Calcular problemas más comunes por departamento
-    // Esto normalmente requeriría datos adicionales de tickets individuales
-    // Para una implementación real, podríamos necesitar una consulta adicional
-    const issueTypes: IssueStat[] = this.calculateMostCommonIssues(filteredDepartmentMetrics);
-    
-    return {
-      totalTickets,
-      avgResolutionTime,
-      resolutionRate,
-      departmentStats,
-      issueTypes
-    };
+    } catch (error) {
+      console.error('Error en processDepartmentReport:', error);
+      // Devolver estructura mínima si hay error
+      return {
+        totalTickets: 1, // Si llegamos aquí es porque hay al menos un documento
+        avgResolutionTime: 0,
+        resolutionRate: 0,
+        departmentStats: [{
+          department: "Error en procesamiento",
+          ticketCount: 1,
+          percentage: 100,
+          avgResolutionTime: 0,
+          resolutionRate: 0
+        }],
+        issueTypes: []
+      };
+    }
   }
   
   private calculateMostCommonIssues(deptMetrics: DepartmentMetric[]): IssueStat[] {
