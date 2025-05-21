@@ -15,7 +15,7 @@ import {
   Timestamp,
   serverTimestamp
 } from '@angular/fire/firestore';
-import { Observable, from, map, switchMap } from 'rxjs';
+import { Observable, from, map, switchMap, forkJoin, of } from 'rxjs';
 import { Ticket, TicketComment, TicketStatus } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 import { Storage, deleteObject, getDownloadURL, ref, uploadBytes } from '@angular/fire/storage';
@@ -197,5 +197,63 @@ export class TicketService {
   deleteAttachment(url: string): Observable<void> {
     const fileRef = ref(this.storage, url);
     return from(deleteObject(fileRef));
+  }
+
+  /**
+   * Sube múltiples archivos y devuelve un array con las URLs resultantes
+   * @param ticketId ID del ticket al que pertenecen los archivos
+   * @param files Archivos a subir
+   * @returns Observable con el array de URLs de los archivos subidos
+   */
+  uploadFiles(ticketId: string, files: File[]): Observable<string[]> {
+    if (!files || files.length === 0) {
+      return of([]);
+    }
+
+    // Convertir cada promesa de subida de archivo en un observable
+    const uploads$ = files.map(file => {
+      return from(this.uploadAttachment(ticketId, file));
+    });
+
+    // Combinar todos los observables y devolver un array con las URLs
+    return forkJoin(uploads$);
+  }
+
+  /**
+   * Añade un comentario con archivos adjuntos
+   * @param ticketId ID del ticket donde se añade el comentario
+   * @param comment Texto del comentario
+   * @param attachmentUrls Array de URLs de los archivos adjuntos
+   * @returns Observable de void
+   */
+  addCommentWithAttachments(ticketId: string, comment: string, attachmentUrls: string[]): Observable<void> {
+    return this.authService.getCurrentUser().pipe(
+      switchMap(user => {
+        if (!user) throw new Error('Usuario no autenticado');
+
+        return this.getTicketById(ticketId).pipe(
+          switchMap(ticket => {
+            if (!ticket) throw new Error('Ticket no encontrado');
+
+            const ticketRef = doc(this.firestore, `tickets/${ticketId}`);
+            const comments = ticket.comments || [];
+            const newComment: TicketComment = {
+              text: comment,
+              createdBy: user.uid,
+              createdByName: user.displayName || user.email || 'Usuario',
+              createdAt: new Date().toISOString(),
+              attachments: attachmentUrls
+            };
+
+            comments.push(newComment);
+
+            return from(updateDoc(ticketRef, {
+              comments,
+              updatedAt: new Date().toISOString()
+            }));
+          })
+        );
+      })
+    );
   }
 }

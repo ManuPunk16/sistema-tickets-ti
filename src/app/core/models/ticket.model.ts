@@ -11,6 +11,13 @@ export interface TicketComment {
   attachments?: string[]; // URLs de archivos adjuntos
 }
 
+export interface UserProfileSummary {
+  uid: string;
+  displayName: string;  // Eliminamos el opcional para simplificar
+  email: string;        // Eliminamos el opcional para simplificar
+  photoURL: string | null;  // Permitimos null explícitamente
+}
+
 export interface Ticket {
   id: string;
   title: string;
@@ -32,4 +39,7 @@ export interface Ticket {
   comments?: TicketComment[];
   attachments?: string[]; // URLs de archivos adjuntos
   statusNote?: string;
+  // Propiedades extendidas para acceso más conveniente en los templates
+  createdByUser?: UserProfileSummary;
+  assignedUser?: UserProfileSummary;
 }
