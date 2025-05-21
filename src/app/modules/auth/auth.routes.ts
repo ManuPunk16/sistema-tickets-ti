@@ -1,22 +1,25 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login.component';
-import { RegisterComponent } from './pages/register/register.component';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
+import { RegisterComponent } from './pages/register/register.component';
 import { AdminGuard } from '../../core/guards/admin.guard';
+import { AuthRedirectGuard } from '../../core/guards/auth-redirect.guard';
 
 export const AUTH_ROUTES: Routes = [
   { 
     path: 'login', 
-    component: LoginComponent 
+    component: LoginComponent,
+    canActivate: [AuthRedirectGuard]
   },
   { 
     path: 'register', 
     component: RegisterComponent,
-    canActivate: [AdminGuard]  // Asegura que solo administradores accedan
+    canActivate: [AdminGuard]
   },
   { 
     path: 'forgot-password', 
-    component: ForgotPasswordComponent 
+    component: ForgotPasswordComponent,
+    canActivate: [AuthRedirectGuard]
   },
   { path: '', redirectTo: 'login', pathMatch: 'full' }
 ];

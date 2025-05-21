@@ -74,6 +74,11 @@ export class AuthService {
     return this.userProfileSubject.asObservable();
   }
 
+  // Añadir este método para obtener el usuario actual de forma sincrónica
+  getCurrentUserSync(): UserProfile | null {
+    return this.userProfileSubject.getValue();
+  }
+
   getUserProfile(uid: string): Observable<UserProfile | null> {
     const userRef = doc(this.firestore, 'users', uid);
     return from(getDoc(userRef)).pipe(
@@ -290,7 +295,27 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.currentAuthUser;
+    const firebaseUser = this.auth.currentUser || this.currentAuthUser;
+    const appUser = this.userProfileSubject.getValue();
+    
+    console.log('isLoggedIn check:', { 
+      firebaseUser: firebaseUser ? `${firebaseUser.email} (${firebaseUser.uid})` : 'null', 
+      appUser: appUser ? `${appUser.email} (${appUser.role})` : 'null',
+      authInitialized: this.authInitialized
+    });
+    
+    // Si no está inicializado, no podemos estar seguros
+    if (!this.authInitialized) {
+      console.log('Auth no inicializada completamente, verificando usuario de Firebase');
+      return !!firebaseUser; // Al menos verificamos si hay usuario de Firebase
+    }
+    
+    // Verificación completa cuando está inicializado
+    return !!firebaseUser && !!appUser;
+  }
+
+  isAuthInitialized(): boolean {
+    return this.authInitialized;
   }
 
   initializeAuth(): Observable<void> {

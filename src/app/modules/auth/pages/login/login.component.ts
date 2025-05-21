@@ -22,6 +22,7 @@ export class LoginComponent implements OnInit {
   loginForm: FormGroup;
   isLoading = false;
   hidePassword = true;
+  googleAuthEnabled = false; // Nueva variable para controlar si el login con Google está habilitado
 
   constructor(
     private fb: FormBuilder,
@@ -37,25 +38,53 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Primero verificamos si hay un resultado de redirección
+    console.log('Login Component: Inicializando...');
+    
+    // Asegurarse que la autenticación está completamente inicializada
+    if (!this.authService.isAuthInitialized()) {
+      console.log('Login Component: Esperando inicialización de auth...');
+      this.authService.initializeAuth().subscribe({
+        next: () => {
+          this.checkAuthAndRedirect();
+        },
+        error: (err) => {
+          console.error('Error al inicializar autenticación:', err);
+          this.continueInitialization();
+        }
+      });
+    } else {
+      this.checkAuthAndRedirect();
+    }
+  }
+
+  // Nuevo método para verificar auth y redirigir si es necesario
+  private checkAuthAndRedirect() {
+    // Verificar después de la inicialización
+    if (this.authService.isLoggedIn()) {
+      console.log('Login Component: Usuario ya autenticado, redirigiendo...');
+      this.router.navigate(['/dashboard']);
+      return;
+    }
+    
+    // Si no está autenticado, continuar con la verificación de redirección
+    this.checkRedirectResult();
+  }
+
+  // Método para verificar resultado de redirección
+  private checkRedirectResult() {
     this.authService.checkRedirectResult().subscribe({
       next: (result) => {
         if (result) {
-          // La redirección fue exitosa y ya tenemos un usuario
           console.log('Usuario autenticado por redirección:', result.user.email);
           this.router.navigate(['/dashboard']);
-          return; // Importante: salir para evitar la ejecución del resto del código
+          return;
         }
         
-        // Continuar con la lógica normal cuando no hay resultado de redirección
         this.continueInitialization();
       },
       error: (err) => {
         console.error('Error al procesar resultado de redirección:', err);
-        this.snackBar.open(this.getErrorMessage(err), 'Cerrar', {
-          duration: 6000
-        });
-        // Continuar con la inicialización normal
+        this.snackBar.open(this.getErrorMessage(err), 'Cerrar', { duration: 6000 });
         this.continueInitialization();
       }
     });
@@ -65,6 +94,7 @@ export class LoginComponent implements OnInit {
   private continueInitialization() {
     // Verificar si el usuario ya está autenticado
     if (this.authService.isLoggedIn()) {
+      console.log('Usuario ya autenticado, redirigiendo al dashboard');
       this.router.navigate(['/dashboard']);
       return;
     }
