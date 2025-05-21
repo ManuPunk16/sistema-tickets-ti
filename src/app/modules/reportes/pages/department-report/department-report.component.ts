@@ -1,21 +1,34 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatTableModule } from '@angular/material/table';
-
 import { ReportService } from '../../../../core/services/report.service';
 import { DepartmentService } from '../../../../core/services/department.service';
+import { Subject, takeUntil, finalize, catchError, of, forkJoin, map } from 'rxjs';
+import { DepartmentMetric } from '../../../../core/models/report.model';
+
+interface DepartmentReport {
+  totalTickets: number;
+  avgResolutionTime: number;
+  resolutionRate: number;
+  departmentStats: DepartmentStat[];
+  issueTypes: IssueStat[];
+}
+
+interface DepartmentStat {
+  department: string;
+  ticketCount: number;
+  percentage: number;
+  avgResolutionTime: number;
+  resolutionRate: number;
+}
+
+interface IssueStat {
+  department: string;
+  mostCommonIssue: string;
+  occurrences: number;
+  avgTimeToResolve: number;
+}
 
 @Component({
   selector: 'app-department-report',
@@ -23,222 +36,235 @@ import { DepartmentService } from '../../../../core/services/department.service'
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
-    MatProgressSpinnerModule,
-    MatDividerModule,
-    MatTableModule
+    RouterLink
   ],
   template: `
-    <div class="p-4 md:p-6">
-      <div class="flex items-center mb-6">
-        <button mat-icon-button [routerLink]="['/reportes']" matTooltip="Volver">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <h1 class="text-2xl font-bold ml-2">Reporte por Departamentos</h1>
+    <div class="p-5 bg-gray-50 min-h-screen">
+      <!-- Encabezado -->
+      <div class="flex items-center mb-8">
+        <a [routerLink]="['/reportes']" 
+           class="flex items-center justify-center h-10 w-10 rounded-full bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-500 transition-colors duration-200">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+          </svg>
+        </a>
+        <div class="ml-4">
+          <h1 class="text-3xl font-bold text-gray-800">Reporte por Departamentos</h1>
+          <p class="text-gray-600 mt-1">Análisis detallado de tickets por departamento</p>
+        </div>
       </div>
 
       <!-- Filtros -->
-      <mat-card class="mb-6">
-        <mat-card-content>
-          <form [formGroup]="filterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha de inicio</mat-label>
-              <input matInput [matDatepicker]="startPicker" formControlName="startDate">
-              <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-              <mat-datepicker #startPicker></mat-datepicker>
-            </mat-form-field>
+      <div class="bg-white rounded-xl shadow-sm p-5 mb-8 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Filtros</h2>
+        <form [formGroup]="filterForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
+            <input 
+              type="date" 
+              formControlName="startDate"
+              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+          </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha de fin</mat-label>
-              <input matInput [matDatepicker]="endPicker" formControlName="endDate">
-              <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-              <mat-datepicker #endPicker></mat-datepicker>
-            </mat-form-field>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de fin</label>
+            <input 
+              type="date" 
+              formControlName="endDate"
+              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+          </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Departamento</mat-label>
-              <mat-select formControlName="department">
-                <mat-option value="">Todos</mat-option>
-                <mat-option *ngFor="let dept of departments" [value]="dept">
-                  {{ dept }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+            <select
+              formControlName="department"
+              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
+            >
+              <option value="">Todos</option>
+              <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+            </select>
+          </div>
 
-            <div class="flex items-end">
-              <button mat-raised-button color="primary" (click)="generateReport()">
-                <mat-icon class="mr-1">analytics</mat-icon>
-                Generar Reporte
-              </button>
-            </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
+          <div class="flex items-end">
+            <button 
+              (click)="generateReport()"
+              class="w-full px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+              </svg>
+              Generar Reporte
+            </button>
+          </div>
+        </form>
+      </div>
 
       <!-- Cargando -->
-      <div *ngIf="loading" class="flex justify-center my-8">
-        <mat-spinner diameter="40"></mat-spinner>
+      <div *ngIf="loading" class="flex flex-col items-center justify-center py-16">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+        <p class="text-gray-600">Generando reporte...</p>
       </div>
 
       <!-- Contenido del Reporte -->
       <div *ngIf="!loading && hasData" class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <!-- KPIs generales -->
-          <mat-card>
-            <mat-card-content class="p-4">
-              <div class="text-center">
-                <h2 class="text-gray-500">Total Tickets</h2>
-                <p class="text-4xl font-bold">{{ reportData.totalTickets }}</p>
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Total Tickets -->
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex flex-col items-center">
+              <div class="h-14 w-14 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                  <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+                </svg>
               </div>
-            </mat-card-content>
-          </mat-card>
+              <p class="text-gray-500 font-medium mb-1">Total Tickets</p>
+              <p class="text-3xl font-bold text-gray-800">{{ reportData.totalTickets }}</p>
+            </div>
+          </div>
 
-          <mat-card>
-            <mat-card-content class="p-4">
-              <div class="text-center">
-                <h2 class="text-gray-500">Tiempo Promedio de Resolución</h2>
-                <p class="text-4xl font-bold">{{ formatTime(reportData.avgResolutionTime) }}</p>
+          <!-- Tiempo Promedio -->
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex flex-col items-center">
+              <div class="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                </svg>
               </div>
-            </mat-card-content>
-          </mat-card>
+              <p class="text-gray-500 font-medium mb-1">Tiempo Promedio</p>
+              <p class="text-3xl font-bold text-gray-800">{{ formatTime(reportData.avgResolutionTime) }}</p>
+            </div>
+          </div>
 
-          <mat-card>
-            <mat-card-content class="p-4">
-              <div class="text-center">
-                <h2 class="text-gray-500">Tasa de Resolución</h2>
-                <p class="text-4xl font-bold">{{ reportData.resolutionRate }}%</p>
+          <!-- Tasa de Resolución -->
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex flex-col items-center">
+              <div class="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
               </div>
-            </mat-card-content>
-          </mat-card>
+              <p class="text-gray-500 font-medium mb-1">Tasa de Resolución</p>
+              <p class="text-3xl font-bold text-gray-800">{{ reportData.resolutionRate }}%</p>
+            </div>
+          </div>
         </div>
 
         <!-- Tabla de departamentos -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Estadísticas por Departamento</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <table mat-table [dataSource]="reportData.departmentStats" class="w-full">
-              <!-- Department Column -->
-              <ng-container matColumnDef="department">
-                <th mat-header-cell *matHeaderCellDef>Departamento</th>
-                <td mat-cell *matCellDef="let item">{{ item.department }}</td>
-              </ng-container>
-
-              <!-- Tickets Count Column -->
-              <ng-container matColumnDef="ticketCount">
-                <th mat-header-cell *matHeaderCellDef>Tickets</th>
-                <td mat-cell *matCellDef="let item">{{ item.ticketCount }}</td>
-              </ng-container>
-
-              <!-- Percentage Column -->
-              <ng-container matColumnDef="percentage">
-                <th mat-header-cell *matHeaderCellDef>Porcentaje</th>
-                <td mat-cell *matCellDef="let item">
-                  <div class="flex items-center">
-                    <span class="mr-2">{{ item.percentage }}%</span>
-                    <div class="w-32 bg-gray-200 rounded-full h-2.5">
-                      <div class="h-2.5 rounded-full bg-blue-600" [style.width.%]="item.percentage"></div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Estadísticas por Departamento</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Porcentaje</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo Promedio</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tasa de Resolución</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr *ngFor="let item of reportData.departmentStats">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.department }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.ticketCount }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <span class="text-sm text-gray-500 mr-2">{{ item.percentage }}%</span>
+                      <div class="w-24 bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-indigo-500" [style.width.%]="item.percentage"></div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-              </ng-container>
-
-              <!-- Avg Resolution Time Column -->
-              <ng-container matColumnDef="avgResolutionTime">
-                <th mat-header-cell *matHeaderCellDef>Tiempo Promedio</th>
-                <td mat-cell *matCellDef="let item">{{ formatTime(item.avgResolutionTime) }}</td>
-              </ng-container>
-
-              <!-- Resolution Rate Column -->
-              <ng-container matColumnDef="resolutionRate">
-                <th mat-header-cell *matHeaderCellDef>Tasa de Resolución</th>
-                <td mat-cell *matCellDef="let item">{{ item.resolutionRate }}%</td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatTime(item.avgResolutionTime) }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs font-medium rounded-full"
+                          [ngClass]="{
+                            'bg-red-100 text-red-800': item.resolutionRate < 75,
+                            'bg-yellow-100 text-yellow-800': item.resolutionRate >= 75 && item.resolutionRate < 90,
+                            'bg-green-100 text-green-800': item.resolutionRate >= 90
+                          }">
+                      {{ item.resolutionRate }}%
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
             </table>
-          </mat-card-content>
-        </mat-card>
+          </div>
+        </div>
 
         <!-- Tabla de tipos de problemas -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Tipos de Problemas por Departamento</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <table mat-table [dataSource]="reportData.issueTypes" class="w-full">
-              <ng-container matColumnDef="department">
-                <th mat-header-cell *matHeaderCellDef>Departamento</th>
-                <td mat-cell *matCellDef="let item">{{ item.department }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="mostCommonIssue">
-                <th mat-header-cell *matHeaderCellDef>Problema más común</th>
-                <td mat-cell *matCellDef="let item">{{ item.mostCommonIssue }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="occurrences">
-                <th mat-header-cell *matHeaderCellDef>Ocurrencias</th>
-                <td mat-cell *matCellDef="let item">{{ item.occurrences }}</td>
-              </ng-container>
-
-              <ng-container matColumnDef="avgTimeToResolve">
-                <th mat-header-cell *matHeaderCellDef>Tiempo promedio</th>
-                <td mat-cell *matCellDef="let item">{{ formatTime(item.avgTimeToResolve) }}</td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="issueColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: issueColumns;"></tr>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Tipos de Problemas por Departamento</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Problema más común</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ocurrencias</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo promedio</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr *ngFor="let item of reportData.issueTypes">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.department }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.mostCommonIssue }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.occurrences }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatTime(item.avgTimeToResolve) }}</td>
+                </tr>
+              </tbody>
             </table>
-          </mat-card-content>
-        </mat-card>
+          </div>
+        </div>
       </div>
 
       <!-- No hay datos -->
-      <div *ngIf="!loading && !hasData" class="text-center py-8">
-        <mat-icon class="text-gray-400 text-7xl">analytics_off</mat-icon>
-        <p class="text-xl font-medium mt-4">No hay datos para mostrar</p>
-        <p class="text-gray-500 mt-2">Ajusta los filtros y genera el reporte nuevamente</p>
+      <div *ngIf="!loading && !hasData" class="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h3 class="text-xl font-medium text-gray-700 mb-2">No hay datos para mostrar</h3>
+        <p class="text-gray-500">Ajusta los filtros y genera el reporte nuevamente</p>
       </div>
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-    }
-
-    table {
-      width: 100%;
-    }
-  `]
+  styles: []
 })
-export class DepartmentReportComponent implements OnInit {
+export class DepartmentReportComponent implements OnInit, OnDestroy {
   filterForm: FormGroup;
   loading = false;
   hasData = false;
   departments: string[] = [];
-  reportData: any = {};
-  displayedColumns: string[] = ['department', 'ticketCount', 'percentage', 'avgResolutionTime', 'resolutionRate'];
-  issueColumns: string[] = ['department', 'mostCommonIssue', 'occurrences', 'avgTimeToResolve'];
+  reportData: DepartmentReport = {
+    totalTickets: 0,
+    avgResolutionTime: 0,
+    resolutionRate: 0,
+    departmentStats: [],
+    issueTypes: []
+  };
+  
+  private destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private reportService: ReportService,
     private departmentService: DepartmentService
   ) {
+    // Fechas por defecto para el filtro
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
     this.filterForm = this.fb.group({
-      startDate: [new Date(new Date().setDate(new Date().getDate() - 30))],
-      endDate: [new Date()],
+      startDate: [this.formatDateForInput(thirtyDaysAgo)],
+      endDate: [this.formatDateForInput(today)],
       department: ['']
     });
   }
@@ -247,22 +273,173 @@ export class DepartmentReportComponent implements OnInit {
     this.loadDepartments();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   loadDepartments(): void {
-    this.departmentService.getDepartments().subscribe(depts => {
-      this.departments = depts;
-    });
+    this.departmentService.getDepartments()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (depts) => {
+          this.departments = depts;
+        },
+        error: (error) => {
+          console.error('Error cargando departamentos:', error);
+        }
+      });
   }
 
   generateReport(): void {
     this.loading = true;
+    this.hasData = false;
+    
     const filters = this.filterForm.value;
+    const startDate = new Date(filters.startDate);
+    const endDate = new Date(filters.endDate);
+    
+    // Asegurarse de que la fecha de fin sea el final del día
+    endDate.setHours(23, 59, 59, 999);
+    
+    // Filtro por departamento si se ha seleccionado uno
+    const selectedDepartment = filters.department || null;
+    
+    // Combinar observables para obtener datos completos de departamentos
+    forkJoin({
+      departmentMetrics: this.reportService.getDepartmentMetrics(startDate, endDate),
+      ticketMetrics: this.reportService.getTicketMetrics(startDate, endDate)
+    })
+    .pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
+        console.error('Error generando informe de departamentos:', error);
+        return of({ departmentMetrics: [], ticketMetrics: null });
+      }),
+      finalize(() => {
+        this.loading = false;
+      }),
+      map(data => this.processDepartmentReport(data, selectedDepartment))
+    )
+    .subscribe({
+      next: (data) => {
+        if (data) {
+          this.reportData = data;
+          this.hasData = data.totalTickets > 0;
+        } else {
+          this.hasData = false;
+        }
+      }
+    });
+  }
 
-    // Simulación, en producción usaríamos reportService.getDepartmentReport(filters)
-    setTimeout(() => {
-      this.reportData = this.getMockReportData();
-      this.loading = false;
-      this.hasData = true;
-    }, 1500);
+  private processDepartmentReport(data: any, selectedDepartment: string | null): DepartmentReport {
+    const { departmentMetrics, ticketMetrics } = data;
+    
+    // Filtrar por departamento si es necesario
+    const filteredDepartmentMetrics = selectedDepartment 
+      ? departmentMetrics.filter((dept: DepartmentMetric) => dept.department === selectedDepartment)
+      : departmentMetrics;
+    
+    // Calcular totales
+    const totalTickets = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      total + dept.ticketsCount, 0);
+    
+    // Calcular tickets resueltos
+    const totalResolved = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      total + dept.resolvedCount, 0);
+    
+    // Tasa de resolución
+    const resolutionRate = totalTickets > 0 
+      ? Math.round((totalResolved / totalTickets) * 100) 
+      : 0;
+    
+    // Tiempo promedio de resolución
+    const totalResolutionTime = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      total + (dept.avgResolutionTime * dept.resolvedCount), 0);
+      
+    const avgResolutionTime = totalResolved > 0 
+      ? Math.round(totalResolutionTime / totalResolved)
+      : 0;
+    
+    // Estadísticas por departamento
+    const departmentStats: DepartmentStat[] = filteredDepartmentMetrics.map((dept: DepartmentMetric) => {
+      const percentage = totalTickets > 0 
+        ? Math.round((dept.ticketsCount / totalTickets) * 100)
+        : 0;
+      
+      const deptResolutionRate = dept.ticketsCount > 0 
+        ? Math.round((dept.resolvedCount / dept.ticketsCount) * 100)
+        : 0;
+      
+      return {
+        department: dept.department,
+        ticketCount: dept.ticketsCount,
+        percentage,
+        avgResolutionTime: dept.avgResolutionTime,
+        resolutionRate: deptResolutionRate
+      };
+    }).sort((a: { ticketCount: number; }, b: { ticketCount: number; }) => b.ticketCount - a.ticketCount);
+    
+    // Calcular problemas más comunes por departamento
+    // Esto normalmente requeriría datos adicionales de tickets individuales
+    // Para una implementación real, podríamos necesitar una consulta adicional
+    const issueTypes: IssueStat[] = this.calculateMostCommonIssues(filteredDepartmentMetrics);
+    
+    return {
+      totalTickets,
+      avgResolutionTime,
+      resolutionRate,
+      departmentStats,
+      issueTypes
+    };
+  }
+  
+  private calculateMostCommonIssues(deptMetrics: DepartmentMetric[]): IssueStat[] {
+    const result: IssueStat[] = [];
+    
+    deptMetrics.forEach(dept => {
+      // Encontrar la categoría más común
+      let mostCommonCategory = '';
+      let maxCount = 0;
+      
+      if (dept.ticketsByCategory) {
+        for (const [category, count] of Object.entries(dept.ticketsByCategory)) {
+          if (count > maxCount) {
+            mostCommonCategory = category;
+            maxCount = count;
+          }
+        }
+      }
+      
+      // Si encontramos una categoría común, agregarla al resultado
+      if (mostCommonCategory && maxCount > 0) {
+        // El tiempo promedio de resolución es una estimación
+        // En una implementación real, calcularíamos esto para cada categoría específica
+        result.push({
+          department: dept.department,
+          mostCommonIssue: this.formatCategory(mostCommonCategory),
+          occurrences: maxCount,
+          avgTimeToResolve: dept.avgResolutionTime // Esto sería más específico en implementación real
+        });
+      }
+    });
+    
+    return result;
+  }
+  
+  private formatCategory(category: string): string {
+    const map: {[key: string]: string} = {
+      'hardware': 'Problemas de Hardware',
+      'software': 'Problemas de Software',
+      'access': 'Acceso a Sistemas',
+      'network': 'Problemas de Red',
+      'email': 'Configuración de Email',
+      'printer': 'Problemas de Impresora',
+      'other': 'Otros Problemas'
+    };
+    
+    return map[category] || category;
   }
 
   formatTime(minutes: number): string {
@@ -282,29 +459,8 @@ export class DepartmentReportComponent implements OnInit {
 
     return `${days}d ${remainingHours}h ${remainingMinutes}m`;
   }
-
-  // Mock data para simular un reporte
-  private getMockReportData(): any {
-    return {
-      totalTickets: 235,
-      avgResolutionTime: 185, // minutos
-      resolutionRate: 88,
-      departmentStats: [
-        { department: 'Recursos Humanos', ticketCount: 45, percentage: 19, avgResolutionTime: 120, resolutionRate: 91 },
-        { department: 'Contabilidad', ticketCount: 32, percentage: 14, avgResolutionTime: 140, resolutionRate: 87 },
-        { department: 'Ventas', ticketCount: 65, percentage: 28, avgResolutionTime: 210, resolutionRate: 82 },
-        { department: 'Marketing', ticketCount: 28, percentage: 12, avgResolutionTime: 175, resolutionRate: 89 },
-        { department: 'Operaciones', ticketCount: 50, percentage: 21, avgResolutionTime: 220, resolutionRate: 85 },
-        { department: 'Dirección', ticketCount: 15, percentage: 6, avgResolutionTime: 95, resolutionRate: 93 }
-      ],
-      issueTypes: [
-        { department: 'Recursos Humanos', mostCommonIssue: 'Acceso a sistemas', occurrences: 18, avgTimeToResolve: 85 },
-        { department: 'Contabilidad', mostCommonIssue: 'Error en aplicación contable', occurrences: 15, avgTimeToResolve: 180 },
-        { department: 'Ventas', mostCommonIssue: 'Problemas con CRM', occurrences: 24, avgTimeToResolve: 145 },
-        { department: 'Marketing', mostCommonIssue: 'Acceso a redes sociales', occurrences: 12, avgTimeToResolve: 70 },
-        { department: 'Operaciones', mostCommonIssue: 'Fallos hardware', occurrences: 22, avgTimeToResolve: 210 },
-        { department: 'Dirección', mostCommonIssue: 'Configuración email', occurrences: 8, avgTimeToResolve: 60 }
-      ]
-    };
+  
+  formatDateForInput(date: Date): string {
+    return date.toISOString().split('T')[0];
   }
 }

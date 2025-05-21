@@ -1,237 +1,294 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatDividerModule } from '@angular/material/divider';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatInputModule } from '@angular/material/input';
-import { MatNativeDateModule } from '@angular/material/core';
-import { MatSelectModule } from '@angular/material/select';
 import { ReportService } from '../../../../core/services/report.service';
 import { TicketMetric } from '../../../../core/models/report.model';
+import { Subject, takeUntil, finalize, catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard-report',
   standalone: true,
   imports: [
     CommonModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatTabsModule,
-    MatDividerModule,
     RouterLink,
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatDatepickerModule,
-    MatInputModule,
-    MatNativeDateModule,
-    MatSelectModule
+    ReactiveFormsModule
   ],
   template: `
-    <div class="p-4 md:p-6">
-      <h1 class="text-2xl font-bold mb-6">Reportes y Estadísticas</h1>
+    <div class="p-5 bg-gray-50 min-h-screen">
+      <!-- Encabezado -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Reportes y Estadísticas</h1>
+        <p class="text-gray-600 mt-2">Vista general del rendimiento del sistema de tickets</p>
+      </div>
 
       <!-- Filtros de fechas -->
-      <mat-card class="mb-6">
-        <mat-card-content>
-          <form [formGroup]="filterForm" class="flex flex-col md:flex-row gap-4 items-end">
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha de inicio</mat-label>
-              <input matInput [matDatepicker]="startPicker" formControlName="startDate">
-              <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
-              <mat-datepicker #startPicker></mat-datepicker>
-            </mat-form-field>
+      <div class="bg-white rounded-xl shadow-sm p-5 mb-8 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Filtros</h2>
+        <form [formGroup]="filterForm" class="flex flex-col lg:flex-row gap-4 items-end">
+          <div class="w-full lg:w-1/4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
+            <div class="relative">
+              <input 
+                type="date" 
+                formControlName="startDate"
+                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+            </div>
+          </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha de fin</mat-label>
-              <input matInput [matDatepicker]="endPicker" formControlName="endDate">
-              <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
-              <mat-datepicker #endPicker></mat-datepicker>
-            </mat-form-field>
+          <div class="w-full lg:w-1/4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de fin</label>
+            <div class="relative">
+              <input 
+                type="date" 
+                formControlName="endDate"
+                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+            </div>
+          </div>
 
-            <button mat-raised-button color="primary" (click)="applyFilters()">
-              <mat-icon>filter_alt</mat-icon>
+          <div class="flex gap-3">
+            <button 
+              (click)="applyFilters()"
+              class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+              </svg>
               Aplicar filtros
             </button>
 
-            <button mat-stroked-button (click)="resetFilters()">
-              <mat-icon>clear</mat-icon>
+            <button 
+              (click)="resetFilters()"
+              class="px-5 py-2.5 rounded-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
               Limpiar
             </button>
-          </form>
-        </mat-card-content>
-      </mat-card>
+          </div>
+        </form>
+      </div>
 
       <!-- Acceso rápido a otros reportes -->
-      <div class="mb-6 flex flex-wrap gap-3">
-        <a mat-stroked-button color="primary" [routerLink]="['/reportes/rendimiento']">
-          <mat-icon>speed</mat-icon>
+      <div class="flex flex-wrap gap-3 mb-8">
+        <a 
+          [routerLink]="['/reportes/rendimiento']"
+          class="px-4 py-2.5 rounded-lg bg-white hover:bg-gray-50 text-indigo-700 border border-indigo-200 font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
           Reporte de Rendimiento
         </a>
-        <a mat-stroked-button color="primary" [routerLink]="['/reportes/departamentos']">
-          <mat-icon>business</mat-icon>
+        
+        <a 
+          [routerLink]="['/reportes/departamentos']"
+          class="px-4 py-2.5 rounded-lg bg-white hover:bg-gray-50 text-indigo-700 border border-indigo-200 font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd" />
+          </svg>
           Reporte por Departamentos
         </a>
       </div>
 
       <!-- Resumen de métricas -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <mat-card>
-          <mat-card-content>
-            <div class="text-center">
-              <h3 class="text-gray-500 text-lg">Total de Tickets</h3>
-              <p class="text-4xl font-bold">{{ metrics?.totalTickets || 0 }}</p>
-            </div>
-          </mat-card-content>
-        </mat-card>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Total tickets -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+          <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+              <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-500">Total de Tickets</p>
+            <p class="text-2xl font-bold text-gray-800">{{ metrics?.totalTickets || 0 }}</p>
+          </div>
+        </div>
 
-        <mat-card>
-          <mat-card-content>
-            <div class="text-center">
-              <h3 class="text-gray-500 text-lg">Tiempo Promedio de Resolución</h3>
-              <p class="text-4xl font-bold">{{ formatTime(metrics?.avgResolutionTime || 0) }}</p>
-            </div>
-          </mat-card-content>
-        </mat-card>
+        <!-- Tiempo promedio -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+          <div class="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-500">Tiempo Promedio</p>
+            <p class="text-2xl font-bold text-gray-800">{{ formatTime(metrics?.avgResolutionTime || 0) }}</p>
+          </div>
+        </div>
 
-        <mat-card>
-          <mat-card-content>
-            <div class="text-center">
-              <h3 class="text-gray-500 text-lg">Tasa de Resolución</h3>
-              <p class="text-4xl font-bold">{{ calculateResolutionRate(metrics) }}%</p>
-            </div>
-          </mat-card-content>
-        </mat-card>
+        <!-- Tasa de resolución -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+          <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-500">Tasa de Resolución</p>
+            <p class="text-2xl font-bold text-gray-800">{{ calculateResolutionRate(metrics) }}%</p>
+          </div>
+        </div>
 
-        <mat-card>
-          <mat-card-content>
-            <div class="text-center">
-              <h3 class="text-gray-500 text-lg">Tickets sin Resolver</h3>
-              <p class="text-4xl font-bold">{{ countUnresolvedTickets(metrics) }}</p>
-            </div>
-          </mat-card-content>
-        </mat-card>
+        <!-- Tickets sin resolver -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+          <div class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-500">Sin Resolver</p>
+            <p class="text-2xl font-bold text-gray-800">{{ countUnresolvedTickets(metrics) }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- Distribuciones -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- Distribución por Estado -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Distribución por Estado</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div *ngIf="metrics" class="p-4">
-              <div *ngFor="let item of getStatusDistribution(metrics)" class="mb-3">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Distribución por Estado</h2>
+          </div>
+          <div class="p-5">
+            <div *ngIf="metrics" class="space-y-4">
+              <div *ngFor="let item of getStatusDistribution(metrics)" class="mb-4">
                 <div class="flex justify-between mb-1">
-                  <span>{{ formatStatus(item.status) }}</span>
-                  <span>{{ item.count }} ({{ item.percentage }}%)</span>
+                  <span class="text-sm font-medium text-gray-600">{{ formatStatus(item.status) }}</span>
+                  <span class="text-sm font-semibold text-gray-800">{{ item.count }} ({{ item.percentage }}%)</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div class="h-2.5 rounded-full" [ngStyle]="{width: item.percentage + '%', backgroundColor: getStatusColor(item.status) }"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                  <div class="h-2.5 rounded-full transition-all duration-500" 
+                       [ngStyle]="{width: item.percentage + '%', backgroundColor: getStatusColor(item.status) }"></div>
                 </div>
               </div>
             </div>
-          </mat-card-content>
-        </mat-card>
+            <!-- Placeholder si no hay datos -->
+            <div *ngIf="!metrics" class="flex items-center justify-center h-60">
+              <p class="text-gray-400">Cargando datos...</p>
+            </div>
+          </div>
+        </div>
 
         <!-- Distribución por Prioridad -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Distribución por Prioridad</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div *ngIf="metrics" class="p-4">
-              <div *ngFor="let item of getPriorityDistribution(metrics)" class="mb-3">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Distribución por Prioridad</h2>
+          </div>
+          <div class="p-5">
+            <div *ngIf="metrics" class="space-y-4">
+              <div *ngFor="let item of getPriorityDistribution(metrics)" class="mb-4">
                 <div class="flex justify-between mb-1">
-                  <span>{{ formatPriority(item.priority) }}</span>
-                  <span>{{ item.count }} ({{ item.percentage }}%)</span>
+                  <span class="text-sm font-medium text-gray-600">{{ formatPriority(item.priority) }}</span>
+                  <span class="text-sm font-semibold text-gray-800">{{ item.count }} ({{ item.percentage }}%)</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div class="h-2.5 rounded-full" [ngStyle]="{width: item.percentage + '%', backgroundColor: getPriorityColor(item.priority) }"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                  <div class="h-2.5 rounded-full transition-all duration-500" 
+                       [ngStyle]="{width: item.percentage + '%', backgroundColor: getPriorityColor(item.priority) }"></div>
                 </div>
               </div>
             </div>
-          </mat-card-content>
-        </mat-card>
+            <!-- Placeholder si no hay datos -->
+            <div *ngIf="!metrics" class="flex items-center justify-center h-60">
+              <p class="text-gray-400">Cargando datos...</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Distribución por Departamentos y Categorías -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Por Departamento -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Tickets por Departamento</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div *ngIf="metrics" class="p-4">
-              <div *ngFor="let item of getDepartmentDistribution(metrics)" class="mb-3">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Tickets por Departamento</h2>
+          </div>
+          <div class="p-5">
+            <div *ngIf="metrics" class="space-y-4">
+              <div *ngFor="let item of getDepartmentDistribution(metrics)" class="mb-4">
                 <div class="flex justify-between mb-1">
-                  <span>{{ item.department }}</span>
-                  <span>{{ item.count }} ({{ item.percentage }}%)</span>
+                  <span class="text-sm font-medium text-gray-600">{{ item.department }}</span>
+                  <span class="text-sm font-semibold text-gray-800">{{ item.count }} ({{ item.percentage }}%)</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div class="h-2.5 rounded-full bg-blue-600" [ngStyle]="{width: item.percentage + '%'}"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                  <div class="h-2.5 rounded-full bg-indigo-500 transition-all duration-500" 
+                       [ngStyle]="{width: item.percentage + '%'}"></div>
                 </div>
               </div>
             </div>
-          </mat-card-content>
-        </mat-card>
+            <!-- Placeholder si no hay datos -->
+            <div *ngIf="!metrics" class="flex items-center justify-center h-60">
+              <p class="text-gray-400">Cargando datos...</p>
+            </div>
+          </div>
+        </div>
 
         <!-- Por Categoría -->
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>Tickets por Categoría</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div *ngIf="metrics" class="p-4">
-              <div *ngFor="let item of getCategoryDistribution(metrics)" class="mb-3">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-5 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800">Tickets por Categoría</h2>
+          </div>
+          <div class="p-5">
+            <div *ngIf="metrics" class="space-y-4">
+              <div *ngFor="let item of getCategoryDistribution(metrics)" class="mb-4">
                 <div class="flex justify-between mb-1">
-                  <span>{{ formatCategory(item.category) }}</span>
-                  <span>{{ item.count }} ({{ item.percentage }}%)</span>
+                  <span class="text-sm font-medium text-gray-600">{{ formatCategory(item.category) }}</span>
+                  <span class="text-sm font-semibold text-gray-800">{{ item.count }} ({{ item.percentage }}%)</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div class="h-2.5 rounded-full bg-purple-600" [ngStyle]="{width: item.percentage + '%'}"></div>
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                  <div class="h-2.5 rounded-full bg-purple-500 transition-all duration-500" 
+                       [ngStyle]="{width: item.percentage + '%'}"></div>
                 </div>
               </div>
             </div>
-          </mat-card-content>
-        </mat-card>
+            <!-- Placeholder si no hay datos -->
+            <div *ngIf="!metrics" class="flex items-center justify-center h-60">
+              <p class="text-gray-400">Cargando datos...</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-    }
-  `]
+  styles: []
 })
-export class DashboardReportComponent implements OnInit {
+
+export class DashboardReportComponent implements OnInit, OnDestroy {
   filterForm: FormGroup;
   metrics: TicketMetric | null = null;
+  loading = false;
+  
+  private destroy$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private reportService: ReportService
   ) {
     const today = new Date();
-    const thirtyDaysAgo = new Date();
+    const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
     this.filterForm = this.fb.group({
-      startDate: [thirtyDaysAgo],
-      endDate: [today]
+      startDate: [this.formatDateForInput(thirtyDaysAgo)],
+      endDate: [this.formatDateForInput(today)]
     });
   }
 
   ngOnInit(): void {
     this.loadReportData();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   applyFilters(): void {
@@ -240,25 +297,43 @@ export class DashboardReportComponent implements OnInit {
 
   resetFilters(): void {
     const today = new Date();
-    const thirtyDaysAgo = new Date();
+    const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
     this.filterForm.patchValue({
-      startDate: thirtyDaysAgo,
-      endDate: today
+      startDate: this.formatDateForInput(thirtyDaysAgo),
+      endDate: this.formatDateForInput(today)
     });
 
     this.loadReportData();
   }
 
   private loadReportData(): void {
+    this.loading = true;
     const { startDate, endDate } = this.filterForm.value;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Asegurarse de que la fecha de fin sea el final del día
+    end.setHours(23, 59, 59, 999);
 
-    this.reportService.getTicketMetrics(startDate, endDate).subscribe(
-      metrics => {
-        this.metrics = metrics;
-      }
-    );
+    this.reportService.getTicketMetrics(start, end)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error al cargar las métricas:', error);
+          return of(null);
+        }),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
+      .subscribe({
+        next: (metrics) => {
+          this.metrics = metrics;
+        }
+      });
   }
 
   formatTime(minutes: number): string {
@@ -428,5 +503,9 @@ export class DashboardReportComponent implements OnInit {
     };
 
     return map[category] || category;
+  }
+  
+  formatDateForInput(date: Date): string {
+    return date.toISOString().split('T')[0];
   }
 }
