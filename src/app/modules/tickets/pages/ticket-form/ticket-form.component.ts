@@ -152,6 +152,13 @@ export class TicketFormComponent implements OnInit {
     this.selectedFiles = files;
   }
 
+  /**
+   * Elimina un archivo de la lista de archivos seleccionados
+   */
+  removeFile(index: number): void {
+    this.selectedFiles = this.selectedFiles.filter((_, i) => i !== index);
+  }
+
   private uploadFiles(ticketId: string): void {
     // Esta función simula la carga de archivos y luego navega
     // En una implementación real, esto debería ser manejado por TicketService
