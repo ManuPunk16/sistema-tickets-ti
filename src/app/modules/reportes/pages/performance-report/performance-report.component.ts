@@ -47,31 +47,31 @@ interface ProductivityItem {
     MatSortModule
   ],
   template: `
-    <div class="p-5 bg-gray-50 min-h-screen">
+    <div class="p-3 md:p-5 bg-gray-50 min-h-screen w-full overflow-hidden">
       <!-- Encabezado -->
-      <div class="flex items-center mb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center mb-6 md:mb-8">
         <a [routerLink]="['/reportes']" 
-           class="flex items-center justify-center h-10 w-10 rounded-full bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-500 transition-colors duration-200">
+           class="flex items-center justify-center h-10 w-10 rounded-full bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-500 transition-colors duration-200 mb-4 sm:mb-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
           </svg>
         </a>
-        <div class="ml-4">
-          <h1 class="text-3xl font-bold text-gray-800">Reporte de Rendimiento</h1>
+        <div class="sm:ml-4">
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Reporte de Rendimiento</h1>
           <p class="text-gray-600 mt-1">Analiza el rendimiento de los agentes de soporte</p>
         </div>
       </div>
 
       <!-- Filtros -->
-      <div class="bg-white rounded-xl shadow-sm p-5 mb-8 border border-gray-100">
+      <div class="bg-white rounded-xl shadow-sm p-4 md:p-5 mb-6 md:mb-8 border border-gray-100">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Filtros</h2>
-        <form [formGroup]="filterForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <form [formGroup]="filterForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
             <input 
               type="date" 
               formControlName="startDate"
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
           </div>
 
@@ -80,7 +80,7 @@ interface ProductivityItem {
             <input 
               type="date" 
               formControlName="endDate"
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
           </div>
 
@@ -89,7 +89,7 @@ interface ProductivityItem {
             <div class="relative">
               <select
                 formControlName="supportAgent"
-                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
               >
                 <option value="">Todos</option>
                 <option *ngFor="let user of supportUsers" [value]="user.uid">
@@ -107,66 +107,66 @@ interface ProductivityItem {
           <div class="flex items-end">
             <button 
               (click)="generateReport()"
-              class="w-full px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+              class="w-full px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
               </svg>
-              Generar Reporte
+              <span>Generar</span>
             </button>
           </div>
         </form>
       </div>
 
       <!-- Cargando -->
-      <div *ngIf="loading" class="flex flex-col items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+      <div *ngIf="loading" class="flex flex-col items-center justify-center py-12 md:py-16">
+        <div class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
         <p class="text-gray-600">Generando reporte...</p>
       </div>
 
       <!-- Contenido del Reporte -->
-      <div *ngIf="!loading && hasData" class="space-y-6">
+      <div *ngIf="!loading && hasData" class="space-y-5 md:space-y-6">
         <!-- KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <!-- Tickets Resueltos -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Tickets Resueltos</p>
-              <p class="text-3xl font-bold text-gray-800">{{ performanceData.resolvedTickets }}</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tickets Resueltos</p>
+              <p class="text-xl md:text-3xl font-bold text-gray-800">{{ performanceData.resolvedTickets }}</p>
             </div>
           </div>
 
           <!-- Tiempo Promedio -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Tiempo Promedio</p>
-              <p class="text-3xl font-bold text-gray-800">{{ formatTime(performanceData.avgResolutionTime) }}</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tiempo Promedio</p>
+              <p class="text-xl md:text-3xl font-bold text-gray-800">{{ formatTime(performanceData.avgResolutionTime) }}</p>
             </div>
           </div>
 
           <!-- Satisfacción -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Satisfacción Cliente</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Satisfacción Cliente</p>
               <div class="flex items-center">
-                <p class="text-3xl font-bold text-gray-800">{{ performanceData.customerSatisfaction }}%</p>
+                <p class="text-xl md:text-3xl font-bold text-gray-800">{{ performanceData.customerSatisfaction }}%</p>
                 <div class="ml-2">
-                  <span class="inline-block w-3 h-3 rounded-full" 
+                  <span class="inline-block w-2.5 h-2.5 md:w-3 md:h-3 rounded-full" 
                         [ngClass]="{'bg-green-500': performanceData.customerSatisfaction >= 90, 
                                     'bg-yellow-500': performanceData.customerSatisfaction >= 75 && performanceData.customerSatisfaction < 90,
                                     'bg-red-500': performanceData.customerSatisfaction < 75}"></span>
@@ -179,17 +179,17 @@ interface ProductivityItem {
         <!-- Pestañas para datos detallados -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="border-b border-gray-100">
-            <div class="flex">
+            <div class="flex flex-nowrap overflow-x-auto hide-scrollbar">
               <button 
                 (click)="activeTab = 'resolution'"
-                class="px-6 py-4 text-sm font-medium focus:outline-none border-b-2 transition-colors"
+                class="px-3 py-3 md:px-6 md:py-4 text-xs md:text-sm font-medium focus:outline-none border-b-2 transition-colors whitespace-nowrap flex-shrink-0"
                 [ngClass]="activeTab === 'resolution' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
               >
                 Tiempo de Resolución
               </button>
               <button 
                 (click)="activeTab = 'productivity'"
-                class="px-6 py-4 text-sm font-medium focus:outline-none border-b-2 transition-colors"
+                class="px-3 py-3 md:px-6 md:py-4 text-xs md:text-sm font-medium focus:outline-none border-b-2 transition-colors whitespace-nowrap flex-shrink-0"
                 [ngClass]="activeTab === 'productivity' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
               >
                 Productividad
@@ -198,172 +198,220 @@ interface ProductivityItem {
           </div>
 
           <!-- Tab de Tiempo de Resolución -->
-          <div *ngIf="activeTab === 'resolution'" class="p-5">
-            <div class="overflow-x-auto">
-              <table mat-table [dataSource]="performanceData.resolutionTimes" matSort class="min-w-full">
-                <!-- ID Ticket Column -->
-                <ng-container matColumnDef="ticketId">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    ID Ticket 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
-                    {{ item.ticketId }}
-                  </td>
-                </ng-container>
+          <div *ngIf="activeTab === 'resolution'" class="p-3 md:p-5">
+            <!-- Visualización de tabla para pantallas medianas y grandes -->
+            <div class="hidden sm:block w-full">
+              <div class="overflow-x-auto max-w-full border rounded-lg">
+                <table mat-table [dataSource]="performanceData.resolutionTimes" matSort class="w-full">
+                  <!-- Columnas de tabla existentes -->
+                  <ng-container matColumnDef="ticketId">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[60px] md:!w-[80px]">ID</th>
+                    <td mat-cell *matCellDef="let item" class="font-medium text-indigo-600 text-xs md:text-sm">{{ item.ticketId }}</td>
+                  </ng-container>
 
-                <!-- Título Column -->
-                <ng-container matColumnDef="title">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Título 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {{ item.title }}
-                  </td>
-                </ng-container>
+                  <ng-container matColumnDef="title">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Título</th>
+                    <td mat-cell *matCellDef="let item" class="text-gray-700 text-xs md:text-sm">
+                      <div class="truncate max-w-[80px] sm:max-w-[100px] md:max-w-[200px]">{{ item.title }}</div>
+                    </td>
+                  </ng-container>
 
-                <!-- Prioridad Column -->
-                <ng-container matColumnDef="priority">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Prioridad 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs font-medium rounded-full"
-                          [ngClass]="{
-                            'bg-green-100 text-green-800': item.priority === 'Baja',
-                            'bg-blue-100 text-blue-800': item.priority === 'Media',
-                            'bg-orange-100 text-orange-800': item.priority === 'Alta',
-                            'bg-red-100 text-red-800': item.priority === 'Crítica'
-                          }">
-                      {{ item.priority }}
-                    </span>
-                  </td>
-                </ng-container>
+                  <ng-container matColumnDef="priority">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[40px] md:!w-[60px]"> 
+                      <span class="hidden sm:inline">Pri</span>
+                      <span class="inline sm:hidden">P</span>
+                    </th>
+                    <td mat-cell *matCellDef="let item">
+                      <span class="inline-block w-5 h-5 rounded-full text-[0.65rem] flex items-center justify-center font-medium"
+                            [ngClass]="{
+                              'bg-green-100 text-green-800': item.priority === 'Baja',
+                              'bg-blue-100 text-blue-800': item.priority === 'Media',
+                              'bg-orange-100 text-orange-800': item.priority === 'Alta',
+                              'bg-red-100 text-red-800': item.priority === 'Crítica'
+                            }">
+                        {{ getShortPriority(item.priority) }}
+                      </span>
+                    </td>
+                  </ng-container>
 
-                <!-- Tiempo Resolución Column -->
-                <ng-container matColumnDef="resolutionTime">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Tiempo de Resolución 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {{ formatTime(item.resolutionTime) }}
-                  </td>
-                </ng-container>
+                  <ng-container matColumnDef="resolutionTime">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[40px] md:!w-[60px]">
+                      <span class="hidden sm:inline">Tiempo</span>
+                      <span class="inline sm:hidden">T</span>
+                    </th>
+                    <td mat-cell *matCellDef="let item" class="text-gray-700 text-xs md:text-sm">
+                      {{ formatTimeShort(item.resolutionTime) }}
+                    </td>
+                  </ng-container>
 
-                <!-- Estado SLA Column -->
-                <ng-container matColumnDef="slaStatus">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Estado SLA 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs font-medium rounded-full"
-                          [ngClass]="item.slaCompliance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-                      {{ item.slaCompliance ? 'Cumplido' : 'Excedido' }}
-                    </span>
-                  </td>
-                </ng-container>
+                  <ng-container matColumnDef="slaStatus">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[40px] md:!w-[60px]">SLA</th>
+                    <td mat-cell *matCellDef="let item">
+                      <span class="inline-block w-5 h-5 rounded-full text-[0.65rem] flex items-center justify-center font-medium"
+                            [ngClass]="item.slaCompliance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                        {{ item.slaCompliance ? '✓' : '✗' }}
+                      </span>
+                    </td>
+                  </ng-container>
 
-                <tr mat-header-row *matHeaderRowDef="['ticketId', 'title', 'priority', 'resolutionTime', 'slaStatus']" class="bg-gray-50"></tr>
-                <tr mat-row *matRowDef="let row; columns: ['ticketId', 'title', 'priority', 'resolutionTime', 'slaStatus'];" 
-                    class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
-              </table>
+                  <tr mat-header-row *matHeaderRowDef="['ticketId', 'title', 'priority', 'resolutionTime', 'slaStatus']" class="bg-gray-50"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['ticketId', 'title', 'priority', 'resolutionTime', 'slaStatus'];" 
+                      class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
+                </table>
+              </div>
             </div>
 
-            <!-- Template para cuando no hay tickets resueltos -->
-            <div *ngIf="performanceData.resolutionTimes.length === 0 || 
-                        (performanceData.resolutionTimes.length === 1 && performanceData.resolutionTimes[0].ticketId === 'N/A')" 
-                 class="py-16 text-center text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <p>No hay tickets resueltos en el período seleccionado.</p>
-              <p class="mt-2 text-sm">Selecciona otro rango de fechas o espera a que los tickets actuales sean resueltos.</p>
+            <!-- Visualización de tarjetas para móviles -->
+            <div class="sm:hidden">
+              <div class="space-y-3">
+                <div *ngFor="let item of performanceData.resolutionTimes" 
+                     class="bg-white border border-gray-200 rounded-lg shadow-sm p-3 hover:bg-gray-50 transition-colors">
+                  <div class="flex justify-between items-start mb-2">
+                    <span class="font-medium text-indigo-600">{{ item.ticketId }}</span>
+                    <div>
+                      <span class="inline-block w-5 h-5 rounded-full text-[0.65rem] flex items-center justify-center font-medium"
+                           [ngClass]="{
+                             'bg-green-100 text-green-800': item.priority === 'Baja',
+                             'bg-blue-100 text-blue-800': item.priority === 'Media',
+                             'bg-orange-100 text-orange-800': item.priority === 'Alta',
+                             'bg-red-100 text-red-800': item.priority === 'Crítica'
+                           }">
+                        {{ getShortPriority(item.priority) }}
+                      </span>
+                    </div>
+                  </div>
+                  <h3 class="text-gray-900 text-sm font-medium mb-2 line-clamp-2">{{ item.title }}</h3>
+                  <div class="flex justify-between text-xs">
+                    <div class="flex items-center">
+                      <span class="text-gray-500 mr-1">Tiempo:</span>
+                      <span class="font-medium text-gray-700">{{ formatTimeShort(item.resolutionTime) }}</span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="text-gray-500 mr-1">SLA:</span>
+                      <span class="inline-block px-1.5 py-0.5 rounded-full text-xs font-medium"
+                            [ngClass]="item.slaCompliance ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                        {{ item.slaCompliance ? 'Cumplido' : 'Incumplido' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Tab de Productividad -->
-          <div *ngIf="activeTab === 'productivity'" class="p-5">
-            <div class="overflow-x-auto">
-              <!-- Mensaje especial cuando no hay datos -->
-              <div *ngIf="hasOnlyEmptyProductivityData()" class="py-10 text-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p>No hay datos de productividad para mostrar en el período seleccionado.</p>
-                <p class="mt-2 text-sm">Prueba ampliando el rango de fechas para obtener una vista más completa.</p>
+          <div *ngIf="activeTab === 'productivity'" class="p-3 md:p-5">
+            <!-- Mensaje especial cuando no hay datos -->
+            <div *ngIf="hasOnlyEmptyProductivityData()" class="py-10 md:py-16 text-center text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 md:h-12 md:w-12 mx-auto text-gray-300 mb-3 md:mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p>No hay datos de productividad para mostrar en el período seleccionado.</p>
+              <p class="mt-2 text-xs md:text-sm">Prueba ampliando el rango de fechas para obtener una vista más completa.</p>
+            </div>
+            
+            <div *ngIf="!hasOnlyEmptyProductivityData()">
+              <!-- Visualización de tabla para pantallas medianas y grandes -->
+              <div class="hidden sm:block w-full">
+                <div class="overflow-x-auto border rounded-lg">
+                  <table mat-table [dataSource]="performanceData.productivityData" matSort class="w-full">
+                    <!-- Columnas existentes -->
+                    <ng-container matColumnDef="day">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[80px]">Día</th>
+                      <td mat-cell *matCellDef="let item" class="text-xs md:text-sm font-medium text-gray-700">
+                        <div class="truncate max-w-[80px]">{{ item.day }}</div>
+                      </td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="ticketsAssigned">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[50px] md:!w-[80px]">
+                        <span class="hidden sm:inline">Asignados</span>
+                        <span class="inline sm:hidden">Asig</span>
+                      </th>
+                      <td mat-cell *matCellDef="let item" class="text-xs md:text-sm text-gray-700">{{ item.ticketsAssigned }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="ticketsResolved">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[50px] md:!w-[80px]">
+                        <span class="hidden sm:inline">Resueltos</span>
+                        <span class="inline sm:hidden">Res</span>
+                      </th>
+                      <td mat-cell *matCellDef="let item" class="text-xs md:text-sm text-gray-700">{{ item.ticketsResolved }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="avgResponseTime">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[50px] md:!w-[100px]">
+                        <span class="hidden sm:inline">T. Promedio</span>
+                        <span class="inline sm:hidden">T.P</span>
+                      </th>
+                      <td mat-cell *matCellDef="let item" class="text-xs md:text-sm text-gray-700">{{ formatTimeShort(item.avgResponseTime) }}</td>
+                    </ng-container>
+
+                    <ng-container matColumnDef="efficiency">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header class="!w-[80px] md:!w-[120px]">
+                        <span class="hidden sm:inline">Eficiencia</span>
+                        <span class="inline sm:hidden">Ef %</span>
+                      </th>
+                      <td mat-cell *matCellDef="let item">
+                        <div class="flex items-center">
+                          <span class="text-xs font-medium mr-1 w-8 md:w-10 text-right">{{ (item.ticketsResolved / item.ticketsAssigned * 100).toFixed(0) }}%</span>
+                          <div class="hidden sm:block w-12 md:w-20 bg-gray-200 rounded-full h-1.5 md:h-2 ml-1">
+                            <div class="h-1.5 md:h-2 rounded-full" 
+                                 [ngStyle]="{width: (item.ticketsResolved / item.ticketsAssigned * 100) + '%', 
+                                           backgroundColor: getEfficiencyColor(item.ticketsResolved, item.ticketsAssigned)}"></div>
+                          </div>
+                        </div>
+                      </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="['day', 'ticketsAssigned', 'ticketsResolved', 'avgResponseTime', 'efficiency']" class="bg-gray-50"></tr>
+                    <tr mat-row *matRowDef="let row; columns: ['day', 'ticketsAssigned', 'ticketsResolved', 'avgResponseTime', 'efficiency'];" 
+                        class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
+                  </table>
+                </div>
               </div>
-              <table mat-table [dataSource]="performanceData.productivityData" matSort class="min-w-full">
-                <!-- Day Column -->
-                <ng-container matColumnDef="day">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Día 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                    {{ item.day }}
-                  </td>
-                </ng-container>
 
-                <!-- Tickets Asignados Column -->
-                <ng-container matColumnDef="ticketsAssigned">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Tickets Asignados 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {{ item.ticketsAssigned }}
-                  </td>
-                </ng-container>
-
-                <!-- Tickets Resueltos Column -->
-                <ng-container matColumnDef="ticketsResolved">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Tickets Resueltos 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {{ item.ticketsResolved }}
-                  </td>
-                </ng-container>
-
-                <!-- Tiempo Promedio Column -->
-                <ng-container matColumnDef="avgResponseTime">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Tiempo Promedio 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {{ formatTime(item.avgResponseTime) }}
-                  </td>
-                </ng-container>
-
-                <!-- Eficiencia Column -->
-                <ng-container matColumnDef="efficiency">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-                    Eficiencia 
-                  </th>
-                  <td mat-cell *matCellDef="let item" class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                        <div class="h-2 rounded-full" 
-                             [ngStyle]="{width: (item.ticketsResolved / item.ticketsAssigned * 100) + '%', 
-                                        backgroundColor: getEfficiencyColor(item.ticketsResolved, item.ticketsAssigned)}"></div>
-                      </div>
-                      <span class="text-xs font-medium">{{ (item.ticketsResolved / item.ticketsAssigned * 100).toFixed(0) }}%</span>
+              <!-- Visualización de tarjetas para móviles -->
+              <div class="sm:hidden">
+                <div class="space-y-3">
+                  <div *ngFor="let item of performanceData.productivityData" 
+                       class="bg-white border border-gray-200 rounded-lg shadow-sm p-3">
+                    <div class="flex justify-between items-center mb-3">
+                      <h3 class="font-medium text-gray-900 text-sm">{{ item.day }}</h3>
+                      <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium"
+                           [ngStyle]="{backgroundColor: getEfficiencyBgColor(item.ticketsResolved, item.ticketsAssigned),
+                                      color: getEfficiencyTextColor(item.ticketsResolved, item.ticketsAssigned)}">
+                        {{ (item.ticketsResolved / item.ticketsAssigned * 100).toFixed(0) }}%
+                      </span>
                     </div>
-                  </td>
-                </ng-container>
-
-                <tr mat-header-row *matHeaderRowDef="['day', 'ticketsAssigned', 'ticketsResolved', 'avgResponseTime', 'efficiency']" class="bg-gray-50"></tr>
-                <tr mat-row *matRowDef="let row; columns: ['day', 'ticketsAssigned', 'ticketsResolved', 'avgResponseTime', 'efficiency'];" 
-                    class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
-              </table>
+                    <div class="grid grid-cols-3 gap-2 text-xs">
+                      <div class="bg-gray-50 p-2 rounded">
+                        <div class="text-gray-500 mb-1">Asignados</div>
+                        <div class="font-medium text-gray-800">{{ item.ticketsAssigned }}</div>
+                      </div>
+                      <div class="bg-gray-50 p-2 rounded">
+                        <div class="text-gray-500 mb-1">Resueltos</div>
+                        <div class="font-medium text-gray-800">{{ item.ticketsResolved }}</div>
+                      </div>
+                      <div class="bg-gray-50 p-2 rounded">
+                        <div class="text-gray-500 mb-1">Tiempo</div>
+                        <div class="font-medium text-gray-800">{{ formatTimeShort(item.avgResponseTime) }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- No hay datos -->
-      <div *ngIf="!loading && !hasData" class="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div *ngIf="!loading && !hasData" class="bg-white rounded-xl shadow-sm p-6 md:p-10 text-center border border-gray-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 mx-auto text-gray-300 mb-3 md:mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <h3 class="text-xl font-medium text-gray-700 mb-2">No hay datos para mostrar</h3>
+        <h3 class="text-lg md:text-xl font-medium text-gray-700 mb-2">No hay datos para mostrar</h3>
         <p class="text-gray-500">Ajusta los filtros y genera el reporte nuevamente</p>
       </div>
     </div>
@@ -371,19 +419,74 @@ interface ProductivityItem {
   styles: [`
     :host {
       display: block;
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
     }
     
-    /* Estilos para las tablas de Angular Material con Tailwind */
+    /* Ocultación de scrollbar pero manteniendo su funcionalidad */
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    
+    /* Estilos para las tarjetas */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    /* Estilos mejorados para tablas responsivas */
+    .mat-mdc-table {
+      width: 100%;
+      min-width: 100%;
+      box-sizing: border-box;
+      table-layout: fixed;
+    }
+    
+    /* Estilos para cabeceras de tabla */
     .mat-mdc-header-cell {
-      @apply font-medium text-gray-700 bg-gray-50 py-3;
+      @apply font-medium text-gray-700 bg-gray-50 py-1.5 px-1.5 md:py-3 md:px-4 text-xs md:text-sm;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
     
+    /* Estilos para celdas de tabla */
     .mat-mdc-cell {
-      @apply border-b border-gray-200 py-3;
+      @apply border-b border-gray-200 py-1.5 px-1.5 md:py-3 md:px-4 text-xs md:text-sm;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
     
-    tr.mat-mdc-row:hover {
-      @apply bg-gray-50;
+    /* Contenedor para scroll horizontal */
+    .overflow-x-auto {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+      border-radius: 0.5rem;
+      max-width: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .w-full, .min-w-full {
+      width: 100% !important;
+      max-width: 100%;
+    }
+    
+    /* Ajuste específico para las tablas de tickets */
+    .table-fixed {
+      table-layout: fixed;
     }
   `]
 })
@@ -836,6 +939,32 @@ export class PerformanceReportComponent implements OnInit, OnDestroy {
     return '#EF4444'; // red-500
   }
 
+  formatTimeShort(minutes: number): string {
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours}h`;
+    }
+
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+  }
+
+  getShortPriority(priority: string): string {
+    const map: {[key: string]: string} = {
+      'Baja': 'B',
+      'Media': 'M', 
+      'Alta': 'A',
+      'Crítica': 'C',
+      'N/A': '-'
+    };
+    
+    return map[priority] || priority.charAt(0);
+  }
+
   // Añadir este método a la clase
   hasOnlyEmptyProductivityData(): boolean {
     if (!this.performanceData.productivityData || this.performanceData.productivityData.length === 0) {
@@ -853,5 +982,23 @@ export class PerformanceReportComponent implements OnInit, OnDestroy {
     return this.performanceData.productivityData.every(
       item => item.ticketsAssigned === 0 && item.ticketsResolved === 0
     );
+  }
+
+  getEfficiencyBgColor(resolved: number, assigned: number): string {
+    if (assigned === 0) return '#F3F4F6'; // gray-100
+    
+    const efficiency = (resolved / assigned) * 100;
+    if (efficiency >= 90) return '#D1FAE5'; // green-100
+    if (efficiency >= 75) return '#FEF3C7'; // amber-100
+    return '#FEE2E2'; // red-100
+  }
+
+  getEfficiencyTextColor(resolved: number, assigned: number): string {
+    if (assigned === 0) return '#6B7280'; // gray-500
+    
+    const efficiency = (resolved / assigned) * 100;
+    if (efficiency >= 90) return '#047857'; // green-800
+    if (efficiency >= 75) return '#92400E'; // amber-800
+    return '#B91C1C'; // red-800
   }
 }

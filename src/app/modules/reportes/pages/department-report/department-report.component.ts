@@ -39,31 +39,31 @@ interface IssueStat {
     RouterLink
   ],
   template: `
-    <div class="p-5 bg-gray-50 min-h-screen">
+    <div class="p-3 md:p-5 bg-gray-50 min-h-screen">
       <!-- Encabezado -->
-      <div class="flex items-center mb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center mb-6 md:mb-8">
         <a [routerLink]="['/reportes']" 
-           class="flex items-center justify-center h-10 w-10 rounded-full bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-500 transition-colors duration-200">
+           class="flex items-center justify-center h-10 w-10 rounded-full bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-500 transition-colors duration-200 mb-4 sm:mb-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
           </svg>
         </a>
-        <div class="ml-4">
-          <h1 class="text-3xl font-bold text-gray-800">Reporte por Departamentos</h1>
+        <div class="sm:ml-4">
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Reporte por Departamentos</h1>
           <p class="text-gray-600 mt-1">Análisis detallado de tickets por departamento</p>
         </div>
       </div>
 
       <!-- Filtros -->
-      <div class="bg-white rounded-xl shadow-sm p-5 mb-8 border border-gray-100">
+      <div class="bg-white rounded-xl shadow-sm p-4 md:p-5 mb-6 md:mb-8 border border-gray-100">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Filtros</h2>
-        <form [formGroup]="filterForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <form [formGroup]="filterForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
             <input 
               type="date" 
               formControlName="startDate"
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
           </div>
 
@@ -72,7 +72,7 @@ interface IssueStat {
             <input 
               type="date" 
               formControlName="endDate"
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
           </div>
 
@@ -80,7 +80,7 @@ interface IssueStat {
             <label class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
             <select
               formControlName="department"
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
+              class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white"
             >
               <option value="">Todos</option>
               <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
@@ -90,99 +90,101 @@ interface IssueStat {
           <div class="flex items-end">
             <button 
               (click)="generateReport()"
-              class="w-full px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
+              class="w-full px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center shadow-sm transition-colors duration-200"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
               </svg>
-              Generar Reporte
+              <span>Generar</span>
             </button>
           </div>
         </form>
       </div>
 
       <!-- Cargando -->
-      <div *ngIf="loading" class="flex flex-col items-center justify-center py-16">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+      <div *ngIf="loading" class="flex flex-col items-center justify-center py-12 md:py-16">
+        <div class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
         <p class="text-gray-600">Generando reporte...</p>
       </div>
 
       <!-- Contenido del Reporte -->
-      <div *ngIf="!loading && hasData" class="space-y-6">
+      <div *ngIf="!loading && hasData" class="space-y-5 md:space-y-6">
         <!-- KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <!-- Total Tickets -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-indigo-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
                   <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Total Tickets</p>
-              <p class="text-3xl font-bold text-gray-800">{{ reportData.totalTickets }}</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Total Tickets</p>
+              <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData.totalTickets }}</p>
             </div>
           </div>
 
           <!-- Tiempo Promedio -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-green-600" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Tiempo Promedio</p>
-              <p class="text-3xl font-bold text-gray-800">{{ formatTime(reportData.avgResolutionTime) }}</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tiempo Promedio</p>
+              <p class="text-xl md:text-3xl font-bold text-gray-800">{{ formatTime(reportData.avgResolutionTime) }}</p>
             </div>
           </div>
 
           <!-- Tasa de Resolución -->
-          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div class="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100 hover:shadow-md transition-shadow duration-300">
             <div class="flex flex-col items-center">
-              <div class="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+              <div class="h-12 w-12 md:h-14 md:w-14 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                 </svg>
               </div>
-              <p class="text-gray-500 font-medium mb-1">Tasa de Resolución</p>
-              <p class="text-3xl font-bold text-gray-800">{{ reportData.resolutionRate }}%</p>
+              <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tasa de Resolución</p>
+              <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData.resolutionRate }}%</p>
             </div>
           </div>
         </div>
 
         <!-- Tabla de departamentos -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="p-5 border-b border-gray-100">
-            <h2 class="text-lg font-semibold text-gray-800">Estadísticas por Departamento</h2>
+          <div class="p-3 md:p-5 border-b border-gray-100">
+            <h2 class="text-base md:text-lg font-semibold text-gray-800">Estadísticas por Departamento</h2>
           </div>
-          <div class="overflow-x-auto">
+          
+          <!-- Versión de tabla para pantallas medianas y grandes -->
+          <div class="hidden sm:block overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Porcentaje</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo Promedio</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tasa de Resolución</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Porcentaje</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo Promedio</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolución</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let item of reportData.departmentStats">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.department }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.ticketCount }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">{{ item.department }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{ item.ticketCount }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
                     <div class="flex items-center">
-                      <span class="text-sm text-gray-500 mr-2">{{ item.percentage }}%</span>
-                      <div class="w-24 bg-gray-200 rounded-full h-2">
-                        <div class="h-2 rounded-full bg-indigo-500" [style.width.%]="item.percentage"></div>
+                      <span class="text-xs md:text-sm text-gray-500 mr-1 md:mr-2">{{ item.percentage }}%</span>
+                      <div class="hidden md:block w-12 md:w-24 bg-gray-200 rounded-full h-1.5 md:h-2">
+                        <div class="h-1.5 md:h-2 rounded-full bg-indigo-500" [style.width.%]="item.percentage"></div>
                       </div>
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatTime(item.avgResolutionTime) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs font-medium rounded-full"
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{ formatTimeShort(item.avgResolutionTime) }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                    <span class="px-1.5 py-0.5 text-xs font-medium rounded-full"
                           [ngClass]="{
                             'bg-red-100 text-red-800': item.resolutionRate < 75,
                             'bg-yellow-100 text-yellow-800': item.resolutionRate >= 75 && item.resolutionRate < 90,
@@ -195,42 +197,94 @@ interface IssueStat {
               </tbody>
             </table>
           </div>
+          
+          <!-- Versión de tarjetas para móviles -->
+          <div class="sm:hidden">
+            <div class="divide-y divide-gray-200">
+              <div *ngFor="let item of reportData.departmentStats" class="p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="font-medium text-gray-900">{{ item.department }}</h3>
+                  <span class="px-1.5 py-0.5 text-xs font-medium rounded-full"
+                        [ngClass]="{
+                          'bg-red-100 text-red-800': item.resolutionRate < 75,
+                          'bg-yellow-100 text-yellow-800': item.resolutionRate >= 75 && item.resolutionRate < 90,
+                          'bg-green-100 text-green-800': item.resolutionRate >= 90
+                        }">
+                    {{ item.resolutionRate }}%
+                  </span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">Tickets</div>
+                    <div class="font-medium">{{ item.ticketCount }}</div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">Tiempo</div>
+                    <div class="font-medium">{{ formatTimeShort(item.avgResolutionTime) }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full bg-indigo-500" [style.width.%]="item.percentage"></div>
+                  <div class="text-xs text-right mt-1 text-gray-500">{{ item.percentage }}% del total</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Tabla de tipos de problemas -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="p-5 border-b border-gray-100">
-            <h2 class="text-lg font-semibold text-gray-800">Tipos de Problemas por Departamento</h2>
+          <div class="p-3 md:p-5 border-b border-gray-100">
+            <h2 class="text-base md:text-lg font-semibold text-gray-800">Tipos de Problemas por Departamento</h2>
           </div>
-          <div class="overflow-x-auto">
+          
+          <!-- Versión de tabla para pantallas medianas y grandes -->
+          <div class="hidden sm:block overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Problema más común</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ocurrencias</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo promedio</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Problema más común</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ocurrencias</th>
+                  <th scope="col" class="px-2 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo promedio</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let item of reportData.issueTypes">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.department }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.mostCommonIssue }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.occurrences }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatTime(item.avgTimeToResolve) }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">{{ item.department }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{ item.mostCommonIssue }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{ item.occurrences }}</td>
+                  <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{ formatTimeShort(item.avgTimeToResolve) }}</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+          
+          <!-- Versión de tarjetas para móviles -->
+          <div class="sm:hidden">
+            <div class="divide-y divide-gray-200">
+              <div *ngFor="let item of reportData.issueTypes" class="p-4 hover:bg-gray-50">
+                <div class="flex justify-between">
+                  <h3 class="font-medium text-gray-900 text-sm">{{ item.department }}</h3>
+                  <span class="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ item.occurrences }}</span>
+                </div>
+                <p class="text-sm text-gray-600 my-1 line-clamp-2">{{ item.mostCommonIssue }}</p>
+                <div class="flex items-center mt-2">
+                  <span class="text-xs text-gray-500 mr-1">Tiempo promedio:</span>
+                  <span class="text-xs font-medium text-gray-800">{{ formatTimeShort(item.avgTimeToResolve) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- No hay datos -->
-      <div *ngIf="!loading && !hasData" class="bg-white rounded-xl shadow-sm p-10 text-center border border-gray-100">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div *ngIf="!loading && !hasData" class="bg-white rounded-xl shadow-sm p-6 md:p-10 text-center border border-gray-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 mx-auto text-gray-300 mb-3 md:mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <h3 class="text-xl font-medium text-gray-700 mb-2">No hay datos para mostrar</h3>
+        <h3 class="text-lg md:text-xl font-medium text-gray-700 mb-2">No hay datos para mostrar</h3>
         <p class="text-gray-500">Ajusta los filtros y genera el reporte nuevamente</p>
       </div>
     </div>
@@ -570,8 +624,25 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
 
     return `${days}d ${remainingHours}h ${remainingMinutes}m`;
   }
-  
-  formatDateForInput(date: Date): string {
-    return date.toISOString().split('T')[0];
+
+  formatTimeShort(minutes: number): string {
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `${hours}h`;
+    }
+
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+  }
+
+  private formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }
