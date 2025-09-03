@@ -19,60 +19,8 @@ interface TimelineEvent {
     CommonModule,
     MatIconModule
   ],
-  template: `
-    <div class="timeline">
-      <h3 class="text-lg font-medium mb-4">Historial del ticket</h3>
-
-      <div class="timeline-events">
-        <div *ngFor="let event of timelineEvents; let first = first; let last = last" class="timeline-event">
-          <div class="flex">
-            <div class="timeline-icon mr-4">
-              <div [ngClass]="getIconBgClass(event.type)" class="w-10 h-10 rounded-full flex items-center justify-center">
-                <mat-icon class="text-white">{{ event.icon }}</mat-icon>
-              </div>
-              <div *ngIf="!last" class="timeline-line"></div>
-            </div>
-
-            <div class="timeline-content">
-              <div class="text-sm text-gray-500 mb-1">{{ formatDate(event.timestamp) }}</div>
-              <p class="font-medium">{{ event.text }}</p>
-              <p *ngIf="event.user" class="text-sm text-gray-600">Por {{ event.user }}</p>
-              <p *ngIf="event.details" class="mt-1 text-gray-700 whitespace-pre-line">{{ event.details }}</p>
-            </div>
-          </div>
-
-          <div *ngIf="!last" class="mt-2"></div>
-        </div>
-
-        <!-- Empty State -->
-        <div *ngIf="timelineEvents.length === 0" class="text-center py-6">
-          <p class="text-gray-500">No hay eventos registrados para este ticket</p>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: block;
-    }
-
-    .timeline-icon {
-      position: relative;
-    }
-
-    .timeline-line {
-      position: absolute;
-      top: 40px;
-      left: 20px;
-      bottom: -20px;
-      width: 2px;
-      background-color: #e5e7eb;
-    }
-
-    .timeline-event:last-child .timeline-line {
-      display: none;
-    }
-  `]
+  templateUrl: './ticket-timeline.component.html',
+  styleUrls: ['./ticket-timeline.component.scss']
 })
 export class TicketTimelineComponent implements OnChanges {
   @Input() ticket: Ticket | null = null;

@@ -14,42 +14,8 @@ import { TicketComment } from '../../../../core/models/ticket.model';
     MatIconModule,
     MatDividerModule
   ],
-  template: `
-    <div class="comments-list">
-      <h3 class="text-lg font-medium mb-4">Comentarios ({{ comments.length }})</h3>
-
-      <div *ngIf="comments.length === 0" class="text-center py-8 bg-gray-50 rounded-lg">
-        <mat-icon class="text-gray-400 text-5xl">chat</mat-icon>
-        <p class="mt-2 text-gray-500">No hay comentarios aún</p>
-      </div>
-
-      <div *ngFor="let comment of sortedComments; let last = last" class="comment mb-4">
-        <div class="flex items-start">
-          <div class="comment-avatar mr-3">
-            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center">
-              {{ comment.createdByName[0].toUpperCase() }}
-            </div>
-          </div>
-          <div class="comment-content flex-1">
-            <div class="bg-gray-50 rounded-lg p-4">
-              <div class="flex justify-between items-center mb-2">
-                <h4 class="font-medium">{{ comment.createdByName }}</h4>
-                <span class="text-xs text-gray-500">{{ formatDate(comment.createdAt) }}</span>
-              </div>
-              <p class="text-gray-700 whitespace-pre-line">{{ comment.text }}</p>
-            </div>
-          </div>
-        </div>
-
-        <mat-divider *ngIf="!last" class="my-4"></mat-divider>
-      </div>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: block;
-    }
-  `]
+  templateUrl: './ticket-comments-list.component.html',
+  styleUrls: ['./ticket-comments-list.component.scss']
 })
 export class TicketCommentsListComponent {
   @Input() comments: TicketComment[] = [];

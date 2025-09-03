@@ -1,0 +1,22 @@
+<form [formGroup]="commentForm" (ngSubmit)="onSubmit()">
+    <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Agregar comentario</mat-label>
+        <textarea matInput formControlName="comment" rows="3" placeholder="Escribe un comentario..."></textarea>
+        <mat-error *ngIf="commentForm.get('comment')?.hasError('required')">
+            El comentario no puede estar vacío
+        </mat-error>
+    </mat-form-field>
+
+    <div class="mb-3">
+        <app-file-upload (filesSelected)="onFilesSelected($event)"></app-file-upload>
+    </div>
+
+    <div class="flex justify-end">
+        <button mat-raised-button color="primary" type="submit" [disabled]="commentForm.invalid || isSubmitting">
+            <div class="flex items-center">
+                <mat-spinner *ngIf="isSubmitting" diameter="20" class="mr-2"></mat-spinner>
+                <span>Comentar</span>
+            </div>
+        </button>
+    </div>
+</form>

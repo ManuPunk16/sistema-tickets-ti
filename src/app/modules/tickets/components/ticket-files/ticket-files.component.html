@@ -1,0 +1,30 @@
+<div class="py-4">
+    <h3 class="text-lg font-medium mb-4">Archivos Adjuntos ({{ files.length }})</h3>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <ng-container *ngFor="let file of fileInfos">
+            <div class="border rounded-lg p-4 flex flex-col">
+                <div class="flex items-center space-x-3 mb-2">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        <mat-icon [ngClass]="getIconColor(file.extension)">{{ file.icon }}</mat-icon>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-sm font-medium text-gray-900 truncate">{{ file.name }}</h4>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-2 flex justify-end">
+                    <a [href]="file.url" target="_blank" mat-stroked-button color="primary">
+                        <mat-icon class="text-sm mr-1">open_in_new</mat-icon>
+                        Abrir
+                    </a>
+                </div>
+            </div>
+        </ng-container>
+    </div>
+
+    <div *ngIf="files.length === 0" class="text-center py-8 bg-gray-50 rounded-lg">
+        <mat-icon class="text-gray-400 text-5xl">insert_drive_file</mat-icon>
+        <p class="mt-2 text-gray-500">No hay archivos adjuntos</p>
+    </div>
+</div>

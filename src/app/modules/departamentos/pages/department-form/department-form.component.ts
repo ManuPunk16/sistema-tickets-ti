@@ -26,58 +26,8 @@ import { DepartmentService } from '../../../../core/services/department.service'
     MatProgressSpinnerModule,
     MatSnackBarModule
   ],
-  template: `
-    <div class="p-4 md:p-6">
-      <div class="flex items-center mb-6">
-        <button mat-icon-button [routerLink]="['/departamentos']" matTooltip="Volver">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <h1 class="text-2xl font-bold ml-2">{{ isEditMode ? 'Editar' : 'Nuevo' }} Departamento</h1>
-      </div>
-
-      <mat-card>
-        <mat-card-content>
-          <div *ngIf="loading" class="flex justify-center py-8">
-            <mat-spinner diameter="40"></mat-spinner>
-          </div>
-
-          <form *ngIf="!loading" [formGroup]="departmentForm" (ngSubmit)="onSubmit()" class="p-4">
-            <mat-form-field appearance="outline" class="w-full mb-4">
-              <mat-label>Nombre del Departamento</mat-label>
-              <input matInput formControlName="name" placeholder="Ej. Recursos Humanos">
-              <mat-error *ngIf="departmentForm.get('name')?.hasError('required')">
-                El nombre del departamento es obligatorio
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="w-full mb-4">
-              <mat-label>Descripción</mat-label>
-              <textarea matInput formControlName="description" rows="4"
-                placeholder="Describe las funciones principales del departamento"></textarea>
-            </mat-form-field>
-
-            <div class="flex justify-end gap-2 mt-4">
-              <button mat-stroked-button [routerLink]="['/departamentos']" type="button">
-                Cancelar
-              </button>
-              <button mat-raised-button color="primary" type="submit"
-                [disabled]="departmentForm.invalid || isSubmitting">
-                <mat-icon *ngIf="isSubmitting">
-                  <mat-spinner diameter="20" color="accent"></mat-spinner>
-                </mat-icon>
-                <span *ngIf="!isSubmitting">{{ isEditMode ? 'Actualizar' : 'Crear' }}</span>
-              </button>
-            </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: block;
-    }
-  `]
+  templateUrl: './department-form.component.html',
+  styleUrls: ['./department-form.component.scss']
 })
 export class DepartmentFormComponent implements OnInit {
   departmentForm: FormGroup;
