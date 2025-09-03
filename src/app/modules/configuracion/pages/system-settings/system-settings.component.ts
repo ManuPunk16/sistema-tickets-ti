@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -18,7 +18,6 @@ import { ConfigService } from '../../../../core/services/config.service';
   selector: 'app-system-settings',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -31,7 +30,7 @@ import { ConfigService } from '../../../../core/services/config.service';
     MatIconModule,
     MatDividerModule,
     MatProgressSpinnerModule
-  ],
+],
   templateUrl: './system-settings.component.html',
   styleUrls: ['./system-settings.component.scss']
 })

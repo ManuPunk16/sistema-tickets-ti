@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,7 +15,6 @@ import { DepartmentService } from '../../../../core/services/department.service'
   selector: 'app-department-form',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
@@ -25,7 +24,7 @@ import { DepartmentService } from '../../../../core/services/department.service'
     MatIconModule,
     MatProgressSpinnerModule,
     MatSnackBarModule
-  ],
+],
   templateUrl: './department-form.component.html',
   styleUrls: ['./department-form.component.scss']
 })

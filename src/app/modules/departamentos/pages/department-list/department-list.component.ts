@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -20,7 +20,6 @@ import { Observable } from 'rxjs';
   selector: 'app-department-list',
   standalone: true,
   imports: [
-    CommonModule,
     MatTableModule,
     MatCardModule,
     MatButtonModule,
@@ -34,7 +33,7 @@ import { Observable } from 'rxjs';
     MatDialogModule,
     ReactiveFormsModule,
     RouterLink
-  ],
+],
   template: `
     <div class="p-4 md:p-6">
       <div class="flex justify-between items-center mb-6">
@@ -44,75 +43,71 @@ import { Observable } from 'rxjs';
           Nuevo Departamento
         </button>
       </div>
-
+    
       <mat-card class="mb-6">
         <mat-card-content>
-          <div *ngIf="loading" class="flex justify-center py-8">
-            <mat-spinner diameter="40"></mat-spinner>
-          </div>
-
-          <div *ngIf="!loading" class="overflow-x-auto">
-            <table mat-table [dataSource]="departments" matSort class="w-full">
-              <!-- ID Column -->
-              <ng-container matColumnDef="id">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
-                <td mat-cell *matCellDef="let department">{{ department.id.substring(0, 8) }}</td>
-              </ng-container>
-
-              <!-- Name Column -->
-              <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
-                <td mat-cell *matCellDef="let department">{{ department.name }}</td>
-              </ng-container>
-
-              <!-- Description Column -->
-              <ng-container matColumnDef="description">
-                <th mat-header-cell *matHeaderCellDef>Descripción</th>
-                <td mat-cell *matCellDef="let department">{{ department.description }}</td>
-              </ng-container>
-
-              <!-- Created Column -->
-              <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Creado</th>
-                <td mat-cell *matCellDef="let department">{{ formatDate(department.createdAt) }}</td>
-              </ng-container>
-
-              <!-- Updated Column -->
-              <ng-container matColumnDef="updatedAt">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>Actualizado</th>
-                <td mat-cell *matCellDef="let department">{{ formatDate(department.updatedAt) }}</td>
-              </ng-container>
-
-              <!-- Actions Column -->
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef class="w-32">Acciones</th>
-                <td mat-cell *matCellDef="let department">
-                  <button mat-icon-button color="primary" [routerLink]="['/departamentos/editar', department.id]">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button mat-icon-button color="warn" (click)="confirmDelete(department)">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-
-              <!-- Empty Row -->
-              <tr class="mat-row" *matNoDataRow>
-                <td class="mat-cell text-center p-8" [attr.colspan]="displayedColumns.length">
-                  No hay departamentos registrados en el sistema.
-                </td>
-              </tr>
-            </table>
-
-            <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" showFirstLastButtons></mat-paginator>
-          </div>
+          @if (loading) {
+            <div class="flex justify-center py-8">
+              <mat-spinner diameter="40"></mat-spinner>
+            </div>
+          }
+    
+          @if (!loading) {
+            <div class="overflow-x-auto">
+              <table mat-table [dataSource]="departments" matSort class="w-full">
+                <!-- ID Column -->
+                <ng-container matColumnDef="id">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
+                  <td mat-cell *matCellDef="let department">{{ department.id.substring(0, 8) }}</td>
+                </ng-container>
+                <!-- Name Column -->
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
+                  <td mat-cell *matCellDef="let department">{{ department.name }}</td>
+                </ng-container>
+                <!-- Description Column -->
+                <ng-container matColumnDef="description">
+                  <th mat-header-cell *matHeaderCellDef>Descripción</th>
+                  <td mat-cell *matCellDef="let department">{{ department.description }}</td>
+                </ng-container>
+                <!-- Created Column -->
+                <ng-container matColumnDef="createdAt">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Creado</th>
+                  <td mat-cell *matCellDef="let department">{{ formatDate(department.createdAt) }}</td>
+                </ng-container>
+                <!-- Updated Column -->
+                <ng-container matColumnDef="updatedAt">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Actualizado</th>
+                  <td mat-cell *matCellDef="let department">{{ formatDate(department.updatedAt) }}</td>
+                </ng-container>
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                  <th mat-header-cell *matHeaderCellDef class="w-32">Acciones</th>
+                  <td mat-cell *matCellDef="let department">
+                    <button mat-icon-button color="primary" [routerLink]="['/departamentos/editar', department.id]">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button mat-icon-button color="warn" (click)="confirmDelete(department)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                <!-- Empty Row -->
+                <tr class="mat-row" *matNoDataRow>
+                  <td class="mat-cell text-center p-8" [attr.colspan]="displayedColumns.length">
+                    No hay departamentos registrados en el sistema.
+                  </td>
+                </tr>
+              </table>
+              <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" showFirstLastButtons></mat-paginator>
+            </div>
+          }
         </mat-card-content>
       </mat-card>
     </div>
-  `,
+    `,
   styles: [`
     .mat-column-actions {
       width: 100px;

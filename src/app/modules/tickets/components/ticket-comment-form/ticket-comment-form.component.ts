@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,7 +13,6 @@ import { FileUploadComponent } from '../../../../shared/components/file-upload/f
   selector: 'app-ticket-comment-form',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -21,7 +20,7 @@ import { FileUploadComponent } from '../../../../shared/components/file-upload/f
     MatInputModule,
     MatProgressSpinnerModule,
     FileUploadComponent
-  ],
+],
   templateUrl: './ticket-comment-form.component.html',
   styleUrls: ['./ticket-comment-form.component.scss']
 })

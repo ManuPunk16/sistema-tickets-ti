@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
@@ -9,11 +9,10 @@ import { TicketComment } from '../../../../core/models/ticket.model';
   selector: 'app-ticket-comments-list',
   standalone: true,
   imports: [
-    CommonModule,
     MatCardModule,
     MatIconModule,
     MatDividerModule
-  ],
+],
   templateUrl: './ticket-comments-list.component.html',
   styleUrls: ['./ticket-comments-list.component.scss']
 })

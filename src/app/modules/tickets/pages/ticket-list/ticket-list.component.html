@@ -2,10 +2,10 @@
   <!-- Encabezado y botón de nuevo ticket -->
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
     <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Tickets</h1>
-    
+
     <!-- Botón de nuevo ticket -->
-    <a [routerLink]="['/tickets/nuevo']" 
-       class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+    <a [routerLink]="['/tickets/nuevo']"
+      class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
       </svg>
@@ -23,69 +23,75 @@
             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
           </svg>
         </div>
-        <input 
-          type="text" 
-          [(ngModel)]="searchTerm" 
-          placeholder="Buscar tickets..." 
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Buscar tickets..."
           class="pl-10 h-10 p-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full border border-gray-300 rounded-md text-sm"
           (keyup.enter)="applyFilters()">
-      </div>
-      
-      <!-- Filtro por estado -->
-      <div>
-        <select 
-          [(ngModel)]="statusFilter" 
-          class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          (change)="applyFilters()">
-          <option value="">Todos los estados</option>
-          <option value="nuevo">Nuevo</option>
-          <option value="asignado">Asignado</option>
-          <option value="en_proceso">En proceso</option>
-          <option value="en_espera">En espera</option>
-          <option value="resuelto">Resuelto</option>
-          <option value="cerrado">Cerrado</option>
-        </select>
-      </div>
-      
-      <!-- Filtro por departamento -->
-      <div>
-        <select 
-          [(ngModel)]="departmentFilter" 
-          class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          (change)="applyFilters()">
-          <option value="">Todos los departamentos</option>
-          <option *ngFor="let dept of departments$ | async" [value]="dept">{{ dept }}</option>
-        </select>
-      </div>
-      
-      <!-- Botón de limpiar filtros -->
-      <div class="flex items-center">
-        <button 
-          (click)="clearFilters()"
-          class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-          <span>Limpiar filtros</span>
-        </button>
+        </div>
+
+        <!-- Filtro por estado -->
+        <div>
+          <select
+            [(ngModel)]="statusFilter"
+            class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            (change)="applyFilters()">
+            <option value="">Todos los estados</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="asignado">Asignado</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="en_espera">En espera</option>
+            <option value="resuelto">Resuelto</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+
+        <!-- Filtro por departamento -->
+        <div>
+          <select
+            [(ngModel)]="departmentFilter"
+            class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            (change)="applyFilters()">
+            <option value="">Todos los departamentos</option>
+            @for (dept of departments$ | async; track dept) {
+              <option [value]="dept">{{ dept }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Botón de limpiar filtros -->
+        <div class="flex items-center">
+          <button
+            (click)="clearFilters()"
+            class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Limpiar filtros</span>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Contenedor de tabla con scroll horizontal para dispositivos pequeños -->
-  <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-    <!-- Estado de carga -->
-    <div *ngIf="isLoading" class="flex justify-center items-center p-8">
-      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-    </div>
+    <!-- Contenedor de tabla con scroll horizontal para dispositivos pequeños -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+      <!-- Estado de carga -->
+      @if (isLoading) {
+        <div class="flex justify-center items-center p-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      }
 
-    <!-- Vista para móviles (tarjetas en lugar de tabla) -->
-    <div *ngIf="!isLoading && dataSource.data.length > 0" class="block sm:hidden">
-      <div *ngFor="let ticket of dataSource.data" class="border-b border-gray-200 p-4">
-        <div class="flex justify-between items-start mb-2">
-          <a [routerLink]="['/tickets', ticket.id]" class="text-indigo-600 font-medium hover:text-indigo-800">
-            {{ ticket.title }}
-          </a>
+      <!-- Vista para móviles (tarjetas en lugar de tabla) -->
+      @if (!isLoading && dataSource.data.length > 0) {
+        <div class="block sm:hidden">
+          @for (ticket of dataSource.data; track ticket) {
+            <div class="border-b border-gray-200 p-4">
+              <div class="flex justify-between items-start mb-2">
+                <a [routerLink]="['/tickets', ticket.id]" class="text-indigo-600 font-medium hover:text-indigo-800">
+                  {{ ticket.title }}
+                </a>
           <span [ngClass]="{
             'bg-gray-100 text-gray-800': ticket.status === 'nuevo',
             'bg-blue-100 text-blue-800': ticket.status === 'asignado',
@@ -94,63 +100,64 @@
             'bg-green-100 text-green-800': ticket.status === 'resuelto',
             'bg-red-100 text-red-800': ticket.status === 'cerrado'
           }" class="px-2 py-1 text-xs font-medium rounded-full">
-            {{ getStatusLabel(ticket.status) }}
-          </span>
-        </div>
-        <p class="text-sm text-gray-500 truncate mb-2">{{ ticket.description }}</p>
-        <div class="flex justify-between items-center">
-          <div>
-            <span class="text-xs text-gray-500">Prioridad:</span>
+                  {{ getStatusLabel(ticket.status) }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 truncate mb-2">{{ ticket.description }}</p>
+              <div class="flex justify-between items-center">
+                <div>
+                  <span class="text-xs text-gray-500">Prioridad:</span>
             <span [ngClass]="{
               'bg-green-100 text-green-800': ticket.priority === 'baja',
               'bg-yellow-100 text-yellow-800': ticket.priority === 'media',
               'bg-red-100 text-red-800': ticket.priority === 'alta',
               'bg-purple-100 text-purple-800': ticket.priority === 'critica'
             }" class="ml-1 px-2 py-0.5 text-xs font-medium rounded-full">
-              {{ getPriorityLabel(ticket.priority) }}
-            </span>
-          </div>
-          <div class="text-xs text-gray-500">
-            {{ ticket.createdAt | date:'dd/MM/yyyy' }}
-          </div>
+                    {{ getPriorityLabel(ticket.priority) }}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ ticket.createdAt | date:'dd/MM/yyyy' }}
+                </div>
+              </div>
+              <div class="mt-2 text-xs">
+                <span class="text-gray-500">Asignado:</span>
+                <span class="ml-1">{{ ticket.assignedUser?.displayName || 'Sin asignar' }}</span>
+              </div>
+            </div>
+          }
         </div>
-        <div class="mt-2 text-xs">
-          <span class="text-gray-500">Asignado:</span>
-          <span class="ml-1">{{ ticket.assignedUser?.displayName || 'Sin asignar' }}</span>
-        </div>
-      </div>
-    </div>
+      }
 
-    <!-- Tabla para tablets y escritorio -->
-    <div *ngIf="!isLoading && dataSource.data.length > 0" class="hidden sm:block overflow-x-auto">
-      <table mat-table [dataSource]="dataSource" matSort class="min-w-full divide-y divide-gray-200">
-        <!-- ID Column -->
-        <ng-container matColumnDef="id">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> 
-            ID 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-800">
-            <a [routerLink]="['/tickets', ticket.id]">{{ ticket.id }}</a>
-          </td>
-        </ng-container>
-
-        <!-- Título Column -->
-        <ng-container matColumnDef="title">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"> 
-            Título 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4">
-            <div class="text-sm font-medium text-gray-900 truncate max-w-xs">{{ ticket.title }}</div>
-            <div class="text-xs text-gray-500 truncate max-w-xs">{{ ticket.description }}</div>
-          </td>
-        </ng-container>
-
-        <!-- Estado Column -->
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> 
-            Estado 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
+      <!-- Tabla para tablets y escritorio -->
+      @if (!isLoading && dataSource.data.length > 0) {
+        <div class="hidden sm:block overflow-x-auto">
+          <table mat-table [dataSource]="dataSource" matSort class="min-w-full divide-y divide-gray-200">
+            <!-- ID Column -->
+            <ng-container matColumnDef="id">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                ID
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                <a [routerLink]="['/tickets', ticket.id]">{{ ticket.id }}</a>
+              </td>
+            </ng-container>
+            <!-- Título Column -->
+            <ng-container matColumnDef="title">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Título
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4">
+                <div class="text-sm font-medium text-gray-900 truncate max-w-xs">{{ ticket.title }}</div>
+                <div class="text-xs text-gray-500 truncate max-w-xs">{{ ticket.description }}</div>
+              </td>
+            </ng-container>
+            <!-- Estado Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Estado
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
             <span [ngClass]="{
               'bg-gray-100 text-gray-800': ticket.status === 'nuevo',
               'bg-blue-100 text-blue-800': ticket.status === 'asignado',
@@ -159,99 +166,98 @@
               'bg-green-100 text-green-800': ticket.status === 'resuelto',
               'bg-red-100 text-red-800': ticket.status === 'cerrado'
             }" class="px-2 py-1 text-xs font-medium rounded-full">
-              {{ getStatusLabel(ticket.status) }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Prioridad Column -->
-        <ng-container matColumnDef="priority">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> 
-            Prioridad 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
+                  {{ getStatusLabel(ticket.status) }}
+                </span>
+              </td>
+            </ng-container>
+            <!-- Prioridad Column -->
+            <ng-container matColumnDef="priority">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Prioridad
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
             <span [ngClass]="{
               'bg-green-100 text-green-800': ticket.priority === 'baja',
               'bg-yellow-100 text-yellow-800': ticket.priority === 'media',
               'bg-red-100 text-red-800': ticket.priority === 'alta',
               'bg-purple-100 text-purple-800': ticket.priority === 'critica'
             }" class="px-2 py-1 text-xs font-medium rounded-full">
-              {{ getPriorityLabel(ticket.priority) }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Asignado Column - Oculto en tablets -->
-        <ng-container matColumnDef="assignedTo">
-          <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell"> 
-            Asignado a 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap hidden md:table-cell">
-            <div *ngIf="ticket.assignedTo; else unassigned" class="text-sm text-gray-900">
-              {{ ticket.assignedUser?.displayName || ticket.assignedUser?.email || 'Usuario' }}
-            </div>
-            <ng-template #unassigned>
-              <span class="text-xs text-gray-500">Sin asignar</span>
-            </ng-template>
-          </td>
-        </ng-container>
-
-        <!-- Fecha Column - Oculto en tablets -->
-        <ng-container matColumnDef="createdAt">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden lg:table-cell"> 
-            Fecha 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-            {{ ticket.createdAt | date:'dd/MM/yyyy HH:mm' }}
-          </td>
-        </ng-container>
-
-        <!-- Acciones Column -->
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"> 
-            Acciones 
-          </th>
-          <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <button 
-              [routerLink]="['/tickets', ticket.id]" 
-              class="text-indigo-600 hover:text-indigo-900 focus:outline-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-              </svg>
-            </button>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns" class="bg-gray-50"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
+                  {{ getPriorityLabel(ticket.priority) }}
+                </span>
+              </td>
+            </ng-container>
+            <!-- Asignado Column - Oculto en tablets -->
+            <ng-container matColumnDef="assignedTo">
+              <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">
+                Asignado a
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                @if (ticket.assignedTo) {
+                  <div class="text-sm text-gray-900">
+                    {{ ticket.assignedUser?.displayName || ticket.assignedUser?.email || 'Usuario' }}
+                  </div>
+                } @else {
+                  <span class="text-xs text-gray-500">Sin asignar</span>
+                }
+              </td>
+            </ng-container>
+            <!-- Fecha Column - Oculto en tablets -->
+            <ng-container matColumnDef="createdAt">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden lg:table-cell">
+                Fecha
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
+                {{ ticket.createdAt | date:'dd/MM/yyyy HH:mm' }}
+              </td>
+            </ng-container>
+            <!-- Acciones Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Acciones
+              </th>
+              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button
+                  [routerLink]="['/tickets', ticket.id]"
+                  class="text-indigo-600 hover:text-indigo-900 focus:outline-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="displayedColumns" class="bg-gray-50"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"
             class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
-      </table>
-    </div>
+          </table>
+        </div>
+      }
 
-    <!-- Mensaje de sin datos -->
-    <div *ngIf="!isLoading && dataSource.data.length === 0" class="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-      <h3 class="text-lg font-medium text-gray-900 text-center">No hay tickets disponibles</h3>
-      <p class="mt-1 text-sm text-gray-500 text-center">No se encontraron tickets con los filtros actuales.</p>
-      <button 
-        (click)="clearFilters()" 
-        class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-        Limpiar filtros
-      </button>
-    </div>
+      <!-- Mensaje de sin datos -->
+      @if (!isLoading && dataSource.data.length === 0) {
+        <div class="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 class="text-lg font-medium text-gray-900 text-center">No hay tickets disponibles</h3>
+          <p class="mt-1 text-sm text-gray-500 text-center">No se encontraron tickets con los filtros actuales.</p>
+          <button
+            (click)="clearFilters()"
+            class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Limpiar filtros
+          </button>
+        </div>
+      }
 
-    <!-- Paginador de Angular Material con estilos de Tailwind -->
-    <div class="border-t border-gray-200 px-4 py-3">
-      <mat-paginator 
-        [length]="totalItems"
-        [pageSize]="pageSize"
-        [pageSizeOptions]="[5, 10, 25, 50]"
-        (page)="onPageChange($event)"
-        class="bg-transparent shadow-none">
-      </mat-paginator>
+      <!-- Paginador de Angular Material con estilos de Tailwind -->
+      <div class="border-t border-gray-200 px-4 py-3">
+        <mat-paginator
+          [length]="totalItems"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="[5, 10, 25, 50]"
+          (page)="onPageChange($event)"
+          class="bg-transparent shadow-none">
+        </mat-paginator>
+      </div>
     </div>
   </div>
-</div>

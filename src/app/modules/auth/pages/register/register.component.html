@@ -32,214 +32,240 @@
               type="text"
               class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
               placeholder="Nombre completo"
-            />
-          </div>
-          <p *ngIf="registerForm.get('displayName')?.hasError('required') && registerForm.get('displayName')?.touched" class="mt-1 text-sm text-red-600">
-            El nombre es obligatorio
-          </p>
-        </div>
-
-        <!-- Email input -->
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-              </svg>
+              />
             </div>
-            <input
-              formControlName="email"
-              id="email"
-              type="email"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
-              placeholder="nombre@ejemplo.com"
-            />
+            @if (registerForm.get('displayName')?.hasError('required') && registerForm.get('displayName')?.touched) {
+              <p class="mt-1 text-sm text-red-600">
+                El nombre es obligatorio
+              </p>
+            }
           </div>
-          <p *ngIf="registerForm.get('email')?.hasError('required') && registerForm.get('email')?.touched" class="mt-1 text-sm text-red-600">
-            El correo es obligatorio
-          </p>
-          <p *ngIf="registerForm.get('email')?.hasError('email') && registerForm.get('email')?.touched" class="mt-1 text-sm text-red-600">
-            Ingrese un correo electrónico válido
-          </p>
-        </div>
 
-        <!-- Password input -->
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <input
-              formControlName="password"
-              id="password"
-              [type]="hidePassword ? 'password' : 'text'"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
-              placeholder="••••••••"
-            />
-            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button
-                type="button"
-                (click)="hidePassword = !hidePassword"
-                class="text-gray-400 hover:text-gray-600 focus:outline-none"
-              >
-                <svg *ngIf="hidePassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+          <!-- Email input -->
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+            <div class="relative rounded-md shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                 </svg>
-                <svg *ngIf="!hidePassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
-                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                </svg>
-              </button>
+              </div>
+              <input
+                formControlName="email"
+                id="email"
+                type="email"
+                class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                placeholder="nombre@ejemplo.com"
+                />
+              </div>
+              @if (registerForm.get('email')?.hasError('required') && registerForm.get('email')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  El correo es obligatorio
+                </p>
+              }
+              @if (registerForm.get('email')?.hasError('email') && registerForm.get('email')?.touched) {
+                <p class="mt-1 text-sm text-red-600">
+                  Ingrese un correo electrónico válido
+                </p>
+              }
+            </div>
+
+            <!-- Password input -->
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <div class="relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  formControlName="password"
+                  id="password"
+                  [type]="hidePassword ? 'password' : 'text'"
+                  class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                  placeholder="••••••••"
+                  />
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <button
+                      type="button"
+                      (click)="hidePassword = !hidePassword"
+                      class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                      >
+                      @if (hidePassword) {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                        </svg>
+                      }
+                      @if (!hidePassword) {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
+                          <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                        </svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+                @if (registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched) {
+                  <p class="mt-1 text-sm text-red-600">
+                    La contraseña es obligatoria
+                  </p>
+                }
+                @if (registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched) {
+                  <p class="mt-1 text-sm text-red-600">
+                    La contraseña debe tener al menos 6 caracteres
+                  </p>
+                }
+              </div>
+
+              <!-- Confirm Password input -->
+              <div>
+                <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+                <div class="relative rounded-md shadow-sm">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <input
+                    formControlName="confirmPassword"
+                    id="confirmPassword"
+                    [type]="hideConfirmPassword ? 'password' : 'text'"
+                    class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                    placeholder="••••••••"
+                    />
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <button
+                        type="button"
+                        (click)="hideConfirmPassword = !hideConfirmPassword"
+                        class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        >
+                        @if (hideConfirmPassword) {
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                          </svg>
+                        }
+                        @if (!hideConfirmPassword) {
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
+                            <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                          </svg>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                  @if (registerForm.get('confirmPassword')?.hasError('required') && registerForm.get('confirmPassword')?.touched) {
+                    <p class="mt-1 text-sm text-red-600">
+                      Confirme la contraseña
+                    </p>
+                  }
+                  @if (registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched) {
+                    <p class="mt-1 text-sm text-red-600">
+                      Las contraseñas no coinciden
+                    </p>
+                  }
+                </div>
+
+                <!-- Rol select -->
+                <div>
+                  <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                  <div class="relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <select
+                      formControlName="role"
+                      id="role"
+                      class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
+                      >
+                      <option value="user">Usuario</option>
+                      <option value="support">Soporte</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Departamento -->
+                <div>
+                  <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+                  <div class="relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-2-8H7v4h6V5zm2 0h1v4h-1V5zm1 6h-1v2h1v-2zm-7-1H7v4h6v-4zm8 3h1v2h-1v-2zm-8 3H7v2h6v-2zm2 0h1v2h-1v-2z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <select
+                      formControlName="department"
+                      id="department"
+                      class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
+                      >
+                      <option value="">Sin departamento</option>
+                      @for (dept of departments$ | async; track dept) {
+                        <option [value]="dept">{{ dept }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Cargo/Posición -->
+                <div>
+                  <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+                  <div class="relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
+                        <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
+                      </svg>
+                    </div>
+                    <input
+                      formControlName="position"
+                      id="position"
+                      type="text"
+                      class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                      placeholder="Cargo o posición"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Botón de registro -->
+                  <div class="pt-2">
+                    <button
+                      type="submit"
+                      [disabled]="registerForm.invalid || isLoading"
+                      class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
+                      >
+                      @if (isLoading) {
+                        <div class="absolute left-0 inset-y-0 flex items-center pl-3">
+                          <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        </div>
+                      }
+                      <span>Crear cuenta</span>
+                    </button>
+                  </div>
+                </form>
+
+                <!-- Footer -->
+                <div class="mt-6 text-center text-sm">
+                  <a [routerLink]="['/usuarios']" class="text-indigo-600 hover:text-indigo-500">
+                    Volver al listado de usuarios
+                  </a>
+                </div>
+              </div>
+
+              <!-- Información adicional -->
+              <div class="mt-8 text-center text-xs text-gray-500">
+                <p>Puede asignar diferentes roles al usuario que está registrando:</p>
+                <p class="mt-1"><strong>Usuario</strong>: Puede crear y ver sus tickets</p>
+                <p class="mt-1"><strong>Soporte</strong>: Puede gestionar tickets y dar respuesta</p>
+                <p class="mt-1"><strong>Administrador</strong>: Control total del sistema</p>
+              </div>
             </div>
           </div>
-          <p *ngIf="registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched" class="mt-1 text-sm text-red-600">
-            La contraseña es obligatoria
-          </p>
-          <p *ngIf="registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched" class="mt-1 text-sm text-red-600">
-            La contraseña debe tener al menos 6 caracteres
-          </p>
-        </div>
-
-        <!-- Confirm Password input -->
-        <div>
-          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <input
-              formControlName="confirmPassword"
-              id="confirmPassword"
-              [type]="hideConfirmPassword ? 'password' : 'text'"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
-              placeholder="••••••••"
-            />
-            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button
-                type="button"
-                (click)="hideConfirmPassword = !hideConfirmPassword"
-                class="text-gray-400 hover:text-gray-600 focus:outline-none"
-              >
-                <svg *ngIf="hideConfirmPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                </svg>
-                <svg *ngIf="!hideConfirmPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
-                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <p *ngIf="registerForm.get('confirmPassword')?.hasError('required') && registerForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600">
-            Confirme la contraseña
-          </p>
-          <p *ngIf="registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600">
-            Las contraseñas no coinciden
-          </p>
-        </div>
-
-        <!-- Rol select -->
-        <div>
-          <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <select
-              formControlName="role"
-              id="role"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
-            >
-              <option value="user">Usuario</option>
-              <option value="support">Soporte</option>
-              <option value="admin">Administrador</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Departamento -->
-        <div>
-          <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm8 8v2h1v-2h-1zm-2-8H7v4h6V5zm2 0h1v4h-1V5zm1 6h-1v2h1v-2zm-7-1H7v4h6v-4zm8 3h1v2h-1v-2zm-8 3H7v2h6v-2zm2 0h1v2h-1v-2z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <select
-              formControlName="department"
-              id="department"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
-            >
-              <option value="">Sin departamento</option>
-              <option *ngFor="let dept of departments$ | async" [value]="dept">{{ dept }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Cargo/Posición -->
-        <div>
-          <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
-          <div class="relative rounded-md shadow-sm">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" />
-                <path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" />
-              </svg>
-            </div>
-            <input
-              formControlName="position"
-              id="position"
-              type="text"
-              class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
-              placeholder="Cargo o posición"
-            />
-          </div>
-        </div>
-
-        <!-- Botón de registro -->
-        <div class="pt-2">
-          <button
-            type="submit"
-            [disabled]="registerForm.invalid || isLoading"
-            class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
-          >
-            <div *ngIf="isLoading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-            <span>Crear cuenta</span>
-          </button>
-        </div>
-      </form>
-
-      <!-- Footer -->
-      <div class="mt-6 text-center text-sm">
-        <a [routerLink]="['/usuarios']" class="text-indigo-600 hover:text-indigo-500">
-          Volver al listado de usuarios
-        </a>
-      </div>
-    </div>
-
-    <!-- Información adicional -->
-    <div class="mt-8 text-center text-xs text-gray-500">
-      <p>Puede asignar diferentes roles al usuario que está registrando:</p>
-      <p class="mt-1"><strong>Usuario</strong>: Puede crear y ver sus tickets</p>
-      <p class="mt-1"><strong>Soporte</strong>: Puede gestionar tickets y dar respuesta</p>
-      <p class="mt-1"><strong>Administrador</strong>: Control total del sistema</p>
-    </div>
-  </div>
-</div>
