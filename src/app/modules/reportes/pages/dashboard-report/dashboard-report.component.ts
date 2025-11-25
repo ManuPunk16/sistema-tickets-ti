@@ -1,10 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ReportService } from '../../../../core/services/report.service';
 import { TicketMetric } from '../../../../core/models/report.model';
-import { Subject, takeUntil, finalize, catchError, of } from 'rxjs';
+import { finalize, catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard-report',
@@ -17,18 +17,34 @@ import { Subject, takeUntil, finalize, catchError, of } from 'rxjs';
   templateUrl: './dashboard-report.component.html',
   styleUrls: ['./dashboard-report.component.scss']
 })
+export class DashboardReportComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly reportService = inject(ReportService);
 
-export class DashboardReportComponent implements OnInit, OnDestroy {
-  filterForm: FormGroup;
-  metrics: TicketMetric | null = null;
-  loading = false;
+  protected readonly metrics = signal<TicketMetric | null>(null);
+  protected readonly loading = signal(false);
   
-  private destroy$ = new Subject<void>();
+  protected readonly filterForm: FormGroup;
 
-  constructor(
-    private fb: FormBuilder,
-    private reportService: ReportService
-  ) {
+  protected readonly resolutionRate = computed(() => {
+    const metricsValue = this.metrics();
+    if (!metricsValue || metricsValue.totalTickets === 0) return 0;
+
+    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) + 
+                     (metricsValue.ticketsByStatus['cerrado'] || 0);
+    return Math.round((resolved / metricsValue.totalTickets) * 100);
+  });
+
+  protected readonly unresolvedTickets = computed(() => {
+    const metricsValue = this.metrics();
+    if (!metricsValue) return 0;
+
+    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) + 
+                     (metricsValue.ticketsByStatus['cerrado'] || 0);
+    return metricsValue.totalTickets - resolved;
+  });
+
+  constructor() {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
@@ -41,11 +57,6 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadReportData();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   applyFilters(): void {
@@ -66,29 +77,26 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
   }
 
   private loadReportData(): void {
-    this.loading = true;
+    this.loading.set(true);
     const { startDate, endDate } = this.filterForm.value;
     
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
-    // Asegurarse de que la fecha de fin sea el final del día
     end.setHours(23, 59, 59, 999);
 
     this.reportService.getTicketMetrics(start, end)
       .pipe(
-        takeUntil(this.destroy$),
         catchError(error => {
           console.error('Error al cargar las métricas:', error);
           return of(null);
         }),
         finalize(() => {
-          this.loading = false;
+          this.loading.set(false);
         })
       )
       .subscribe({
         next: (metrics) => {
-          this.metrics = metrics;
+          this.metrics.set(metrics);
         }
       });
   }
@@ -106,14 +114,16 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
   calculateResolutionRate(metrics: TicketMetric | null): number {
     if (!metrics || metrics.totalTickets === 0) return 0;
 
-    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + (metrics.ticketsByStatus['cerrado'] || 0);
+    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + 
+                     (metrics.ticketsByStatus['cerrado'] || 0);
     return Math.round((resolved / metrics.totalTickets) * 100);
   }
 
   countUnresolvedTickets(metrics: TicketMetric | null): number {
     if (!metrics) return 0;
 
-    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + (metrics.ticketsByStatus['cerrado'] || 0);
+    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + 
+                     (metrics.ticketsByStatus['cerrado'] || 0);
     return metrics.totalTickets - resolved;
   }
 
@@ -121,20 +131,15 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
     if (!metrics) return [];
 
     const result = [];
-    let total = metrics.totalTickets;
+    const total = metrics.totalTickets;
 
     for (const status in metrics.ticketsByStatus) {
       const count = metrics.ticketsByStatus[status] || 0;
       const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
-      result.push({
-        status,
-        count,
-        percentage
-      });
+      result.push({ status, count, percentage });
     }
 
-    // Ordenar por cantidad descendente
     return result.sort((a, b) => b.count - a.count);
   }
 
@@ -153,12 +158,12 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
 
   getStatusColor(status: string): string {
     const colors: {[key: string]: string} = {
-      'nuevo': '#3B82F6', // blue
-      'asignado': '#8B5CF6', // purple
-      'en_proceso': '#F59E0B', // yellow
-      'en_espera': '#F97316', // orange
-      'resuelto': '#10B981', // green
-      'cerrado': '#6B7280' // gray
+      'nuevo': '#3B82F6',
+      'asignado': '#8B5CF6',
+      'en_proceso': '#F59E0B',
+      'en_espera': '#F97316',
+      'resuelto': '#10B981',
+      'cerrado': '#6B7280'
     };
 
     return colors[status] || '#6B7280';
@@ -168,20 +173,15 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
     if (!metrics) return [];
 
     const result = [];
-    let total = metrics.totalTickets;
+    const total = metrics.totalTickets;
 
     for (const priority in metrics.ticketsByPriority) {
       const count = metrics.ticketsByPriority[priority] || 0;
       const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
-      result.push({
-        priority,
-        count,
-        percentage
-      });
+      result.push({ priority, count, percentage });
     }
 
-    // Ordenar por prioridad
     const order = ['critica', 'alta', 'media', 'baja'];
     return result.sort((a, b) => order.indexOf(a.priority) - order.indexOf(b.priority));
   }
@@ -199,10 +199,10 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
 
   getPriorityColor(priority: string): string {
     const colors: {[key: string]: string} = {
-      'baja': '#10B981', // green
-      'media': '#3B82F6', // blue
-      'alta': '#F97316', // orange
-      'critica': '#EF4444' // red
+      'baja': '#10B981',
+      'media': '#3B82F6',
+      'alta': '#F97316',
+      'critica': '#EF4444'
     };
 
     return colors[priority] || '#6B7280';
@@ -212,20 +212,15 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
     if (!metrics) return [];
 
     const result = [];
-    let total = metrics.totalTickets;
+    const total = metrics.totalTickets;
 
     for (const dept in metrics.ticketsByDepartment) {
       const count = metrics.ticketsByDepartment[dept] || 0;
       const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
-      result.push({
-        department: dept,
-        count,
-        percentage
-      });
+      result.push({ department: dept, count, percentage });
     }
 
-    // Ordenar por cantidad descendente
     return result.sort((a, b) => b.count - a.count);
   }
 
@@ -233,20 +228,15 @@ export class DashboardReportComponent implements OnInit, OnDestroy {
     if (!metrics) return [];
 
     const result = [];
-    let total = metrics.totalTickets;
+    const total = metrics.totalTickets;
 
     for (const category in metrics.ticketsByCategory) {
       const count = metrics.ticketsByCategory[category] || 0;
       const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
-      result.push({
-        category,
-        count,
-        percentage
-      });
+      result.push({ category, count, percentage });
     }
 
-    // Ordenar por cantidad descendente
     return result.sort((a, b) => b.count - a.count);
   }
 
