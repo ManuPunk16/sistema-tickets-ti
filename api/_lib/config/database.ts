@@ -1,18 +1,25 @@
 import mongoose from 'mongoose';
 
-// Patrón singleton para Vercel serverless (evita reconexiones en cada invocación)
-let conexionCached: mongoose.Connection | null = null;
+let isConnected = false;
 
 export async function conectarMongoDB(): Promise<void> {
-  if (conexionCached && conexionCached.readyState === 1) return;
+  if (isConnected) {
+    console.log('✅ Usando conexión existente a MongoDB');
+    return;
+  }
 
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('Variable MONGODB_URI no configurada en Vercel');
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error('Variable MONGODB_URI no configurada en Vercel');
 
-  const conn = await mongoose.connect(uri, {
+  await mongoose.connect(mongoUri, {
     dbName: 'sistema-tickets-ti',
-    bufferCommands: false,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 5000,
+    maxPoolSize: 10,
+    retryWrites: true,
+    w: 'majority',
   });
 
-  conexionCached = conn.connection;
+  isConnected = true;
+  console.log('✅ Conectado a MongoDB Atlas');
 }
