@@ -1,0 +1,42 @@
+{
+  "name": "sistema-tickets-ti-api",
+  "version": "1.0.0",
+  "description": "Backend Vercel Functions para Sistema de Tickets TI",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint functions src --fix",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.6.20",
+    "axios": "^1.13.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "firebase-admin": "^13.7.0",
+    "joi": "^18.1.1",
+    "joi-objectid": "^4.0.2",
+    "mongoose": "^9.3.2",
+    "path-to-regexp": "^8.3.0",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "@types/uuid": "^11.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^10.1.0",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.1"
+  }
+}
