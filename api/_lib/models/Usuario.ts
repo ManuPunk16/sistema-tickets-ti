@@ -19,7 +19,7 @@ const UsuarioSchema = new Schema<IUsuario>(
     uid:          { type: String, required: true, unique: true, index: true },
     email:        { type: String, required: true, unique: true },
     displayName:  { type: String, default: '' },
-    photoURL:     { type: String, default: null },
+    photoURL:     { type: String, default: undefined },
     role: {
       type: String,
       enum: ['admin', 'support', 'user', 'pending', 'inactive'],

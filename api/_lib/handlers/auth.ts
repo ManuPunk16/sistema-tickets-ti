@@ -27,7 +27,7 @@ export default async function authHandler(
         uid,
         email: email || '',
         displayName: name || email?.split('@')[0] || '',
-        photoURL: picture || null,
+        photoURL: picture || undefined,
         role: 'pending',
         authProvider,
         lastLogin: new Date(),
