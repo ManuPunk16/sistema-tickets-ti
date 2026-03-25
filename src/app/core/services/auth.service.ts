@@ -17,7 +17,6 @@ import { Observable, from, map, of, switchMap, catchError, throwError, tap, Beha
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';
 import { isMobile } from '../utils/platform.utils';
-import { authState } from 'rxfire/auth';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -37,7 +36,12 @@ export class AuthService {
     private zone: NgZone,
     private http: HttpClient
   ) {
-    this.user$ = authState(this.auth);
+    this.user$ = new Observable(observer => {
+      return this.auth.onAuthStateChanged(
+        u => observer.next(u),
+        e => observer.error(e)
+      );
+    });
   }
 
   // ─── Utilidades internas ──────────────────────────────────────────────────
