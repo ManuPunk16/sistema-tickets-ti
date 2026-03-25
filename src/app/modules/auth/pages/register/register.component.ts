@@ -53,7 +53,7 @@ export class RegisterComponent implements OnInit {
     }, {
       validators: PasswordMatchValidator.match('password', 'confirmPassword')
     });
-    
+
     // Cargar departamentos si está disponible el servicio
     try {
       this.departments$ = this.departmentService.getDepartments();
@@ -80,35 +80,33 @@ export class RegisterComponent implements OnInit {
     this.isLoading = true;
     const { email, password, displayName, role, department, position } = this.registerForm.value;
 
-    // Registro directo por el administrador (no pasa por estado pending)
+    // Paso 1: crear en Firebase Auth
     this.authService.registerUser(email, password).subscribe({
       next: (credential) => {
-        // Crear el perfil con el rol seleccionado
         const uid = credential.user.uid;
-        this.authService.createUserProfile(uid, {
+
+        // Paso 2: crear en MongoDB con el rol asignado por el admin
+        this.authService.registrarUsuarioPorAdmin({
           uid,
           email,
           displayName,
-          role, // El rol seleccionado por el admin
-          department: department || null,
-          position: position || null,
-          createdAt: new Date().toISOString(),
-          createdBy: 'admin'
+          role,
+          department: department || undefined,
+          position: position || undefined,
         }).subscribe({
           next: () => {
-            this.snackBar.open(`Usuario ${displayName} creado exitosamente con rol de ${this.getRoleText(role)}`, 'Cerrar', {
-              duration: 5000
-            });
+            this.isLoading = false;
+            this.snackBar.open(
+              `Usuario ${displayName} creado con rol de ${this.getRoleText(role)}`,
+              'Cerrar',
+              { duration: 5000 }
+            );
             this.router.navigate(['/usuarios']);
           },
-          error: (err) => {
-            this.handleError(err);
-          }
+          error: (err: unknown) => this.handleError(err)
         });
       },
-      error: (err) => {
-        this.handleError(err);
-      }
+      error: (err: unknown) => this.handleError(err)
     });
   }
 
@@ -121,25 +119,21 @@ export class RegisterComponent implements OnInit {
     }
   }
 
-  private handleError(error: any): void {
+  private handleError(error: unknown): void {
     this.isLoading = false;
-    
+    const err = error as { code?: string; message?: string };
+
     let errorMessage = 'Ocurrió un error durante el registro';
-    
-    if (error.code === 'auth/email-already-in-use') {
+    if (err.code === 'auth/email-already-in-use') {
       errorMessage = 'Este correo electrónico ya está registrado';
-    } else if (error.code === 'auth/invalid-email') {
+    } else if (err.code === 'auth/invalid-email') {
       errorMessage = 'El correo electrónico no es válido';
-    } else if (error.code === 'auth/weak-password') {
+    } else if (err.code === 'auth/weak-password') {
       errorMessage = 'La contraseña es demasiado débil';
-    } else if (error.message) {
-      errorMessage = error.message;
+    } else if (err.message) {
+      errorMessage = err.message;
     }
-    
-    console.error('Error de registro:', error);
-    
-    this.snackBar.open(errorMessage, 'Cerrar', {
-      duration: 5000
-    });
+
+    this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
   }
 }
