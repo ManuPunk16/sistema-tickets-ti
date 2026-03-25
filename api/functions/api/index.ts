@@ -1,40 +1,33 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import authHandler from '../../_lib/handlers/auth.js';
+
+const ORIGENES_PERMITIDOS = [
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+  'https://tickets-ti-cj.vercel.app',
+];
 
 export default async (req: VercelRequest, res: VercelResponse) => {
   const { pathname } = new URL(req.url || '', `http://${req.headers.host}`);
-
   const origin = req.headers.origin || '';
-  const origenesPermitidos = [
-    'http://localhost:4200',
-    'https://tickets-ti-cj.vercel.app',
-  ];
 
   res.setHeader(
     'Access-Control-Allow-Origin',
-    origenesPermitidos.includes(origin) ? origin : origenesPermitidos[1]
+    ORIGENES_PERMITIDOS.includes(origin) ? origin : ORIGENES_PERMITIDOS[2]
   );
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-Requested-With, Accept, Content-Type, Authorization'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Accept, Content-Type, Authorization');
+  res.setHeader('Cache-Control', 'no-store');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   try {
-    // Health check
     if (pathname === '/api' || pathname === '/api/') {
-      res.status(200).json({
-        ok: true,
-        mensaje: '✅ Sistema Tickets TI API funcionando',
-        timestamp: new Date().toISOString(),
-      });
+      res.status(200).json({ ok: true, mensaje: '✅ Sistema Tickets TI API v1.0' });
       return;
     }
+    if (pathname.startsWith('/api/auth')) return await authHandler(req, res);
 
     res.status(404).json({ error: 'Ruta no encontrada', pathname });
   } catch (error) {
