@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import authHandler from '../../_lib/handlers/auth.js';
+import usuariosHandler from '../../_lib/handlers/usuarios.js';
 
 const ORIGENES_PERMITIDOS = [
   'http://localhost:4200',
@@ -27,7 +28,8 @@ export default async (req: VercelRequest, res: VercelResponse) => {
       res.status(200).json({ ok: true, mensaje: '✅ Sistema Tickets TI API v1.0' });
       return;
     }
-    if (pathname.startsWith('/api/auth')) return await authHandler(req, res);
+    if (pathname.startsWith('/api/auth'))     return await authHandler(req, res);
+    if (pathname.startsWith('/api/usuarios')) return await usuariosHandler(req, res);
 
     res.status(404).json({ error: 'Ruta no encontrada', pathname });
   } catch (error) {
