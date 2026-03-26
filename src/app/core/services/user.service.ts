@@ -1,119 +1,83 @@
-import { Injectable } from '@angular/core';
-import { Firestore, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where, deleteDoc, orderBy } from '@angular/fire/firestore';
-import { Observable, from, map } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 import { UserProfile } from '../models/user.model';
-import { Auth } from '@angular/fire/auth';
+import { environment } from '../../../environments/environment';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class UserService {
-  constructor(
-    private firestore: Firestore,
-    private auth: Auth
-  ) { }
+  private http = inject(HttpClient);
+  private apiUrl = `${environment.apiUrl}/usuarios`;
 
-  getAllUsers(): Observable<UserProfile[]> {
-    const usersCollection = collection(this.firestore, 'users');
-    const usersQuery = query(usersCollection, orderBy('createdAt', 'desc'));
-    return from(getDocs(usersQuery)).pipe(
-      map(snapshot => 
-        snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile))
-      )
-    );
+  getAllUsers(rol?: string): Observable<UserProfile[]> {
+    let params = new HttpParams();
+    if (rol) params = params.set('rol', rol);
+
+    return this.http
+      .get<{ ok: boolean; usuarios: UserProfile[] }>(this.apiUrl, { params })
+      .pipe(map(r => r.usuarios));
   }
 
   getUserById(uid: string): Observable<UserProfile | null> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return from(getDoc(userRef)).pipe(
-      map(doc => {
-        if (doc.exists()) {
-          return { uid: doc.id, ...doc.data() } as UserProfile;
-        }
-        return null;
-      })
-    );
+    return this.http
+      .get<{ ok: boolean; usuario: UserProfile }>(`${this.apiUrl}/${uid}`)
+      .pipe(map(r => r.usuario));
   }
 
   getPendingUsers(): Observable<UserProfile[]> {
-    const usersCollection = collection(this.firestore, 'users');
-    const pendingQuery = query(usersCollection, where('role', '==', 'pending'));
-    return from(getDocs(pendingQuery)).pipe(
-      map(snapshot => 
-        snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile))
-      )
-    );
+    return this.getAllUsers('pending');
   }
 
-  approveUser(uid: string, role: string = 'user'): Observable<void> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return from(updateDoc(userRef, { 
-      role,
-      approvedAt: new Date().toISOString(),
-      approvedBy: this.auth.currentUser?.uid || 'system',
-      updatedAt: new Date().toISOString()
-    }));
-  }
-
-  updateUserStatus(uid: string, isActive: boolean): Observable<void> {
-    const userRef = doc(this.firestore, 'users', uid);
-    const role = isActive ? 'user' : 'inactive';
-    return from(updateDoc(userRef, { 
-      role,
-      updatedAt: new Date().toISOString(),
-      updatedBy: this.auth.currentUser?.uid || 'system'
-    }));
-  }
-
-  // MÉTODO FALTANTE 1: Obtener usuarios por rol
   getUsersByRole(role: string): Observable<UserProfile[]> {
-    const usersCollection = collection(this.firestore, 'users');
-    const roleQuery = query(usersCollection, where('role', '==', role));
-    return from(getDocs(roleQuery)).pipe(
-      map(snapshot => 
-        snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile))
-      )
-    );
+    return this.getAllUsers(role);
   }
 
-  // MÉTODO FALTANTE 2: Actualizar usuario
-  updateUser(uid: string, userData: Partial<UserProfile>): Observable<void> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return from(updateDoc(userRef, { 
-      ...userData,
-      updatedAt: new Date().toISOString(),
-      updatedBy: this.auth.currentUser?.uid || 'system'
-    }));
+  /** Crear usuario: el backend se encarga de Firebase Auth + MongoDB */
+  createUser(datos: {
+    email: string;
+    displayName: string;
+    password: string;
+    role: 'admin' | 'support' | 'user';
+    department?: string;
+    position?: string;
+  }): Observable<UserProfile> {
+    return this.http
+      .post<{ ok: boolean; usuario: UserProfile }>(this.apiUrl, datos)
+      .pipe(map(r => r.usuario));
   }
 
-  // MÉTODO FALTANTE 3: Crear perfil de usuario
-  createUserProfile(uid: string, userData: Partial<UserProfile>): Observable<void> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return from(setDoc(userRef, {
-      ...userData,
-      updatedAt: new Date().toISOString()
-    }));
+  updateUser(uid: string, datos: Partial<UserProfile>): Observable<UserProfile> {
+    return this.http
+      .put<{ ok: boolean; usuario: UserProfile }>(`${this.apiUrl}/${uid}`, datos)
+      .pipe(map(r => r.usuario));
   }
 
-  // Método para obtener todos los departamentos (únicos) de los usuarios
-  getUserDepartments(): Observable<string[]> {
-    const usersCollection = collection(this.firestore, 'users');
-    return from(getDocs(usersCollection)).pipe(
-      map(snapshot => {
-        const departments = new Set<string>();
-        snapshot.docs.forEach(doc => {
-          const department = doc.data()['department'];
-          if (department) departments.add(department);
-        });
-        return Array.from(departments).sort();
-      })
-    );
+  activarUsuario(uid: string, role: 'admin' | 'support' | 'user' = 'user'): Observable<UserProfile> {
+    return this.http
+      .patch<{ ok: boolean; usuario: UserProfile }>(`${this.apiUrl}/${uid}/activar`, { role })
+      .pipe(map(r => r.usuario));
   }
 
-  // Método para eliminar un usuario (solo admin)
+  desactivarUsuario(uid: string): Observable<UserProfile> {
+    return this.http
+      .patch<{ ok: boolean; usuario: UserProfile }>(`${this.apiUrl}/${uid}/desactivar`, {})
+      .pipe(map(r => r.usuario));
+  }
+
   deleteUser(uid: string): Observable<void> {
-    const userRef = doc(this.firestore, 'users', uid);
-    return from(deleteDoc(userRef));
+    return this.http
+      .delete<{ ok: boolean }>(`${this.apiUrl}/${uid}`)
+      .pipe(map(() => void 0));
+  }
+
+  /** Aprobación de usuario pendiente (atajo de activarUsuario) */
+  approveUser(uid: string, role: 'admin' | 'support' | 'user' = 'user'): Observable<UserProfile> {
+    return this.activarUsuario(uid, role);
+  }
+
+  /** Compatibilidad con componentes existentes */
+  updateUserStatus(uid: string, isActive: boolean): Observable<UserProfile> {
+    return isActive ? this.activarUsuario(uid) : this.desactivarUsuario(uid);
   }
 }
 

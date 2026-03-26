@@ -12,9 +12,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { UserService } from '../../../../core/services/user.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { DepartmentService } from '../../../../core/services/department.service';
-import { Observable, switchMap, tap } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 
 @Component({
   selector: 'app-user-form',
@@ -48,7 +47,6 @@ export class UserFormComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private userService: UserService,
-    private authService: AuthService,
     private departmentService: DepartmentService,
     private snackBar: MatSnackBar
   ) {
@@ -64,7 +62,7 @@ export class UserFormComponent implements OnInit {
         this.router.navigate(['/auth/register']);
         return;
       }
-      
+
       // Solo manejar la edición
       this.isEditMode = true;
       this.userId = id;
@@ -127,30 +125,22 @@ export class UserFormComponent implements OnInit {
         }
       });
     } else {
-      // Crear nuevo usuario
-      this.authService.registerUser(userData.email, userData.password).pipe(
-        switchMap(userCredential => {
-          const uid = userCredential.user.uid;
-          const newUser = {
-            uid,
-            email: userData.email,
-            displayName: userData.displayName,
-            role: userData.role,
-            department: userData.department || null,
-            position: userData.position || null,
-            createdAt: new Date().toISOString()
-          };
-
-          return this.userService.createUserProfile(uid, newUser);
-        }),
-        tap(() => {
+      // El backend crea el usuario en Firebase Auth + MongoDB
+      this.userService.createUser({
+        email:       userData.email,
+        displayName: userData.displayName,
+        password:    userData.password,
+        role:        userData.role,
+        department:  userData.department || undefined,
+        position:    userData.position   || undefined,
+      }).subscribe({
+        next: () => {
           this.snackBar.open('Usuario creado correctamente', 'Cerrar', { duration: 3000 });
           this.router.navigate(['/usuarios']);
-        })
-      ).subscribe({
+        },
         error: (error) => {
           this.isSubmitting = false;
-          this.snackBar.open(`Error al crear usuario: ${error.message}`, 'Cerrar', { duration: 5000 });
+          this.snackBar.open(`Error: ${error.error?.error ?? error.message}`, 'Cerrar', { duration: 5000 });
         }
       });
     }
