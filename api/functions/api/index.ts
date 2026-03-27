@@ -1,6 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import authHandler from '../../_lib/handlers/auth.js';
 import usuariosHandler from '../../_lib/handlers/usuarios.js';
+import ticketsHandler from '../../_lib/handlers/tickets.js';
+import departamentosHandler from '../../_lib/handlers/departamentos.js';
+import reportesHandler from '../../_lib/handlers/reportes.js';
+import { limitadorGeneral } from '../../_lib/middleware/rateLimiter.js';
 
 const ORIGENES_PERMITIDOS = [
   'http://localhost:4200',
@@ -23,13 +27,19 @@ export default async (req: VercelRequest, res: VercelResponse) => {
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
+  // Rate limiting global
+  if (!limitadorGeneral(req, res)) return;
+
   try {
     if (pathname === '/api' || pathname === '/api/') {
       res.status(200).json({ ok: true, mensaje: '✅ Sistema Tickets TI API v1.0' });
       return;
     }
-    if (pathname.startsWith('/api/auth'))     return await authHandler(req, res);
-    if (pathname.startsWith('/api/usuarios')) return await usuariosHandler(req, res);
+    if (pathname.startsWith('/api/auth'))          return await authHandler(req, res);
+    if (pathname.startsWith('/api/usuarios'))       return await usuariosHandler(req, res);
+    if (pathname.startsWith('/api/tickets'))        return await ticketsHandler(req, res);
+    if (pathname.startsWith('/api/departamentos'))  return await departamentosHandler(req, res);
+    if (pathname.startsWith('/api/reportes'))       return await reportesHandler(req, res);
 
     res.status(404).json({ error: 'Ruta no encontrada', pathname });
   } catch (error) {
