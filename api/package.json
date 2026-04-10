@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@vercel/node": "^5.6.20",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -23,7 +23,7 @@
     "joi": "^18.1.1",
     "joi-objectid": "^4.0.2",
     "mongoose": "^9.3.2",
-    "path-to-regexp": "^8.3.0",
+    "path-to-regexp": "^8.4.2",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },
