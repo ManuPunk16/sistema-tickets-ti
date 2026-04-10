@@ -2,15 +2,19 @@ import { Component, OnInit } from '@angular/core';
 
 import { RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
+import { NotificacionesToastComponent } from './shared/components/notificaciones-toast/notificaciones-toast.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
-    RouterOutlet
+    RouterOutlet,
+    NotificacionesToastComponent,
 ],
   template: `
     <router-outlet></router-outlet>
+    <!-- Toast de notificaciones global -->
+    <app-notificaciones-toast />
     <!-- Overlay de carga durante la inicialización -->
     @if (initializing) {
       <div class="fixed inset-0 bg-indigo-900 bg-opacity-75 flex items-center justify-center z-50">
@@ -26,9 +30,9 @@ import { AuthService } from './core/services/auth.service';
 export class AppComponent implements OnInit {
   title = 'Sistema de Tickets TI';
   initializing = true;
-  
+
   constructor(private authService: AuthService) {}
-  
+
   ngOnInit() {
     // Inicializar el servicio de autenticación y asegurar la restauración de sesión
     this.authService.initializeAuth().subscribe({

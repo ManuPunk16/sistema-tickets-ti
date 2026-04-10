@@ -1,52 +1,36 @@
-import { Component, OnInit } from '@angular/core';
-
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DepartmentService } from '../../../../core/services/department.service';
+import { NotificacionService } from '../../../../core/services/notificacion.service';
 
 @Component({
   selector: 'app-department-form',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-    MatSnackBarModule
-],
+  ],
   templateUrl: './department-form.component.html',
   styleUrls: ['./department-form.component.scss']
 })
 export class DepartmentFormComponent implements OnInit {
-  departmentForm: FormGroup;
-  isEditMode = false;
-  loading = false;
-  isSubmitting = false;
-  departmentId: string | null = null;
+  private fb            = inject(FormBuilder);
+  private route         = inject(ActivatedRoute);
+  private router        = inject(Router);
+  private deptService   = inject(DepartmentService);
+  private notificacion  = inject(NotificacionService);
 
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-    private departmentService: DepartmentService,
-    private snackBar: MatSnackBar
-  ) {
-    this.departmentForm = this.fb.group({
-      nombre: ['', [Validators.required]],
-      descripcion: ['']
-    });
-  }
+  departmentForm: FormGroup = this.fb.group({
+    nombre:      ['', [Validators.required, Validators.maxLength(100)]],
+    descripcion: ['', Validators.maxLength(500)]
+  });
+
+  protected isEditMode    = false;
+  protected cargando      = signal(false);
+  protected enviando      = signal(false);
+  private departmentId: string | null = null;
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
@@ -54,23 +38,23 @@ export class DepartmentFormComponent implements OnInit {
       if (id) {
         this.isEditMode = true;
         this.departmentId = id;
-        this.loading = true;
+        this.cargando.set(true);
 
-        this.departmentService.getDepartmentById(id).subscribe({
-          next: (department) => {
-            if (department) {
+        this.deptService.getDepartmentById(id).subscribe({
+          next: (dept) => {
+            if (dept) {
               this.departmentForm.patchValue({
-                nombre:      department.nombre,
-                descripcion: department.descripcion
+                nombre:      dept.nombre,
+                descripcion: dept.descripcion
               });
             } else {
-              this.snackBar.open('Departamento no encontrado', 'Cerrar', { duration: 3000 });
+              this.notificacion.advertencia('Departamento no encontrado');
               this.router.navigate(['/departamentos']);
             }
-            this.loading = false;
+            this.cargando.set(false);
           },
-          error: (error) => {
-            this.snackBar.open('Error al cargar departamento: ' + error.message, 'Cerrar', { duration: 3000 });
+          error: (err: Error) => {
+            this.notificacion.error('Error al cargar departamento: ' + err.message);
             this.router.navigate(['/departamentos']);
           }
         });
@@ -81,29 +65,29 @@ export class DepartmentFormComponent implements OnInit {
   onSubmit(): void {
     if (this.departmentForm.invalid) return;
 
-    this.isSubmitting = true;
-    const formData = this.departmentForm.value;
+    this.enviando.set(true);
+    const datos = this.departmentForm.value;
 
     if (this.isEditMode && this.departmentId) {
-      this.departmentService.updateDepartment(this.departmentId, formData).subscribe({
+      this.deptService.updateDepartment(this.departmentId, datos).subscribe({
         next: () => {
-          this.snackBar.open('Departamento actualizado correctamente', 'Cerrar', { duration: 3000 });
+          this.notificacion.exito('Departamento actualizado correctamente');
           this.router.navigate(['/departamentos']);
         },
-        error: (error) => {
-          this.snackBar.open('Error al actualizar departamento: ' + error.message, 'Cerrar', { duration: 3000 });
-          this.isSubmitting = false;
+        error: (err: Error) => {
+          this.notificacion.error('Error al actualizar departamento: ' + err.message);
+          this.enviando.set(false);
         }
       });
     } else {
-      this.departmentService.createDepartment(formData).subscribe({
+      this.deptService.createDepartment(datos).subscribe({
         next: () => {
-          this.snackBar.open('Departamento creado correctamente', 'Cerrar', { duration: 3000 });
+          this.notificacion.exito('Departamento creado correctamente');
           this.router.navigate(['/departamentos']);
         },
-        error: (error) => {
-          this.snackBar.open('Error al crear departamento: ' + error.message, 'Cerrar', { duration: 3000 });
-          this.isSubmitting = false;
+        error: (err: Error) => {
+          this.notificacion.error('Error al crear departamento: ' + err.message);
+          this.enviando.set(false);
         }
       });
     }

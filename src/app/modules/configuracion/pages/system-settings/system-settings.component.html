@@ -1,149 +1,344 @@
-<div class="p-4 md:p-6">
-  <h1 class="text-2xl font-bold mb-6">Configuración del Sistema</h1>
+<div class="p-4 md:p-6 max-w-4xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-900 mb-6">Configuración del Sistema</h1>
 
-  @if (loading) {
-    <div class="flex justify-center my-8">
-      <mat-spinner diameter="40"></mat-spinner>
+  @if (cargando()) {
+    <div class="flex justify-center items-center py-16">
+      <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-label="Cargando">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
     </div>
   }
 
-  @if (!loading) {
-    <mat-card>
-      <mat-card-content>
-        <mat-tab-group>
-          <!-- Configuración General -->
-          <mat-tab label="General">
-            <div class="p-4">
-              <form [formGroup]="generalForm" (ngSubmit)="saveGeneralSettings()">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <mat-form-field appearance="outline">
-                    <mat-label>Nombre del Sistema</mat-label>
-                    <input matInput formControlName="systemName">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline">
-                    <mat-label>Email de Soporte</mat-label>
-                    <input matInput formControlName="supportEmail" type="email">
-                    @if (generalForm.get('supportEmail')?.hasError('email')) {
-                      <mat-error>
-                        Ingrese un email válido
-                      </mat-error>
-                    }
-                  </mat-form-field>
+  @if (!cargando()) {
+    <!-- Pestañas de navegación -->
+    <div class="border-b border-gray-200 mb-6">
+      <nav class="flex gap-0 -mb-px" role="tablist" aria-label="Secciones de configuración">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="pestanaActiva() === 'general'"
+          (click)="cambiarPestana('general')"
+          [class]="pestanaActiva() === 'general'
+            ? 'px-5 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white'
+            : 'px-5 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300'"
+        >
+          General
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="pestanaActiva() === 'notificaciones'"
+          (click)="cambiarPestana('notificaciones')"
+          [class]="pestanaActiva() === 'notificaciones'
+            ? 'px-5 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white'
+            : 'px-5 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300'"
+        >
+          Notificaciones
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="pestanaActiva() === 'sla'"
+          (click)="cambiarPestana('sla')"
+          [class]="pestanaActiva() === 'sla'
+            ? 'px-5 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white'
+            : 'px-5 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300'"
+        >
+          Categorías y SLAs
+        </button>
+      </nav>
+    </div>
+
+    <!-- Pestaña: General -->
+    @if (pestanaActiva() === 'general') {
+      <div role="tabpanel" aria-labelledby="tab-general">
+        <form [formGroup]="formularioGeneral" (ngSubmit)="guardarGeneral()" novalidate>
+          <div class="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <!-- Nombre del sistema -->
+              <div>
+                <label for="nombreSistema" class="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del Sistema <span class="text-red-500" aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="nombreSistema"
+                  type="text"
+                  formControlName="nombreSistema"
+                  aria-required="true"
+                  class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  [class.border-red-400]="formularioGeneral.get('nombreSistema')?.invalid && formularioGeneral.get('nombreSistema')?.touched"
+                  [class.border-gray-300]="!(formularioGeneral.get('nombreSistema')?.invalid && formularioGeneral.get('nombreSistema')?.touched)"
+                  placeholder="Ej. Sistema de Tickets TI"
+                />
+                @if (formularioGeneral.get('nombreSistema')?.invalid && formularioGeneral.get('nombreSistema')?.touched) {
+                  <p class="mt-1 text-xs text-red-600" role="alert">Este campo es requerido</p>
+                }
+              </div>
+
+              <!-- Email de soporte -->
+              <div>
+                <label for="emailSoporte" class="block text-sm font-medium text-gray-700 mb-1">
+                  Email de Soporte <span class="text-red-500" aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="emailSoporte"
+                  type="email"
+                  formControlName="emailSoporte"
+                  aria-required="true"
+                  class="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  [class.border-red-400]="formularioGeneral.get('emailSoporte')?.invalid && formularioGeneral.get('emailSoporte')?.touched"
+                  [class.border-gray-300]="!(formularioGeneral.get('emailSoporte')?.invalid && formularioGeneral.get('emailSoporte')?.touched)"
+                  placeholder="soporte@empresa.com"
+                />
+                @if (formularioGeneral.get('emailSoporte')?.hasError('required') && formularioGeneral.get('emailSoporte')?.touched) {
+                  <p class="mt-1 text-xs text-red-600" role="alert">Este campo es requerido</p>
+                }
+                @if (formularioGeneral.get('emailSoporte')?.hasError('email') && formularioGeneral.get('emailSoporte')?.touched) {
+                  <p class="mt-1 text-xs text-red-600" role="alert">Ingrese un email válido</p>
+                }
+              </div>
+            </div>
+
+            <!-- Modo mantenimiento -->
+            <div class="flex items-start gap-3 pt-1">
+              <button
+                type="button"
+                role="switch"
+                [attr.aria-checked]="formularioGeneral.get('modoMantenimiento')?.value"
+                (click)="formularioGeneral.get('modoMantenimiento')?.setValue(!formularioGeneral.get('modoMantenimiento')?.value); formularioGeneral.markAsDirty()"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 mt-0.5"
+                [class.bg-orange-500]="formularioGeneral.get('modoMantenimiento')?.value"
+                [class.bg-gray-200]="!formularioGeneral.get('modoMantenimiento')?.value"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform"
+                  [class.translate-x-5]="formularioGeneral.get('modoMantenimiento')?.value"
+                  [class.translate-x-0]="!formularioGeneral.get('modoMantenimiento')?.value"
+                ></span>
+              </button>
+              <div>
+                <span class="text-sm font-medium text-gray-700">Modo de Mantenimiento</span>
+                @if (formularioGeneral.get('modoMantenimiento')?.value) {
+                  <p class="text-xs text-orange-600 mt-0.5">El sistema estará inaccesible para usuarios que no sean administradores</p>
+                } @else {
+                  <p class="text-xs text-gray-500 mt-0.5">El sistema opera con normalidad</p>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <button
+              type="submit"
+              [disabled]="formularioGeneral.pristine || formularioGeneral.invalid || guardandoGeneral()"
+              class="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              @if (guardandoGeneral()) {
+                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Guardando...
+              } @else {
+                Guardar Cambios
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+
+    <!-- Pestaña: Notificaciones -->
+    @if (pestanaActiva() === 'notificaciones') {
+      <div role="tabpanel" aria-labelledby="tab-notificaciones">
+        <form [formGroup]="formularioNotificaciones" (ngSubmit)="guardarNotificaciones()" novalidate>
+          <div class="space-y-4">
+            <!-- Tarjeta: Email -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Notificaciones por Email</h3>
+              <div class="space-y-4">
+                <!-- Toggle: habilitar notificaciones globales -->
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    [attr.aria-checked]="formularioNotificaciones.get('notificacionesEmail')?.value"
+                    (click)="formularioNotificaciones.get('notificacionesEmail')?.setValue(!formularioNotificaciones.get('notificacionesEmail')?.value); formularioNotificaciones.markAsDirty()"
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    [class.bg-blue-600]="formularioNotificaciones.get('notificacionesEmail')?.value"
+                    [class.bg-gray-200]="!formularioNotificaciones.get('notificacionesEmail')?.value"
+                  >
+                    <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform"
+                      [class.translate-x-5]="formularioNotificaciones.get('notificacionesEmail')?.value"
+                      [class.translate-x-0]="!formularioNotificaciones.get('notificacionesEmail')?.value"
+                    ></span>
+                  </button>
+                  <span class="text-sm font-medium text-gray-700">Habilitar notificaciones por email</span>
                 </div>
-                <div>
-                  <mat-slide-toggle formControlName="maintenanceMode" color="warn">
-                    Modo de Mantenimiento
-                  </mat-slide-toggle>
-                  @if (generalForm.get('maintenanceMode')?.value) {
-                    <p class="text-sm text-red-500 mt-1">
-                      El sistema estará inaccesible excepto para administradores
-                    </p>
+
+                <div class="border-t border-gray-100 pt-4 space-y-3 pl-2"
+                  [class.opacity-40]="!notificacionesEmailActivas()"
+                  [class.pointer-events-none]="!notificacionesEmailActivas()">
+                  @for (toggle of [
+                    { control: 'notifNuevoTicket', label: 'Notificar cuando se crea un nuevo ticket' },
+                    { control: 'notifCambioEstado', label: 'Notificar cambios de estado del ticket' },
+                    { control: 'notifComentario', label: 'Notificar nuevos comentarios' }
+                  ]; track toggle.control) {
+                    <div class="flex items-center gap-3">
+                      <button
+                        type="button"
+                        role="switch"
+                        [attr.aria-checked]="formularioNotificaciones.get(toggle.control)?.value"
+                        (click)="formularioNotificaciones.get(toggle.control)?.setValue(!formularioNotificaciones.get(toggle.control)?.value); formularioNotificaciones.markAsDirty()"
+                        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        [class.bg-blue-500]="formularioNotificaciones.get(toggle.control)?.value"
+                        [class.bg-gray-200]="!formularioNotificaciones.get(toggle.control)?.value"
+                      >
+                        <span class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform"
+                          [class.translate-x-4]="formularioNotificaciones.get(toggle.control)?.value"
+                          [class.translate-x-0]="!formularioNotificaciones.get(toggle.control)?.value"
+                        ></span>
+                      </button>
+                      <span class="text-sm text-gray-700">{{ toggle.label }}</span>
+                    </div>
                   }
                 </div>
-                <div class="mt-4 flex justify-end">
-                  <button mat-raised-button color="primary" type="submit"
-                    [disabled]="generalForm.pristine || generalForm.invalid">
-                    Guardar Cambios
-                  </button>
-                </div>
-              </form>
+              </div>
             </div>
-          </mat-tab>
-          <!-- Configuración de Notificaciones -->
-          <mat-tab label="Notificaciones">
-            <div class="p-4">
-              <form [formGroup]="notificationsForm" (ngSubmit)="saveNotificationSettings()">
-                <mat-card class="mb-4 bg-gray-50">
-                  <mat-card-content>
-                    <h3 class="text-lg font-medium mb-4">Notificaciones por Email</h3>
-                    <div class="grid gap-4">
-                      <mat-slide-toggle formControlName="emailNotificationsEnabled" color="primary">
-                        Habilitar notificaciones por email
-                      </mat-slide-toggle>
-                      <mat-slide-toggle formControlName="newTicketNotification"
-                        [disabled]="!notificationsForm.get('emailNotificationsEnabled')?.value">
-                        Notificar cuando se crea un nuevo ticket
-                      </mat-slide-toggle>
-                      <mat-slide-toggle formControlName="statusChangeNotification"
-                        [disabled]="!notificationsForm.get('emailNotificationsEnabled')?.value">
-                        Notificar cambios de estado
-                      </mat-slide-toggle>
-                      <mat-slide-toggle formControlName="commentNotification"
-                        [disabled]="!notificationsForm.get('emailNotificationsEnabled')?.value">
-                        Notificar nuevos comentarios
-                      </mat-slide-toggle>
+
+            <!-- Tarjeta: Recordatorios -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Recordatorios</h3>
+              <div class="space-y-4">
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    [attr.aria-checked]="formularioNotificaciones.get('recordatorioActivo')?.value"
+                    (click)="formularioNotificaciones.get('recordatorioActivo')?.setValue(!formularioNotificaciones.get('recordatorioActivo')?.value); formularioNotificaciones.markAsDirty()"
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    [class.bg-blue-600]="formularioNotificaciones.get('recordatorioActivo')?.value"
+                    [class.bg-gray-200]="!formularioNotificaciones.get('recordatorioActivo')?.value"
+                  >
+                    <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform"
+                      [class.translate-x-5]="formularioNotificaciones.get('recordatorioActivo')?.value"
+                      [class.translate-x-0]="!formularioNotificaciones.get('recordatorioActivo')?.value"
+                    ></span>
+                  </button>
+                  <span class="text-sm font-medium text-gray-700">Habilitar recordatorios</span>
+                </div>
+
+                @if (recordatorioActivo()) {
+                  <div class="pl-2">
+                    <label for="diasRecordatorio" class="block text-sm font-medium text-gray-700 mb-1">
+                      Días para recordatorio de ticket sin actividad
+                    </label>
+                    <input
+                      id="diasRecordatorio"
+                      type="number"
+                      formControlName="diasRecordatorio"
+                      min="1" max="30"
+                      class="w-40 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      [class.border-red-400]="formularioNotificaciones.get('diasRecordatorio')?.invalid && formularioNotificaciones.get('diasRecordatorio')?.touched"
+                    />
+                    @if (formularioNotificaciones.get('diasRecordatorio')?.invalid && formularioNotificaciones.get('diasRecordatorio')?.touched) {
+                      <p class="mt-1 text-xs text-red-600" role="alert">Ingrese un valor entre 1 y 30 días</p>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <button
+              type="submit"
+              [disabled]="formularioNotificaciones.pristine || formularioNotificaciones.invalid || guardandoNotificaciones()"
+              class="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              @if (guardandoNotificaciones()) {
+                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Guardando...
+              } @else {
+                Guardar Configuración
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+
+    <!-- Pestaña: SLA -->
+    @if (pestanaActiva() === 'sla') {
+      <div role="tabpanel" aria-labelledby="tab-sla">
+        <form [formGroup]="formularioSla" (ngSubmit)="guardarSla()" novalidate>
+          <div class="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <!-- Nota categorías -->
+            <div>
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Categorías de Tickets</h3>
+              <p class="text-sm text-gray-500 italic">Funcionalidad para gestión de categorías personalizadas en desarrollo.</p>
+            </div>
+
+            <div class="border-t border-gray-100 pt-5">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Tiempos de Respuesta (SLA)</h3>
+              <p class="text-xs text-gray-500 mb-4">Define cuántas horas tiene el personal de TI para resolver un ticket según su prioridad.</p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                @for (campo of [
+                  { control: 'slaBaja',    label: 'Prioridad Baja',    color: 'text-green-700' },
+                  { control: 'slaMedia',   label: 'Prioridad Media',   color: 'text-yellow-700' },
+                  { control: 'slaAlta',    label: 'Prioridad Alta',    color: 'text-orange-700' },
+                  { control: 'slaCritica', label: 'Prioridad Crítica', color: 'text-red-700' }
+                ]; track campo.control) {
+                  <div>
+                    <label [for]="campo.control" class="block text-sm font-medium mb-1" [class]="campo.color">
+                      {{ campo.label }}
+                    </label>
+                    <div class="flex items-center gap-2">
+                      <input
+                        [id]="campo.control"
+                        type="number"
+                        [formControlName]="campo.control"
+                        min="1"
+                        aria-required="true"
+                        class="w-28 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        [class.border-red-400]="formularioSla.get(campo.control)?.invalid && formularioSla.get(campo.control)?.touched"
+                        [class.border-gray-300]="!(formularioSla.get(campo.control)?.invalid && formularioSla.get(campo.control)?.touched)"
+                      />
+                      <span class="text-sm text-gray-500">horas</span>
                     </div>
-                  </mat-card-content>
-                </mat-card>
-                <mat-card class="mb-4 bg-gray-50">
-                  <mat-card-content>
-                    <h3 class="text-lg font-medium mb-4">Recordatorios</h3>
-                    <div class="grid gap-4">
-                      <mat-slide-toggle formControlName="reminderEnabled" color="primary">
-                        Habilitar recordatorios
-                      </mat-slide-toggle>
-                      @if (notificationsForm.get('reminderEnabled')?.value) {
-                        <mat-form-field appearance="outline"
-                          >
-                          <mat-label>Días para recordatorio de ticket sin actividad</mat-label>
-                          <input matInput type="number" formControlName="reminderDays" min="1">
-                        </mat-form-field>
-                      }
-                    </div>
-                  </mat-card-content>
-                </mat-card>
-                <div class="mt-4 flex justify-end">
-                  <button mat-raised-button color="primary" type="submit"
-                    [disabled]="notificationsForm.pristine || notificationsForm.invalid">
-                    Guardar Configuración
-                  </button>
-                </div>
-              </form>
+                    @if (formularioSla.get(campo.control)?.invalid && formularioSla.get(campo.control)?.touched) {
+                      <p class="mt-1 text-xs text-red-600" role="alert">Ingrese un valor mayor a 0</p>
+                    }
+                  </div>
+                }
+              </div>
             </div>
-          </mat-tab>
-          <!-- Categorías y prioridades personalizables -->
-          <mat-tab label="Categorías y Prioridades">
-            <div class="p-4">
-              <form [formGroup]="categoriesForm" (ngSubmit)="saveCategoriesSettings()">
-                <!-- Categorías de Tickets -->
-                <h3 class="text-lg font-medium mb-4">Categorías de Tickets</h3>
-                <div class="mb-6">
-                  <!-- Aquí iría un sistema para gestionar categorías personalizadas -->
-                  <p class="text-sm text-gray-500 italic">Funcionalidad para gestión de categorías en
-                  desarrollo.</p>
-                </div>
-                <mat-divider class="my-6"></mat-divider>
-                <!-- SLAs por prioridad -->
-                <h3 class="text-lg font-medium mb-4">Tiempos de Respuesta (SLA)</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <mat-form-field appearance="outline">
-                    <mat-label>Tiempo respuesta - Prioridad Baja (horas)</mat-label>
-                    <input matInput type="number" formControlName="slaLow" min="0">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline">
-                    <mat-label>Tiempo respuesta - Prioridad Media (horas)</mat-label>
-                    <input matInput type="number" formControlName="slaMedium" min="0">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline">
-                    <mat-label>Tiempo respuesta - Prioridad Alta (horas)</mat-label>
-                    <input matInput type="number" formControlName="slaHigh" min="0">
-                  </mat-form-field>
-                  <mat-form-field appearance="outline">
-                    <mat-label>Tiempo respuesta - Prioridad Crítica (horas)</mat-label>
-                    <input matInput type="number" formControlName="slaCritical" min="0">
-                  </mat-form-field>
-                </div>
-                <div class="mt-4 flex justify-end">
-                  <button mat-raised-button color="primary" type="submit"
-                    [disabled]="categoriesForm.pristine || categoriesForm.invalid">
-                    Guardar Configuración
-                  </button>
-                </div>
-              </form>
-            </div>
-          </mat-tab>
-        </mat-tab-group>
-      </mat-card-content>
-    </mat-card>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <button
+              type="submit"
+              [disabled]="formularioSla.pristine || formularioSla.invalid || guardandoSla()"
+              class="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              @if (guardandoSla()) {
+                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Guardando...
+              } @else {
+                Guardar Configuración
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    }
   }
 </div>

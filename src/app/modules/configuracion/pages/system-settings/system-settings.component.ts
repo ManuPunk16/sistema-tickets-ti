@@ -1,118 +1,143 @@
-import { Component, OnInit } from '@angular/core';
-
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ConfigService } from '../../../../core/services/config.service';
+import { ConfigService, SystemConfig } from '../../../../core/services/config.service';
+import { NotificacionService } from '../../../../core/services/notificacion.service';
+
+type PestanaActiva = 'general' | 'notificaciones' | 'sla';
 
 @Component({
   selector: 'app-system-settings',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatButtonModule,
-    MatCardModule,
-    MatTabsModule,
-    MatSlideToggleModule,
-    MatSnackBarModule,
-    MatIconModule,
-    MatDividerModule,
-    MatProgressSpinnerModule
-],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule],
   templateUrl: './system-settings.component.html',
-  styleUrls: ['./system-settings.component.scss']
+  styleUrls: ['./system-settings.component.scss'],
 })
 export class SystemSettingsComponent implements OnInit {
-  generalForm: FormGroup;
-  notificationsForm: FormGroup;
-  categoriesForm: FormGroup;
+  private fb = inject(FormBuilder);
+  private configService = inject(ConfigService);
+  private notificacion = inject(NotificacionService);
 
-  loading = true;
+  protected cargando = signal(true);
+  protected guardandoGeneral = signal(false);
+  protected guardandoNotificaciones = signal(false);
+  protected guardandoSla = signal(false);
+  protected pestanaActiva = signal<PestanaActiva>('general');
 
-  constructor(
-    private fb: FormBuilder,
-    private configService: ConfigService,
-    private snackBar: MatSnackBar
-  ) {
-    this.generalForm = this.createGeneralForm();
-    this.notificationsForm = this.createNotificationsForm();
-    this.categoriesForm = this.createCategoriesForm();
-  }
+  protected formularioGeneral: FormGroup = this.fb.group({
+    nombreSistema: ['', Validators.required],
+    emailSoporte: ['', [Validators.required, Validators.email]],
+    modoMantenimiento: [false],
+  });
+
+  protected formularioNotificaciones: FormGroup = this.fb.group({
+    notificacionesEmail: [true],
+    notifNuevoTicket: [true],
+    notifCambioEstado: [true],
+    notifComentario: [true],
+    recordatorioActivo: [false],
+    diasRecordatorio: [7, [Validators.min(1), Validators.max(30)]],
+  });
+
+  protected formularioSla: FormGroup = this.fb.group({
+    slaBaja: [72, [Validators.required, Validators.min(1)]],
+    slaMedia: [24, [Validators.required, Validators.min(1)]],
+    slaAlta: [8, [Validators.required, Validators.min(1)]],
+    slaCritica: [2, [Validators.required, Validators.min(1)]],
+  });
+
+  // Computed para deshabilitar controles de notificaciones individuales
+  protected notificacionesEmailActivas = computed(
+    () => !!this.formularioNotificaciones.get('notificacionesEmail')?.value
+  );
+
+  protected recordatorioActivo = computed(
+    () => !!this.formularioNotificaciones.get('recordatorioActivo')?.value
+  );
 
   ngOnInit(): void {
-    // Simulamos carga de configuración
-    setTimeout(() => {
-      this.loading = false;
-
-      // En una implementación real, aquí cargarías los datos desde el servicio
-      // this.configService.getGeneralSettings().subscribe(settings => {
-      //   this.generalForm.patchValue(settings);
-      // });
-    }, 500);
-  }
-
-  createGeneralForm(): FormGroup {
-    return this.fb.group({
-      systemName: ['Sistema de Tickets TI', Validators.required],
-      supportEmail: ['soporte@empresa.com', [Validators.required, Validators.email]],
-      maintenanceMode: [false]
+    this.configService.getSystemConfig().subscribe({
+      next: (config: SystemConfig) => {
+        this.formularioGeneral.patchValue({
+          nombreSistema: config.nombreSistema,
+          emailSoporte: config.emailSoporte,
+          modoMantenimiento: config.modoMantenimiento,
+        });
+        this.formularioNotificaciones.patchValue({
+          notificacionesEmail: config.notificacionesEmail,
+          notifNuevoTicket: config.notifNuevoTicket,
+          notifCambioEstado: config.notifCambioEstado,
+          notifComentario: config.notifComentario,
+          recordatorioActivo: config.recordatorioActivo,
+          diasRecordatorio: config.diasRecordatorio,
+        });
+        this.formularioSla.patchValue({
+          slaBaja: config.slaBaja,
+          slaMedia: config.slaMedia,
+          slaAlta: config.slaAlta,
+          slaCritica: config.slaCritica,
+        });
+        this.cargando.set(false);
+      },
+      error: () => {
+        this.notificacion.error('Error al cargar la configuración del sistema');
+        this.cargando.set(false);
+      },
     });
   }
 
-  createNotificationsForm(): FormGroup {
-    return this.fb.group({
-      emailNotificationsEnabled: [true],
-      newTicketNotification: [true],
-      statusChangeNotification: [true],
-      commentNotification: [true],
-      reminderEnabled: [false],
-      reminderDays: [7, [Validators.min(1), Validators.max(30)]]
+  protected cambiarPestana(pestana: PestanaActiva): void {
+    this.pestanaActiva.set(pestana);
+  }
+
+  protected guardarGeneral(): void {
+    if (this.formularioGeneral.invalid) return;
+    this.guardandoGeneral.set(true);
+
+    this.configService.saveSystemConfig(this.formularioGeneral.value).subscribe({
+      next: () => {
+        this.notificacion.exito('Configuración general guardada correctamente');
+        this.formularioGeneral.markAsPristine();
+        this.guardandoGeneral.set(false);
+      },
+      error: () => {
+        this.notificacion.error('Error al guardar la configuración general');
+        this.guardandoGeneral.set(false);
+      },
     });
   }
 
-  createCategoriesForm(): FormGroup {
-    return this.fb.group({
-      slaLow: [48, [Validators.required, Validators.min(0)]],
-      slaMedium: [24, [Validators.required, Validators.min(0)]],
-      slaHigh: [8, [Validators.required, Validators.min(0)]],
-      slaCritical: [4, [Validators.required, Validators.min(0)]]
+  protected guardarNotificaciones(): void {
+    if (this.formularioNotificaciones.invalid) return;
+    this.guardandoNotificaciones.set(true);
+
+    this.configService.saveSystemConfig(this.formularioNotificaciones.value).subscribe({
+      next: () => {
+        this.notificacion.exito('Configuración de notificaciones guardada correctamente');
+        this.formularioNotificaciones.markAsPristine();
+        this.guardandoNotificaciones.set(false);
+      },
+      error: () => {
+        this.notificacion.error('Error al guardar la configuración de notificaciones');
+        this.guardandoNotificaciones.set(false);
+      },
     });
   }
 
-  saveGeneralSettings(): void {
-    if (this.generalForm.invalid) return;
+  protected guardarSla(): void {
+    if (this.formularioSla.invalid) return;
+    this.guardandoSla.set(true);
 
-    // En una implementación real, guardarías en la base de datos
-    // this.configService.saveGeneralSettings(this.generalForm.value).subscribe();
-
-    this.snackBar.open('Configuración general guardada', 'Cerrar', { duration: 3000 });
-  }
-
-  saveNotificationSettings(): void {
-    if (this.notificationsForm.invalid) return;
-
-    // this.configService.saveNotificationSettings(this.notificationsForm.value).subscribe();
-
-    this.snackBar.open('Configuración de notificaciones guardada', 'Cerrar', { duration: 3000 });
-  }
-
-  saveCategoriesSettings(): void {
-    if (this.categoriesForm.invalid) return;
-
-    // this.configService.saveCategoriesSettings(this.categoriesForm.value).subscribe();
-
-    this.snackBar.open('Configuración de categorías y SLAs guardada', 'Cerrar', { duration: 3000 });
+    this.configService.saveSystemConfig(this.formularioSla.value).subscribe({
+      next: () => {
+        this.notificacion.exito('Configuración de SLAs guardada correctamente');
+        this.formularioSla.markAsPristine();
+        this.guardandoSla.set(false);
+      },
+      error: () => {
+        this.notificacion.error('Error al guardar la configuración de SLAs');
+        this.guardandoSla.set(false);
+      },
+    });
   }
 }
