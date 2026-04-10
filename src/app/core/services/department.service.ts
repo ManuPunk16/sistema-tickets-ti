@@ -1,68 +1,83 @@
-import { Injectable } from '@angular/core';
-import {
-  Firestore,
-  addDoc,
-  collection,
-  collectionData,
-  deleteDoc,
-  doc,
-  getDoc,
-  updateDoc,
-} from '@angular/fire/firestore';
-import { Observable, from, map } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { Departamento } from '../models/department.model';
 
-export interface Department {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
+// Tipo de respuesta cruda del API (usa _id de MongoDB)
+type DepartamentoRaw = Omit<Departamento, 'id'> & { _id: string };
+
+interface RespuestaDepartamentos {
+  ok: boolean;
+  departamentos: DepartamentoRaw[];
 }
+
+interface RespuestaDepartamento {
+  ok: boolean;
+  departamento: DepartamentoRaw;
+}
+
+// Reasigna _id → id para uniformidad en el frontend
+function mapear(d: DepartamentoRaw): Departamento {
+  const { _id, ...resto } = d;
+  return { id: _id, ...resto };
+}
+
+/** @deprecated Importar Departamento desde core/models/department.model */
+export type Department = Departamento;
 
 @Injectable({ providedIn: 'root' })
 export class DepartmentService {
-  private departmentsCollection;
+  private http    = inject(HttpClient);
+  private urlBase = `${environment.apiUrl}/departamentos`;
 
-  constructor(private firestore: Firestore) {
-    this.departmentsCollection = collection(this.firestore, 'departments');
-  }
-
+  /**
+   * Devuelve solo los nombres de los departamentos activos.
+   * Usado por: user-form, ticket-list, department-report.
+   */
   getDepartments(): Observable<string[]> {
-    return collectionData(this.departmentsCollection, { idField: 'id' }).pipe(
-      map((departments: any[]) => departments.map(dep => dep.name))
-    );
+    return this.http
+      .get<RespuestaDepartamentos>(this.urlBase)
+      .pipe(map(r => r.departamentos.map(d => d.nombre)));
   }
 
-  getDepartmentDetails(): Observable<Department[]> {
-    return collectionData(this.departmentsCollection, { idField: 'id' }) as Observable<Department[]>;
+  /**
+   * Devuelve la lista completa de departamentos.
+   * Usado por: department-list.
+   */
+  getDepartmentDetails(soloActivos = true): Observable<Departamento[]> {
+    let params = new HttpParams();
+    if (!soloActivos) params = params.set('todos', 'true');
+    return this.http
+      .get<RespuestaDepartamentos>(this.urlBase, { params })
+      .pipe(map(r => r.departamentos.map(mapear)));
   }
 
-  getDepartmentById(id: string): Observable<Department | null> {
-    const departmentRef = doc(this.firestore, `departments/${id}`);
-    return from(getDoc(departmentRef)).pipe(
-      map(snapshot => {
-        if (snapshot.exists()) {
-          return { id: snapshot.id, ...snapshot.data() } as Department;
-        }
-        return null;
-      })
-    );
+  getDepartmentById(id: string): Observable<Departamento | null> {
+    return this.http
+      .get<RespuestaDepartamento>(`${this.urlBase}/${id}`)
+      .pipe(map(r => mapear(r.departamento)));
   }
 
-  createDepartment(data: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>): Observable<string> {
-    const now = new Date().toISOString();
-    return from(addDoc(this.departmentsCollection, { ...data, createdAt: now, updatedAt: now })).pipe(
-      map(ref => ref.id)
-    );
+  createDepartment(datos: Pick<Departamento, 'nombre' | 'descripcion' | 'responsableUid'>): Observable<string> {
+    return this.http
+      .post<RespuestaDepartamento>(this.urlBase, datos)
+      .pipe(map(r => r.departamento._id));
   }
 
-  updateDepartment(id: string, data: Partial<Omit<Department, 'id' | 'createdAt'>>): Observable<void> {
-    const departmentRef = doc(this.firestore, `departments/${id}`);
-    return from(updateDoc(departmentRef, { ...data, updatedAt: new Date().toISOString() }));
+  updateDepartment(
+    id: string,
+    datos: Partial<Pick<Departamento, 'nombre' | 'descripcion' | 'responsableUid'>>,
+  ): Observable<void> {
+    return this.http
+      .put<RespuestaDepartamento>(`${this.urlBase}/${id}`, datos)
+      .pipe(map(() => void 0));
   }
 
   deleteDepartment(id: string): Observable<void> {
-    const departmentRef = doc(this.firestore, `departments/${id}`);
-    return from(deleteDoc(departmentRef));
+    return this.http
+      .delete<{ ok: boolean }>(`${this.urlBase}/${id}`)
+      .pipe(map(() => void 0));
   }
 }
+

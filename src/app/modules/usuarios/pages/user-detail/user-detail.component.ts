@@ -49,7 +49,7 @@ export class UserDetailComponent {
 
   ticketsResueltos = computed(() =>
     this.ticketsAsignados().filter(t =>
-      t.status === 'resuelto' || t.status === 'cerrado'
+      t.estado === 'resuelto' || t.estado === 'cerrado'
     ).length
   );
 
@@ -131,12 +131,12 @@ export class UserDetailComponent {
 
   private calcularTiempoPromedio(tickets: Ticket[]): string {
     const resueltos = tickets.filter(t =>
-      (t.status === 'resuelto' || t.status === 'cerrado') && t.actualTime
+      (t.estado === 'resuelto' || t.estado === 'cerrado') && t.tiempoReal
     );
     if (!resueltos.length) return 'N/A';
 
     const avg = Math.round(
-      resueltos.reduce((s, t) => s + (t.actualTime ?? 0), 0) / resueltos.length
+      resueltos.reduce((s, t) => s + (t.tiempoReal ?? 0), 0) / resueltos.length
     );
 
     if (avg < 60) return `${avg} min`;

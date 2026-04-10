@@ -63,7 +63,7 @@ export class TicketDetailComponent implements OnInit {
   isLoading = true;
   isUpdating = false; // Para controlar estados de carga durante actualización
   errorMessage: string | null = null;
-  
+
   // Formularios
   statusForm: FormGroup;
   assignForm: FormGroup;
@@ -114,17 +114,17 @@ export class TicketDetailComponent implements OnInit {
     this.route.data.subscribe(data => {
       this.ticket = data['ticket'];
       this.isLoading = false;
-      
+
       if (this.ticket) {
         // Inicializar el formulario de estado con el valor actual
         this.statusForm.patchValue({
-          status: this.ticket.status
+          status: this.ticket.estado
         });
-        
+
         // Cargar información extendida del ticket
         this.loadExtendedTicketInfo();
       }
-      
+
       // Cargar lista de usuarios de soporte
       this.supportUsers$.subscribe(users => {
         this.supportUsers = users;
@@ -140,7 +140,7 @@ export class TicketDetailComponent implements OnInit {
 
     const { status, statusNote } = this.statusForm.value;
 
-    if (status === this.ticket.status) {
+    if (status === this.ticket.estado) {
       this.snackBar.open('No se detectaron cambios para actualizar', 'Cerrar', { duration: 3000 });
       return;
     }
@@ -166,7 +166,7 @@ export class TicketDetailComponent implements OnInit {
 
     const { assignedTo, assignNote } = this.assignForm.value;
 
-    if (assignedTo === this.ticket.assignedTo) {
+    if (assignedTo === this.ticket.asignadoAUid) {
       this.snackBar.open('El ticket ya está asignado a este técnico', 'Cerrar', { duration: 3000 });
       return;
     }
@@ -176,7 +176,7 @@ export class TicketDetailComponent implements OnInit {
     this.userService.getUserById(assignedTo).pipe(
       switchMap(user => {
         if (!user) throw new Error('Usuario no encontrado');
-        return this.ticketService.assignTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
+        return this.ticketService.asignarTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
       })
     ).subscribe({
       next: () => {
@@ -197,13 +197,13 @@ export class TicketDetailComponent implements OnInit {
    */
   assignToMe(): void {
     if (!this.ticket) return;
-    
+
     this.isUpdating = true;
-    
+
     this.currentUser$.pipe(
       switchMap(user => {
         if (!user) throw new Error('Usuario no autenticado');
-        return this.ticketService.assignTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
+        return this.ticketService.asignarTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
       })
     ).subscribe({
       next: () => {
@@ -220,9 +220,9 @@ export class TicketDetailComponent implements OnInit {
    */
   addComment(commentData: { comment: string; files: File[] }, ticketId: string): void {
     if (!commentData.comment.trim()) return;
-    
+
     this.isUpdating = true;
-    
+
     // Si hay archivos adjuntos, primero subimos los archivos
     if (commentData.files && commentData.files.length > 0) {
       this.uploadFilesAndAddComment(commentData.files, commentData.comment, ticketId);
@@ -273,7 +273,7 @@ export class TicketDetailComponent implements OnInit {
     if (!user || !this.ticket) return false;
     return user.role === 'admin' ||
            user.role === 'support' ||
-           this.ticket.createdBy === user.uid;
+           this.ticket.creadoPorUid === user.uid;
   }
 
   /**
@@ -289,9 +289,14 @@ export class TicketDetailComponent implements OnInit {
    */
   canEditTicket(user: UserProfile | null): boolean {
     if (!user || !this.ticket) return false;
-    return user.role === 'admin' || 
-           this.ticket.createdBy === user.uid ||
-           (user.role === 'support' && this.ticket.assignedTo === user.uid);
+    return user.role === 'admin' ||
+           this.ticket.creadoPorUid === user.uid ||
+           (user.role === 'support' && this.ticket.asignadoAUid === user.uid);
+  }
+
+  /** Extrae los URLs de un array de IArchivo para el componente ticket-files */
+  obtenerUrlsArchivos(archivos: import('../../../../core/models/ticket.model').IArchivo[] | undefined): string[] {
+    return (archivos ?? []).map(a => a.url);
   }
 
   /**
@@ -318,7 +323,7 @@ export class TicketDetailComponent implements OnInit {
       'resuelto': 'Resuelto',
       'cerrado': 'Cerrado'
     };
-    
+
     return statusMap[status] || status;
   }
 
@@ -332,7 +337,7 @@ export class TicketDetailComponent implements OnInit {
       'alta': 'Alta',
       'critica': 'Crítica'
     };
-    
+
     return priorityMap[priority] || priority;
   }
 
@@ -361,12 +366,12 @@ export class TicketDetailComponent implements OnInit {
     if (!this.ticket) {
       return new Observable(observer => observer.complete());
     }
-    
+
     return this.ticketService.getTicketById(this.ticket.id).pipe(
       tap(refreshedTicket => {
         if (refreshedTicket) {
           this.ticket = refreshedTicket;
-          
+
           // Cargar información extendida del ticket actualizado
           this.loadExtendedTicketInfo();
         }
@@ -380,12 +385,12 @@ export class TicketDetailComponent implements OnInit {
    */
   private loadExtendedTicketInfo(): void {
     if (!this.ticket) return;
-    
+
     // Cargar información del creador
-    if (this.ticket.createdBy) {
-      this.userService.getUserById(this.ticket.createdBy).subscribe(user => {
+    if (this.ticket.creadoPorUid) {
+      this.userService.getUserById(this.ticket.creadoPorUid).subscribe(user => {
         if (user) {
-          this.ticket!.createdByUser = {
+          this.ticket!.creadoPorUsuario = {
             uid: user.uid,
             displayName: user.displayName || user.email || 'Usuario',
             email: user.email || 'correo@ejemplo.com',
@@ -394,12 +399,12 @@ export class TicketDetailComponent implements OnInit {
         }
       });
     }
-    
+
     // Cargar información del asignado
-    if (this.ticket.assignedTo) {
-      this.userService.getUserById(this.ticket.assignedTo).subscribe(user => {
+    if (this.ticket.asignadoAUid) {
+      this.userService.getUserById(this.ticket.asignadoAUid).subscribe(user => {
         if (user) {
-          this.ticket!.assignedUser = {
+          this.ticket!.asignadoUsuario = {
             uid: user.uid,
             displayName: user.displayName || user.email || 'Usuario',
             email: user.email || 'correo@ejemplo.com',

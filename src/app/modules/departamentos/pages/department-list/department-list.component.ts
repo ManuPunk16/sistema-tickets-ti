@@ -13,7 +13,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
-import { DepartmentService, Department } from '../../../../core/services/department.service';
+import { DepartmentService } from '../../../../core/services/department.service';
+import { Departamento } from '../../../../core/models/department.model';
 import { Observable } from 'rxjs';
 
 @Component({
@@ -43,7 +44,7 @@ import { Observable } from 'rxjs';
           Nuevo Departamento
         </button>
       </div>
-    
+
       <mat-card class="mb-6">
         <mat-card-content>
           @if (loading) {
@@ -51,7 +52,7 @@ import { Observable } from 'rxjs';
               <mat-spinner diameter="40"></mat-spinner>
             </div>
           }
-    
+
           @if (!loading) {
             <div class="overflow-x-auto">
               <table mat-table [dataSource]="departments" matSort class="w-full">
@@ -63,12 +64,12 @@ import { Observable } from 'rxjs';
                 <!-- Name Column -->
                 <ng-container matColumnDef="name">
                   <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
-                  <td mat-cell *matCellDef="let department">{{ department.name }}</td>
+                  <td mat-cell *matCellDef="let department">{{ department.nombre }}</td>
                 </ng-container>
                 <!-- Description Column -->
                 <ng-container matColumnDef="description">
                   <th mat-header-cell *matHeaderCellDef>Descripción</th>
-                  <td mat-cell *matCellDef="let department">{{ department.description }}</td>
+                  <td mat-cell *matCellDef="let department">{{ department.descripcion }}</td>
                 </ng-container>
                 <!-- Created Column -->
                 <ng-container matColumnDef="createdAt">
@@ -120,7 +121,7 @@ import { Observable } from 'rxjs';
   `]
 })
 export class DepartmentListComponent implements OnInit {
-  departments: Department[] = [];
+  departments: Departamento[] = [];
   displayedColumns: string[] = ['id', 'name', 'description', 'createdAt', 'updatedAt', 'actions'];
   loading = true;
 
@@ -148,8 +149,8 @@ export class DepartmentListComponent implements OnInit {
     });
   }
 
-  confirmDelete(department: Department): void {
-    if (confirm(`¿Estás seguro de eliminar el departamento ${department.name}?`)) {
+  confirmDelete(department: Departamento): void {
+    if (confirm(`¿Estás seguro de eliminar el departamento ${department.nombre}?`)) {
       this.departmentService.deleteDepartment(department.id).subscribe({
         next: () => {
           this.snackBar.open('Departamento eliminado correctamente', 'Cerrar', {

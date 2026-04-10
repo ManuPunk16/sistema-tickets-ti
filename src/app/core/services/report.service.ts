@@ -1,389 +1,368 @@
-import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
-import { 
-  Firestore, 
-  collection, 
-  collectionData, 
-  query, 
-  where, 
-  orderBy,
-  DocumentData,
-  CollectionReference,
-  Query
-} from '@angular/fire/firestore';
-import { Observable, from } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { DepartmentMetric, TicketMetric, TimeSeriesData, UserMetric } from '../models/report.model';
+import { environment } from '../../../environments/environment';
 
-@Injectable({
-  providedIn: 'root'
-})
+// ─── Tipos de respuesta del API ────────────────────────────────────────────────
+
+interface ResumenApiResponse {
+  ok: boolean;
+  resumen: {
+    total: number;
+    abiertos: number;
+    resueltos: number;
+    cerrados: number;
+    tiempoPromedioMinutos: number | null;
+    tiempoPromedioHoras: number | null;
+    satisfaccionPromedio: number | null;
+  };
+  porEstado: Record<string, number>;
+  porPrioridad: Record<string, number>;
+  porCategoria: Record<string, number>;
+}
+
+interface DepartamentoApiItem {
+  departamento: string;
+  total: number;
+  abiertos: number;
+  resueltos: number;
+  cerrados: number;
+  tiempoPromedioHoras: number | null;
+  satisfaccionPromedio: number | null;
+}
+
+interface DepartamentoApiResponse {
+  ok: boolean;
+  porDepartamento: DepartamentoApiItem[];
+}
+
+interface AgenteApiItem {
+  uid: string;
+  nombre: string;
+  totalAsignados: number;
+  resueltos: number;
+  cerrados: number;
+  tiempoPromedioHoras: number | null;
+  satisfaccionPromedio: number | null;
+  criticos: number;
+  altos: number;
+  tasaResolucion: number;
+}
+
+interface RendimientoApiResponse {
+  ok: boolean;
+  rendimientoPorAgente: AgenteApiItem[];
+}
+
+interface TicketsListApiResponse {
+  ok: boolean;
+  datos: Record<string, unknown>[];
+  total: number;
+  pagina: number;
+  limite: number;
+  paginas: number;
+}
+
+/**
+ * Adapta un ticket del API (campos en español) al formato esperado por
+ * los métodos process* (campos en inglés para compatibilidad con componentes legacy).
+ */
+function adaptarTicket(t: Record<string, unknown>): Record<string, unknown> {
+  return {
+    status:        t['estado'],
+    priority:      t['prioridad'],
+    category:      t['categoria'],
+    department:    t['departamento'],
+    createdBy:     t['creadoPorUid'],
+    createdByName: t['creadoPorNombre'],
+    assignedTo:    t['asignadoAUid'],
+    assignedToName: t['asignadoANombre'],
+    resolvedAt:    t['fechaResolucion'],
+    createdAt:     t['createdAt'],
+    updatedAt:     t['updatedAt'],
+  };
+}
+
+@Injectable({ providedIn: 'root' })
 export class ReportService {
-  private firestore: Firestore = inject(Firestore);
-  private injector: Injector = inject(Injector);
+  private http     = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
 
-  /**
-   * Obtiene métricas generales de tickets
-   */
-  getTicketMetrics(startDate?: Date, endDate?: Date): Observable<TicketMetric> {
-    return this.executeTicketsQuery(startDate, endDate).pipe(
-      map(tickets => this.processTicketMetrics(tickets))
+  // ─── Métodos de alto nivel (usan agregaciones del servidor) ───────────────
+
+  /** Métricas generales de tickets (KPIs del dashboard). */
+  getTicketMetrics(_startDate?: Date, _endDate?: Date): Observable<TicketMetric> {
+    return this.http.get<ResumenApiResponse>(`${this.apiUrl}/reportes/resumen`).pipe(
+      map(r => ({
+        totalTickets:       r.resumen.total,
+        openTickets:        r.resumen.abiertos,
+        resolvedTickets:    r.resumen.resueltos,
+        avgResolutionTime:  r.resumen.tiempoPromedioMinutos ?? 0,
+        ticketsByStatus:    r.porEstado,
+        ticketsByPriority:  r.porPrioridad,
+        ticketsByCategory:  r.porCategoria,
+        ticketsByDepartment: {},
+        resolvedOnTime:     0,
+        resolvedLate:       0,
+      } satisfies TicketMetric)),
+      catchError(() => of({
+        totalTickets: 0, openTickets: 0, resolvedTickets: 0, avgResolutionTime: 0,
+        ticketsByStatus: {}, ticketsByPriority: {}, ticketsByCategory: {},
+        ticketsByDepartment: {}, resolvedOnTime: 0, resolvedLate: 0,
+      } satisfies TicketMetric)),
+    );
+  }
+
+  /** Métricas por agente de soporte. */
+  getUserMetrics(_startDate?: Date, _endDate?: Date): Observable<UserMetric[]> {
+    return this.http.get<RendimientoApiResponse>(`${this.apiUrl}/reportes/rendimiento`).pipe(
+      map(r => r.rendimientoPorAgente.map(a => ({
+        userId:            a.uid,
+        displayName:       a.nombre ?? '',
+        ticketsCreated:    a.totalAsignados,
+        ticketsResolved:   a.resueltos,
+        avgResolutionTime: a.tiempoPromedioHoras != null ? Math.round(a.tiempoPromedioHoras * 60) : 0,
+      } satisfies UserMetric))),
+      catchError(() => of([] as UserMetric[])),
+    );
+  }
+
+  /** Métricas por departamento. */
+  getDepartmentMetrics(_startDate?: Date, _endDate?: Date): Observable<DepartmentMetric[]> {
+    return this.http.get<DepartamentoApiResponse>(`${this.apiUrl}/reportes/departamento`).pipe(
+      map(r => r.porDepartamento.map(d => ({
+        department:        d.departamento ?? 'Sin departamento',
+        ticketsCount:      d.total,
+        resolvedCount:     d.resueltos,
+        avgResolutionTime: d.tiempoPromedioHoras != null ? Math.round(d.tiempoPromedioHoras * 60) : 0,
+      } satisfies DepartmentMetric))),
+      catchError(() => of([] as DepartmentMetric[])),
     );
   }
 
   /**
-   * Obtiene métricas por usuario
-   */
-  getUserMetrics(startDate?: Date, endDate?: Date): Observable<UserMetric[]> {
-    return this.executeTicketsQuery(startDate, endDate).pipe(
-      map(tickets => this.processUserMetrics(tickets))
-    );
-  }
-
-  /**
-   * Obtiene métricas por departamento
-   */
-  getDepartmentMetrics(startDate?: Date, endDate?: Date): Observable<DepartmentMetric[]> {
-    return this.executeTicketsQuery(startDate, endDate).pipe(
-      map(tickets => this.processDepartmentMetrics(tickets))
-    );
-  }
-
-  /**
-   * Obtiene datos para series temporales
+   * Datos para series temporales.
+   * Se calculan localmente sobre los tickets ya obtenidos para evitar
+   * una petición adicional al API (endpoint /reportes/tendencia pendiente de implementar).
    */
   getTimeSeriesData(startDate?: Date, endDate?: Date, interval: 'day' | 'week' | 'month' = 'day'): Observable<TimeSeriesData> {
     return this.executeTicketsQuery(startDate, endDate).pipe(
-      map(tickets => this.processTimeSeriesData(tickets, interval))
+      map(tickets => this.processTimeSeriesData(tickets, interval)),
     );
   }
 
-  /**
-   * Ejecuta una consulta a la colección de tickets con filtros de fecha
-   * Función auxiliar reutilizable para todas las consultas
-   */
-  public executeTicketsQuery(startDate?: Date, endDate?: Date): Observable<any[]> {
-    return new Observable(subscriber => {
-      console.log('Iniciando consulta a Firestore');
-      const cleanup = runInInjectionContext(this.injector, () => {
-        try {
-          const ticketsCollection = collection(this.firestore, 'tickets');
-          let ticketsQuery: Query<DocumentData> = ticketsCollection;
-          
-          // Ajustar formato de fecha para consultas en Firestore
-          if (startDate) {
-            console.log('Fecha inicio:', startDate.toISOString());
-            ticketsQuery = query(ticketsQuery, where('createdAt', '>=', startDate.toISOString()));
-          }
-          
-          if (endDate) {
-            // Ajustar la fecha de fin para incluir todo el día
-            const adjustedEndDate = new Date(endDate);
-            adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
-            adjustedEndDate.setSeconds(0, 0); // Resetear segundos y milisegundos para evitar problemas
-            console.log('Fecha fin (ajustada):', adjustedEndDate.toISOString());
-            ticketsQuery = query(ticketsQuery, where('createdAt', '<', adjustedEndDate.toISOString()));
-          }
-          
-          console.log('Query creado:', ticketsQuery);
-          
-          const ticketsObservable = collectionData(ticketsQuery);
-          console.log('collectionData ejecutado correctamente');
-          
-          const subscription = ticketsObservable.subscribe({
-            next: (data) => {
-              console.log(`Datos recibidos: ${data.length} documentos`);
-              // Solo enviar los datos reales, sin generar datos aleatorios
-              subscriber.next(data);
-            },
-            error: (err) => {
-              console.error('Error en consulta Firestore:', err);
-              subscriber.error(err);
-            },
-            complete: () => subscriber.complete()
-          });
-          
-          // Garantizamos limpieza correcta cuando se desuscriban
-          return () => {
-            subscription.unsubscribe();
-          };
-        } catch (error) {
-          console.error('Error al ejecutar consulta:', error);
-          subscriber.error(error);
-          // Aseguramos que también se devuelve una función de limpieza en caso de error
-          return () => {};
-        }
-      });
+  // ─── Query de tickets para componentes que procesan datos localmente ──────
 
-      // Devolvemos la función de limpieza cuando se desubscribe el observable
-      return cleanup;
-    });
+  /**
+   * Obtiene los tickets del API y los adapta a campos en inglés para que los
+   * métodos process* sigan funcionando sin cambios.
+   *
+   * @deprecated Preferir getTicketMetrics / getDepartmentMetrics / getUserMetrics
+   * que usan agregaciones del servidor.
+   */
+  public executeTicketsQuery(startDate?: Date, endDate?: Date): Observable<Record<string, unknown>[]> {
+    let params = new HttpParams()
+      .set('todos', 'true')
+      .set('limite', '1000');
+
+    if (startDate) params = params.set('desde', startDate.toISOString());
+    if (endDate)   params = params.set('hasta',  endDate.toISOString());
+
+    return this.http
+      .get<TicketsListApiResponse>(`${this.apiUrl}/tickets`, { params })
+      .pipe(
+        map(r => r.datos.map(adaptarTicket)),
+        catchError(() => of([] as Record<string, unknown>[])),
+      );
   }
 
-  /**
-   * Procesa los datos brutos de tickets para generar métricas generales
-   */
-  public processTicketMetrics(tickets: any[]): TicketMetric {
-    console.log('Procesando datos de tickets:', tickets);
-    
+  // ─── Métodos de procesamiento local (sin dependencias de Firestore) ───────
+
+  /** @deprecated Usar getTicketMetrics() */
+  public processTicketMetrics(tickets: Record<string, unknown>[]): TicketMetric {
     const metrics: TicketMetric = {
-      totalTickets: tickets.length,
-      openTickets: 0,
-      resolvedTickets: 0,
-      avgResolutionTime: 0,
-      ticketsByStatus: {},
-      ticketsByPriority: {},
-      ticketsByCategory: {},
-      ticketsByDepartment: {},
-      resolvedOnTime: 0,
-      resolvedLate: 0
+      totalTickets: tickets.length, openTickets: 0, resolvedTickets: 0,
+      avgResolutionTime: 0, ticketsByStatus: {}, ticketsByPriority: {},
+      ticketsByCategory: {}, ticketsByDepartment: {}, resolvedOnTime: 0, resolvedLate: 0,
     };
 
-    // Si no hay tickets, devolver los valores por defecto
-    if (tickets.length === 0) {
-      return metrics;
-    }
+    if (tickets.length === 0) return metrics;
 
     let totalResolutionTime = 0;
     let resolvedCount = 0;
 
     tickets.forEach(ticket => {
-      // Usar valores por defecto si no están definidos
-      const status = ticket.status || 'nuevo';
-      const priority = ticket.priority || 'media';
-      const category = ticket.category || 'otro';
-      const department = ticket.department || 'Sin departamento';
-      
-      // Contar por estado
-      metrics.ticketsByStatus[status] = (metrics.ticketsByStatus[status] || 0) + 1;
-      
-      // Contar por prioridad
-      metrics.ticketsByPriority[priority] = (metrics.ticketsByPriority[priority] || 0) + 1;
-      
-      // Contar por categoría
-      metrics.ticketsByCategory[category] = (metrics.ticketsByCategory[category] || 0) + 1;
-      
-      // Contar por departamento
+      const status     = (ticket['status']     as string) || 'nuevo';
+      const priority   = (ticket['priority']   as string) || 'media';
+      const category   = (ticket['category']   as string) || 'otro';
+      const department = (ticket['department'] as string) || 'Sin departamento';
+
+      metrics.ticketsByStatus[status]         = (metrics.ticketsByStatus[status] || 0) + 1;
+      metrics.ticketsByPriority[priority]     = (metrics.ticketsByPriority[priority] || 0) + 1;
+      metrics.ticketsByCategory[category]     = (metrics.ticketsByCategory[category] || 0) + 1;
       metrics.ticketsByDepartment[department] = (metrics.ticketsByDepartment[department] || 0) + 1;
 
-      // Calcular tiempo de resolución para tickets resueltos o cerrados
-      if (ticket.status === 'resuelto' || ticket.status === 'cerrado') {
+      if (status === 'resuelto' || status === 'cerrado') {
         metrics.resolvedTickets++;
+        const resolvedAt = ticket['resolvedAt'] as string | undefined;
+        const createdAt  = ticket['createdAt']  as string | undefined;
 
-        if (ticket.resolvedAt && ticket.createdAt) {
-          const resolvedDate = new Date(ticket.resolvedAt);
-          const createdDate = new Date(ticket.createdAt);
-
-          const resolutionTime = (resolvedDate.getTime() - createdDate.getTime()) / (1000 * 60); // en minutos
+        if (resolvedAt && createdAt) {
+          const resolutionTime = (new Date(resolvedAt).getTime() - new Date(createdAt).getTime()) / 60000;
           totalResolutionTime += resolutionTime;
           resolvedCount++;
 
-          // Determinar si se resolvió dentro del SLA
-          let targetTime;
-          switch (ticket.priority) {
-            case 'critica': targetTime = 4 * 60; break; // 4 horas
-            case 'alta': targetTime = 8 * 60; break; // 8 horas
-            case 'media': targetTime = 24 * 60; break; // 24 horas
-            default: targetTime = 48 * 60; break; // 48 horas (2 días)
-          }
-
-          if (resolutionTime <= targetTime) {
-            metrics.resolvedOnTime++;
-          } else {
-            metrics.resolvedLate++;
-          }
+          const slaMinutos: Record<string, number> = {
+            critica: 2 * 60, alta: 8 * 60, media: 24 * 60, baja: 72 * 60,
+          };
+          const limite = slaMinutos[priority] ?? 24 * 60;
+          resolutionTime <= limite ? metrics.resolvedOnTime++ : metrics.resolvedLate++;
         }
       } else {
         metrics.openTickets++;
       }
     });
 
-    // Calcular tiempo promedio de resolución
     if (resolvedCount > 0) {
       metrics.avgResolutionTime = Math.round(totalResolutionTime / resolvedCount);
     }
-
     return metrics;
   }
 
-  /**
-   * Procesa los datos brutos de tickets para generar métricas por usuario
-   */
-  public processUserMetrics(tickets: any[]): UserMetric[] {
-    const userMetrics = new Map<string, UserMetric>();
+  /** @deprecated Usar getUserMetrics() */
+  public processUserMetrics(tickets: Record<string, unknown>[]): UserMetric[] {
+    const porUsuario = new Map<string, UserMetric>();
 
     tickets.forEach(ticket => {
-      // Procesar usuario creador
-      if (ticket.createdBy) {
-        if (!userMetrics.has(ticket.createdBy)) {
-          userMetrics.set(ticket.createdBy, {
-            userId: ticket.createdBy,
-            displayName: ticket.createdByName || 'Desconocido',
-            ticketsCreated: 0,
-            ticketsResolved: 0,
-            avgResolutionTime: 0
+      const createdBy     = ticket['createdBy']     as string | undefined;
+      const createdByName = ticket['createdByName'] as string | undefined;
+      const assignedTo    = ticket['assignedTo']    as string | undefined;
+      const assignedName  = ticket['assignedToName'] as string | undefined;
+      const status        = (ticket['status'] as string) || '';
+      const resolvedAt    = ticket['resolvedAt'] as string | undefined;
+      const createdAt     = ticket['createdAt']  as string | undefined;
+
+      if (createdBy) {
+        if (!porUsuario.has(createdBy)) {
+          porUsuario.set(createdBy, {
+            userId: createdBy, displayName: createdByName ?? 'Desconocido',
+            ticketsCreated: 0, ticketsResolved: 0, avgResolutionTime: 0,
           });
         }
-
-        const userMetric = userMetrics.get(ticket.createdBy)!;
-        userMetric.ticketsCreated++;
+        porUsuario.get(createdBy)!.ticketsCreated++;
       }
 
-      // Procesar usuario asignado
-      if (ticket.assignedTo && (ticket.status === 'resuelto' || ticket.status === 'cerrado')) {
-        if (!userMetrics.has(ticket.assignedTo)) {
-          userMetrics.set(ticket.assignedTo, {
-            userId: ticket.assignedTo,
-            displayName: ticket.assignedToName || 'Desconocido',
-            ticketsCreated: 0,
-            ticketsResolved: 0,
-            avgResolutionTime: 0
+      if (assignedTo && (status === 'resuelto' || status === 'cerrado')) {
+        if (!porUsuario.has(assignedTo)) {
+          porUsuario.set(assignedTo, {
+            userId: assignedTo, displayName: assignedName ?? 'Desconocido',
+            ticketsCreated: 0, ticketsResolved: 0, avgResolutionTime: 0,
           });
         }
-
-        const userMetric = userMetrics.get(ticket.assignedTo)!;
-        userMetric.ticketsResolved++;
-
-        if (ticket.resolvedAt && ticket.createdAt) {
-          const createdDate = new Date(ticket.createdAt);
-          const resolvedDate = new Date(ticket.resolvedAt);
-          const resolutionTime = (resolvedDate.getTime() - createdDate.getTime()) / (1000 * 60); // en minutos
-
-          // Actualizar tiempo promedio
-          const totalResolutionTime = userMetric.avgResolutionTime * (userMetric.ticketsResolved - 1) + resolutionTime;
-          userMetric.avgResolutionTime = Math.round(totalResolutionTime / userMetric.ticketsResolved);
+        const um = porUsuario.get(assignedTo)!;
+        um.ticketsResolved++;
+        if (resolvedAt && createdAt) {
+          const dt = (new Date(resolvedAt).getTime() - new Date(createdAt).getTime()) / 60000;
+          um.avgResolutionTime = Math.round(
+            (um.avgResolutionTime * (um.ticketsResolved - 1) + dt) / um.ticketsResolved,
+          );
         }
       }
     });
 
-    return Array.from(userMetrics.values());
+    return Array.from(porUsuario.values());
   }
 
-  /**
-   * Procesa los datos brutos de tickets para generar métricas por departamento
-   */
-  public processDepartmentMetrics(tickets: any[]): DepartmentMetric[] {
-    const departmentMetrics = new Map<string, DepartmentMetric>();
+  /** @deprecated Usar getDepartmentMetrics() */
+  public processDepartmentMetrics(tickets: Record<string, unknown>[]): DepartmentMetric[] {
+    const porDepto = new Map<string, DepartmentMetric & {
+      ticketsByCategory: Record<string, number>;
+      ticketsByPriority: Record<string, number>;
+    }>();
 
     tickets.forEach(ticket => {
-      const department = ticket.department || 'Sin departamento';
+      const department = (ticket['department'] as string) || 'Sin departamento';
+      const status     = (ticket['status']     as string) || '';
+      const category   = (ticket['category']   as string) || 'otro';
+      const priority   = (ticket['priority']   as string) || 'media';
+      const resolvedAt = ticket['resolvedAt']  as string | undefined;
+      const createdAt  = ticket['createdAt']   as string | undefined;
 
-      if (!departmentMetrics.has(department)) {
-        departmentMetrics.set(department, {
-          department,
-          ticketsCount: 0,
-          resolvedCount: 0,
-          avgResolutionTime: 0,
-          ticketsByCategory: {},
-          ticketsByPriority: {}
+      if (!porDepto.has(department)) {
+        porDepto.set(department, {
+          department, ticketsCount: 0, resolvedCount: 0,
+          avgResolutionTime: 0, ticketsByCategory: {}, ticketsByPriority: {},
         });
       }
 
-      const deptMetric = departmentMetrics.get(department)!;
-      deptMetric.ticketsCount++;
+      const dm = porDepto.get(department)!;
+      dm.ticketsCount++;
+      dm.ticketsByCategory[category] = (dm.ticketsByCategory[category] || 0) + 1;
+      dm.ticketsByPriority[priority] = (dm.ticketsByPriority[priority] || 0) + 1;
 
-      // Contar por categoría
-      const category = ticket.category;
-      deptMetric.ticketsByCategory![category] = (deptMetric.ticketsByCategory![category] || 0) + 1;
-
-      // Contar por prioridad
-      const priority = ticket.priority;
-      deptMetric.ticketsByPriority![priority] = (deptMetric.ticketsByPriority![priority] || 0) + 1;
-
-      // Procesar tickets resueltos
-      if (ticket.status === 'resuelto' || ticket.status === 'cerrado') {
-        deptMetric.resolvedCount++;
-
-        if (ticket.resolvedAt && ticket.createdAt) {
-          const resolvedDate = new Date(ticket.resolvedAt);
-          const createdDate = new Date(ticket.createdAt);
-          const resolutionTime = (resolvedDate.getTime() - createdDate.getTime()) / (1000 * 60); // en minutos
-
-          // Actualizar tiempo promedio
-          const totalResolutionTime = deptMetric.avgResolutionTime * (deptMetric.resolvedCount - 1) + resolutionTime;
-          deptMetric.avgResolutionTime = Math.round(totalResolutionTime / deptMetric.resolvedCount);
+      if (status === 'resuelto' || status === 'cerrado') {
+        dm.resolvedCount++;
+        if (resolvedAt && createdAt) {
+          const dt = (new Date(resolvedAt).getTime() - new Date(createdAt).getTime()) / 60000;
+          dm.avgResolutionTime = Math.round(
+            (dm.avgResolutionTime * (dm.resolvedCount - 1) + dt) / dm.resolvedCount,
+          );
         }
       }
     });
 
-    return Array.from(departmentMetrics.values());
+    return Array.from(porDepto.values());
   }
 
-  /**
-   * Procesa los datos brutos de tickets para generar datos de series temporales
-   */
-  public processTimeSeriesData(tickets: any[], interval: 'day' | 'week' | 'month'): TimeSeriesData {
-    const timeSeriesData: TimeSeriesData = {
-      created: [],
-      resolved: []
-    };
-
-    const createdMap = new Map<string, number>();
-    const resolvedMap = new Map<string, number>();
+  public processTimeSeriesData(tickets: Record<string, unknown>[], interval: 'day' | 'week' | 'month'): TimeSeriesData {
+    const creadoMap   = new Map<string, number>();
+    const resueltaMap = new Map<string, number>();
 
     tickets.forEach(ticket => {
-      // Procesar fecha de creación
-      if (ticket.createdAt) {
-        const createdDate = new Date(ticket.createdAt);
-        const dateKey = this.getDateKey(createdDate, interval);
-        createdMap.set(dateKey, (createdMap.get(dateKey) || 0) + 1);
-      }
+      const createdAt  = ticket['createdAt']  as string | undefined;
+      const resolvedAt = ticket['resolvedAt'] as string | undefined;
+      const status     = (ticket['status'] as string) || '';
 
-      // Procesar fecha de resolución
-      if (ticket.resolvedAt && (ticket.status === 'resuelto' || ticket.status === 'cerrado')) {
-        const resolvedDate = new Date(ticket.resolvedAt);
-        const dateKey = this.getDateKey(resolvedDate, interval);
-        resolvedMap.set(dateKey, (resolvedMap.get(dateKey) || 0) + 1);
+      if (createdAt) {
+        const clave = this.claveFecha(new Date(createdAt), interval);
+        creadoMap.set(clave, (creadoMap.get(clave) || 0) + 1);
+      }
+      if (resolvedAt && (status === 'resuelto' || status === 'cerrado')) {
+        const clave = this.claveFecha(new Date(resolvedAt), interval);
+        resueltaMap.set(clave, (resueltaMap.get(clave) || 0) + 1);
       }
     });
 
-    // Convertir mapas a arrays para la respuesta
-    for (const [date, count] of createdMap.entries()) {
-      timeSeriesData.created.push({ date, count });
-    }
+    const sorter = (a: { date: string }, b: { date: string }) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime();
 
-    for (const [date, count] of resolvedMap.entries()) {
-      timeSeriesData.resolved.push({ date, count });
-    }
-
-    // Ordenar por fecha
-    timeSeriesData.created.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    timeSeriesData.resolved.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    return timeSeriesData;
+    return {
+      created:  [...creadoMap.entries()].map(([date, count]) => ({ date, count })).sort(sorter),
+      resolved: [...resueltaMap.entries()].map(([date, count]) => ({ date, count })).sort(sorter),
+    };
   }
 
-  /**
-   * Genera una clave de fecha según el intervalo especificado
-   */
-  private getDateKey(date: Date, interval: 'day' | 'week' | 'month'): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+  // ─── Utilidades privadas ──────────────────────────────────────────────────
 
-    if (interval === 'day') {
-      return `${year}-${this.padNumber(month)}-${this.padNumber(day)}`;
-    } else if (interval === 'week') {
-      const weekNumber = this.getISOWeek(date);
-      return `${year}-W${this.padNumber(weekNumber)}`;
-    } else {
-      return `${year}-${this.padNumber(month)}`;
-    }
+  private claveFecha(fecha: Date, interval: 'day' | 'week' | 'month'): string {
+    const a = fecha.getFullYear();
+    const m = this.pad(fecha.getMonth() + 1);
+    const d = this.pad(fecha.getDate());
+    if (interval === 'day')   return `${a}-${m}-${d}`;
+    if (interval === 'month') return `${a}-${m}`;
+    return `${a}-W${this.pad(this.semanaISO(fecha))}`;
   }
 
-  /**
-   * Añade ceros a la izquierda para números menores de 10
-   */
-  private padNumber(num: number): string {
-    return num.toString().padStart(2, '0');
+  private pad(n: number): string {
+    return n.toString().padStart(2, '0');
   }
 
-  /**
-   * Calcula el número de semana ISO
-   */
-  private getISOWeek(date: Date): number {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  private semanaISO(fecha: Date): number {
+    const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    const inicio = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - inicio.getTime()) / 86400000) + 1) / 7);
   }
 }

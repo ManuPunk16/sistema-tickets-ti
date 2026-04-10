@@ -1,8 +1,12 @@
-export interface Department {
+export interface Departamento {
   id: string;
-  name: string;
-  description?: string;
+  nombre: string;
+  descripcion?: string;
+  responsableUid?: string;
+  activo: boolean;
   createdAt: string;
   updatedAt: string;
-  active: boolean;
 }
+
+/** @deprecated Usar Departamento */
+export type Department = Departamento;

@@ -49,8 +49,8 @@ export class TicketListComponent implements OnInit, OnDestroy {
   // Variables para DataTable
   dataSource = new MatTableDataSource<Ticket>([]);
   displayedColumns: string[] = ['id', 'title', 'status', 'priority', 'assignedTo', 'createdAt', 'actions'];
-  
-  // Variables para filtros 
+
+  // Variables para filtros
   searchTerm = '';
   statusFilter = '';
   departmentFilter = '';
@@ -95,7 +95,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
         }
       })
     );
-    
+
     // Cargar departamentos desde Firebase
     this.departments$ = this.departmentService.getDepartments();
   }
@@ -110,7 +110,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
     if (this.sort) {
       this.dataSource.sort = this.sort;
     }
-    
+
     // Configurar paginador
     if (this.paginator) {
       this.dataSource.paginator = this.paginator;
@@ -128,7 +128,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
    */
   loadTickets(): void {
     this.isLoading = true;
-    
+
     this.tickets$.pipe(
       takeUntil(this.destroy$),
       tap(() => {
@@ -143,32 +143,32 @@ export class TicketListComponent implements OnInit, OnDestroy {
    */
   applyFilters(): void {
     this.isLoading = true;
-    
+
     this.tickets$.pipe(
       takeUntil(this.destroy$),
       map(tickets => {
         let filteredTickets = [...tickets];
-        
+
         // Filtro por estado
         if (this.statusFilter) {
-          filteredTickets = filteredTickets.filter(ticket => ticket.status === this.statusFilter);
+          filteredTickets = filteredTickets.filter(ticket => ticket.estado === this.statusFilter);
         }
-        
+
         // Filtro por departamento
         if (this.departmentFilter) {
-          filteredTickets = filteredTickets.filter(ticket => ticket.department === this.departmentFilter);
+          filteredTickets = filteredTickets.filter(ticket => ticket.departamento === this.departmentFilter);
         }
-        
+
         // Filtro por término de búsqueda
         if (this.searchTerm) {
           const searchLower = this.searchTerm.toLowerCase();
-          filteredTickets = filteredTickets.filter(ticket => 
-            ticket.title.toLowerCase().includes(searchLower) ||
-            ticket.description.toLowerCase().includes(searchLower) ||
+          filteredTickets = filteredTickets.filter(ticket =>
+            ticket.titulo.toLowerCase().includes(searchLower) ||
+            ticket.descripcion.toLowerCase().includes(searchLower) ||
             (ticket.id && ticket.id.toLowerCase().includes(searchLower))
           );
         }
-        
+
         return filteredTickets;
       }),
       tap(filteredTickets => {
@@ -210,7 +210,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
       'resuelto': 'Resuelto',
       'cerrado': 'Cerrado'
     };
-    
+
     return statusMap[status] || status;
   }
 
@@ -224,7 +224,7 @@ export class TicketListComponent implements OnInit, OnDestroy {
       'alta': 'Alta',
       'crítica': 'Crítica'
     };
-    
+
     return priorityMap[priority] || priority;
   }
 

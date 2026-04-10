@@ -18,8 +18,8 @@
         <form [formGroup]="departmentForm" (ngSubmit)="onSubmit()" class="p-4">
           <mat-form-field appearance="outline" class="w-full mb-4">
             <mat-label>Nombre del Departamento</mat-label>
-            <input matInput formControlName="name" placeholder="Ej. Recursos Humanos">
-            @if (departmentForm.get('name')?.hasError('required')) {
+            <input matInput formControlName="nombre" placeholder="Ej. Recursos Humanos">
+            @if (departmentForm.get('nombre')?.hasError('required')) {
               <mat-error>
                 El nombre del departamento es obligatorio
               </mat-error>
@@ -27,7 +27,7 @@
           </mat-form-field>
           <mat-form-field appearance="outline" class="w-full mb-4">
             <mat-label>Descripción</mat-label>
-            <textarea matInput formControlName="description" rows="4"
+            <textarea matInput formControlName="descripcion" rows="4"
             placeholder="Describe las funciones principales del departamento"></textarea>
           </mat-form-field>
           <div class="flex justify-end gap-2 mt-4">

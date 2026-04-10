@@ -1,82 +1,62 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatOptionModule } from '@angular/material/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { TicketService } from '../../../../core/services/ticket.service';
 import { DepartmentService } from '../../../../core/services/department.service';
 import { Observable, of } from 'rxjs';
-import { Ticket, TicketCategory, TicketPriority } from '../../../../core/models/ticket.model';
+import { Ticket, CategoriaTicket, PrioridadTicket } from '../../../../core/models/ticket.model';
 import { FileUploadComponent } from '../../../../shared/components/file-upload/file-upload.component';
 
 @Component({
   selector: 'app-ticket-form',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatOptionModule,
-    MatProgressSpinnerModule,
-    MatSelectModule,
-    MatSnackBarModule,
-    MatTooltipModule,
-    FileUploadComponent
+    FileUploadComponent,
   ],
   templateUrl: './ticket-form.component.html',
   styleUrls: ['./ticket-form.component.scss']
 })
 export class TicketFormComponent implements OnInit {
-  ticketForm: FormGroup;
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private ticketService = inject(TicketService);
+  private departmentService = inject(DepartmentService);
+
+  ticketForm: FormGroup = this.createForm();
   isEditMode = false;
   loading = false;
   submitLoading = false;
   ticket: Ticket | null = null;
   departments$: Observable<string[]> = of([]);
   selectedFiles: File[] = [];
+  protected errorMensaje = signal<string | null>(null);
 
-  categories: { value: TicketCategory, label: string }[] = [
+  categories: { value: CategoriaTicket, label: string }[] = [
     { value: 'hardware', label: 'Hardware' },
     { value: 'software', label: 'Software' },
     { value: 'red', label: 'Red' },
     { value: 'accesos', label: 'Accesos' },
-    { value: 'otro', label: 'Otro' }
+    { value: 'correo', label: 'Correo' },
+    { value: 'impresoras', label: 'Impresoras' },
+    { value: 'telefonos', label: 'Teléfonos' },
+    { value: 'servidores', label: 'Servidores' },
+    { value: 'seguridad', label: 'Seguridad' },
+    { value: 'otro', label: 'Otro' },
   ];
 
-  priorities: { value: TicketPriority, label: string }[] = [
+  priorities: { value: PrioridadTicket, label: string }[] = [
     { value: 'baja', label: 'Baja' },
     { value: 'media', label: 'Media' },
     { value: 'alta', label: 'Alta' },
     { value: 'critica', label: 'Crítica' }
   ];
-
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-    private ticketService: TicketService,
-    private departmentService: DepartmentService,
-    private snackBar: MatSnackBar
-  ) {
-    this.ticketForm = this.createForm();
-  }
 
   ngOnInit(): void {
     // Obtener departamentos
@@ -102,23 +82,21 @@ export class TicketFormComponent implements OnInit {
 
   private createForm(): FormGroup {
     return this.fb.group({
-      title: ['', [Validators.required, Validators.maxLength(100)]],
-      description: ['', [Validators.required, Validators.maxLength(2000)]],
-      category: ['', Validators.required],
-      priority: ['media', Validators.required],
-      department: ['', Validators.required],
-      estimatedTime: [null, [Validators.min(0), Validators.max(10000)]]
+      titulo:      ['', [Validators.required, Validators.maxLength(100)]],
+      descripcion: ['', [Validators.required, Validators.maxLength(2000)]],
+      categoria:   ['', Validators.required],
+      prioridad:   ['media', Validators.required],
+      departamento:['', Validators.required],
     });
   }
 
   private patchFormValues(ticket: Ticket): void {
     this.ticketForm.patchValue({
-      title: ticket.title,
-      description: ticket.description,
-      category: ticket.category,
-      priority: ticket.priority,
-      department: ticket.department,
-      estimatedTime: ticket.estimatedTime
+      titulo:       ticket.titulo,
+      descripcion:  ticket.descripcion,
+      categoria:    ticket.categoria,
+      prioridad:    ticket.prioridad,
+      departamento: ticket.departamento,
     });
   }
 
@@ -175,14 +153,14 @@ export class TicketFormComponent implements OnInit {
       });
   }
 
-  private handleSuccess(message: string): void {
+  private handleSuccess(_mensaje: string): void {
     this.submitLoading = false;
-    this.snackBar.open(message, 'Cerrar', { duration: 3000 });
     this.router.navigate(['/tickets']);
   }
 
-  private handleError(err: any): void {
+  private handleError(err: unknown): void {
     this.submitLoading = false;
-    this.snackBar.open(`Error: ${err.message}`, 'Cerrar', { duration: 5000 });
+    const msg = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
+    this.errorMensaje.set(msg);
   }
 }

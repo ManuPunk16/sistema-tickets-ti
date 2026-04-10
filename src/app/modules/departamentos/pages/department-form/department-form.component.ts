@@ -43,8 +43,8 @@ export class DepartmentFormComponent implements OnInit {
     private snackBar: MatSnackBar
   ) {
     this.departmentForm = this.fb.group({
-      name: ['', [Validators.required]],
-      description: ['']
+      nombre: ['', [Validators.required]],
+      descripcion: ['']
     });
   }
 
@@ -60,8 +60,8 @@ export class DepartmentFormComponent implements OnInit {
           next: (department) => {
             if (department) {
               this.departmentForm.patchValue({
-                name: department.name,
-                description: department.description
+                nombre:      department.nombre,
+                descripcion: department.descripcion
               });
             } else {
               this.snackBar.open('Departamento no encontrado', 'Cerrar', { duration: 3000 });

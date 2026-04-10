@@ -43,52 +43,52 @@ export class TicketTimelineComponent implements OnChanges {
       type: 'created',
       timestamp: this.ticket.createdAt,
       text: 'Ticket creado',
-      user: this.ticket.createdByName,
+      user: this.ticket.creadoPorNombre,
       icon: 'add_circle'
     });
 
     // Eventos de asignación
-    if (this.ticket.assignedTo && this.ticket.assignedToName) {
+    if (this.ticket.asignadoAUid && this.ticket.asignadoANombre) {
       this.timelineEvents.push({
         type: 'assigned',
         timestamp: this.ticket.updatedAt,
-        text: `Asignado a ${this.ticket.assignedToName}`,
+        text: `Asignado a ${this.ticket.asignadoANombre}`,
         icon: 'person'
       });
     }
 
     // Eventos de comentarios
-    if (this.ticket.comments && this.ticket.comments.length > 0) {
-      this.ticket.comments.forEach(comment => {
+    if (this.ticket.comentarios && this.ticket.comentarios.length > 0) {
+      this.ticket.comentarios.forEach(comment => {
         this.timelineEvents.push({
           type: 'comment',
-          timestamp: comment.createdAt,
+          timestamp: comment.creadoEn,
           text: 'Comentario añadido',
-          user: comment.createdByName,
-          details: comment.text,
+          user: comment.autorNombre,
+          details: comment.texto,
           icon: 'comment'
         });
       });
     }
 
     // Evento de resolución
-    if (this.ticket.resolvedAt) {
+    if (this.ticket.fechaResolucion) {
       this.timelineEvents.push({
         type: 'resolved',
-        timestamp: this.ticket.resolvedAt,
+        timestamp: this.ticket.fechaResolucion,
         text: 'Ticket resuelto',
-        details: this.ticket.statusNote,
+        details: undefined,
         icon: 'check_circle'
       });
     }
 
     // Evento de cierre
-    if (this.ticket.closedAt) {
+    if (this.ticket.estado === 'cerrado' && !this.ticket.fechaResolucion) {
       this.timelineEvents.push({
         type: 'closed',
-        timestamp: this.ticket.closedAt,
+        timestamp: this.ticket.updatedAt,
         text: 'Ticket cerrado',
-        details: this.ticket.statusNote,
+        details: undefined,
         icon: 'cancel'
       });
     }

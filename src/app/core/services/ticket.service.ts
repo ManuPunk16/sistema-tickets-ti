@@ -1,268 +1,229 @@
-import { Injectable, Injector, runInInjectionContext } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable, from, of, forkJoin, map } from 'rxjs';
 import {
-  Firestore,
-  addDoc,
-  collection,
-  collectionData,
-  deleteDoc,
-  doc,
-  getDoc,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-  where,
-  Timestamp,
-  serverTimestamp
-} from '@angular/fire/firestore';
-import { Observable, from, map, switchMap, forkJoin, of } from 'rxjs';
-import { Ticket, TicketComment, TicketStatus } from '../models/ticket.model';
-import { AuthService } from './auth.service';
-import { Storage, deleteObject, getDownloadURL, ref, uploadBytes } from '@angular/fire/storage';
+  Storage,
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytes,
+} from '@angular/fire/storage';
 
-@Injectable({
-  providedIn: 'root'
-})
+import { environment } from '../../../environments/environment';
+import {
+  Ticket,
+  EstadoTicket,
+  IComentario,
+  IArchivo,
+  IHistorialEntrada,
+} from '../models/ticket.model';
+
+// ─── Tipos de respuesta del API ────────────────────────────────────────────────
+
+interface RespuestaListaTickets {
+  ok: boolean;
+  datos: Record<string, unknown>[];
+  total: number;
+  pagina: number;
+  limite: number;
+  paginas: number;
+}
+
+interface RespuestaTicket {
+  ok: boolean;
+  ticket: Record<string, unknown>;
+}
+
+interface RespuestaEliminacion {
+  ok: boolean;
+  mensaje: string;
+}
+
+// ─── Filtros disponibles para listar tickets ───────────────────────────────────
+
+export interface FiltrosTickets {
+  pagina?: number;
+  limite?: number;
+  estado?: EstadoTicket;
+  prioridad?: string;
+  categoria?: string;
+  departamento?: string;
+  asignadoAUid?: string;
+  creadoPorUid?: string;
+  todos?: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
 export class TicketService {
-  private ticketsCollection;
+  private http    = inject(HttpClient);
+  private storage = inject(Storage);
 
-  constructor(
-    private firestore: Firestore,
-    private authService: AuthService,
-    private storage: Storage,
-    private injector: Injector
-  ) {
-    this.ticketsCollection = collection(this.firestore, 'tickets');
+  private readonly apiUrl = `${environment.apiUrl}/tickets`;
+
+  // ─── Función de mapeo interno ──────────────────────────────────────────────
+
+  private mapearTicket(datos: Record<string, unknown>): Ticket {
+    return {
+      id:              (datos['_id'] ?? datos['id']) as string,
+      numero:          datos['numero'] as number | undefined,
+      titulo:          datos['titulo'] as string,
+      descripcion:     datos['descripcion'] as string,
+      estado:          datos['estado'] as EstadoTicket,
+      prioridad:       datos['prioridad'] as Ticket['prioridad'],
+      categoria:       datos['categoria'] as Ticket['categoria'],
+      departamento:    datos['departamento'] as string,
+      creadoPorUid:    datos['creadoPorUid'] as string,
+      creadoPorNombre: datos['creadoPorNombre'] as string,
+      asignadoAUid:    datos['asignadoAUid'] as string | undefined,
+      asignadoANombre: datos['asignadoANombre'] as string | undefined,
+      fechaLimite:     datos['fechaLimite'] as string | undefined,
+      fechaResolucion: datos['fechaResolucion'] as string | undefined,
+      tiempoReal:      datos['tiempoReal'] as number | undefined,
+      satisfaccion:    datos['satisfaccion'] as number | undefined,
+      etiquetas:       datos['etiquetas'] as string[] | undefined,
+      comentarios:     datos['comentarios'] as IComentario[] | undefined,
+      archivos:        datos['archivos'] as IArchivo[] | undefined,
+      historial:       datos['historial'] as IHistorialEntrada[] | undefined,
+      createdAt:       datos['createdAt'] as string,
+      updatedAt:       datos['updatedAt'] as string,
+    };
   }
 
-  getAllTickets(statusFilter?: TicketStatus, departmentFilter?: string, limitCount = 100): Observable<Ticket[]> {
-    let q = query(this.ticketsCollection, orderBy('createdAt', 'desc'));
+  // ─── Métodos canónicos ─────────────────────────────────────────────────────
 
-    if (statusFilter) {
-      q = query(q, where('status', '==', statusFilter));
-    }
+  obtenerTickets(filtros?: FiltrosTickets): Observable<Ticket[]> {
+    let params = new HttpParams();
+    if (filtros?.pagina)       params = params.set('pagina',       filtros.pagina.toString());
+    if (filtros?.limite)       params = params.set('limite',       filtros.limite.toString());
+    if (filtros?.estado)       params = params.set('estado',       filtros.estado);
+    if (filtros?.prioridad)    params = params.set('prioridad',    filtros.prioridad);
+    if (filtros?.categoria)    params = params.set('categoria',    filtros.categoria);
+    if (filtros?.departamento) params = params.set('departamento', filtros.departamento);
+    if (filtros?.asignadoAUid) params = params.set('asignadoAUid', filtros.asignadoAUid);
+    if (filtros?.creadoPorUid) params = params.set('creadoPorUid', filtros.creadoPorUid);
+    if (filtros?.todos)        params = params.set('todos',        'true');
 
-    if (departmentFilter) {
-      q = query(q, where('department', '==', departmentFilter));
-    }
-
-    q = query(q, limit(limitCount));
-
-    return collectionData(q, { idField: 'id' }) as Observable<Ticket[]>;
+    return this.http.get<RespuestaListaTickets>(this.apiUrl, { params }).pipe(
+      map(res => res.datos.map(d => this.mapearTicket(d)))
+    );
   }
 
+  obtenerTicketPorId(id: string): Observable<Ticket | null> {
+    return this.http.get<RespuestaTicket>(`${this.apiUrl}/${id}`).pipe(
+      map(res => res.ok ? this.mapearTicket(res.ticket) : null)
+    );
+  }
+
+  crearTicket(datos: Partial<Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>>): Observable<string> {
+    return this.http.post<RespuestaTicket>(this.apiUrl, datos).pipe(
+      map(res => this.mapearTicket(res.ticket).id)
+    );
+  }
+
+  actualizarTicket(id: string, datos: Partial<Omit<Ticket, 'id'>>): Observable<Ticket> {
+    return this.http.put<RespuestaTicket>(`${this.apiUrl}/${id}`, datos).pipe(
+      map(res => this.mapearTicket(res.ticket))
+    );
+  }
+
+  eliminarTicket(id: string): Observable<string> {
+    return this.http.delete<RespuestaEliminacion>(`${this.apiUrl}/${id}`).pipe(
+      map(res => res.mensaje)
+    );
+  }
+
+  agregarComentario(id: string, texto: string, esInterno = false): Observable<Ticket> {
+    return this.http.post<RespuestaTicket>(`${this.apiUrl}/${id}/comentarios`, { texto, esInterno }).pipe(
+      map(res => this.mapearTicket(res.ticket))
+    );
+  }
+
+  asignarTicket(id: string, uid: string, nombre: string): Observable<Ticket> {
+    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/asignar`, { uid, nombre }).pipe(
+      map(res => this.mapearTicket(res.ticket))
+    );
+  }
+
+  cambiarEstado(id: string, estado: EstadoTicket, nota?: string): Observable<Ticket> {
+    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/estado`, { estado, nota }).pipe(
+      map(res => this.mapearTicket(res.ticket))
+    );
+  }
+
+  calificarTicket(id: string, satisfaccion: number): Observable<Ticket> {
+    return this.http.post<RespuestaTicket>(`${this.apiUrl}/${id}/satisfaccion`, { satisfaccion }).pipe(
+      map(res => this.mapearTicket(res.ticket))
+    );
+  }
+
+  // ─── Métodos legacy (compatibilidad con componentes existentes) ────────────
+
+  /** @deprecated Usar obtenerTickets({ estado, departamento }) */
+  getAllTickets(estadoFiltro?: EstadoTicket, departamentoFiltro?: string): Observable<Ticket[]> {
+    return this.obtenerTickets({
+      estado:       estadoFiltro,
+      departamento: departamentoFiltro,
+      todos:        true,
+    });
+  }
+
+  /** @deprecated Usar obtenerTickets({ creadoPorUid: userId }) */
   getUserTickets(userId: string): Observable<Ticket[]> {
-    return runInInjectionContext(this.injector, () => {
-      const q = query(
-        this.ticketsCollection,
-        where('createdBy', '==', userId)
-      );
-      return (collectionData(q, { idField: 'id' }) as Observable<Ticket[]>).pipe(
-        map(tickets => tickets.sort((a, b) =>
-          new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime()
-        ))
-      );
-    });
+    return this.obtenerTickets({ creadoPorUid: userId, todos: true });
   }
 
+  /** @deprecated Usar obtenerTickets({ asignadoAUid: supportId }) */
   getAssignedTickets(supportId: string): Observable<Ticket[]> {
-    return runInInjectionContext(this.injector, () => {
-      const q = query(
-        this.ticketsCollection,
-        where('assignedTo', '==', supportId)
-      );
-      return (collectionData(q, { idField: 'id' }) as Observable<Ticket[]>).pipe(
-        map(tickets => tickets.sort((a, b) =>
-          new Date(b.updatedAt as string).getTime() - new Date(a.updatedAt as string).getTime()
-        ))
-      );
-    });
+    return this.obtenerTickets({ asignadoAUid: supportId, todos: true });
   }
 
+  /** @deprecated Usar obtenerTicketPorId(id) */
   getTicketById(id: string): Observable<Ticket | null> {
-    const ticketRef = doc(this.firestore, `tickets/${id}`);
-    return from(getDoc(ticketRef)).pipe(
-      map(snapshot => {
-        if (snapshot.exists()) {
-          return { id: snapshot.id, ...snapshot.data() } as Ticket;
-        } else {
-          return null;
-        }
-      })
-    );
+    return this.obtenerTicketPorId(id);
   }
 
-  createTicket(ticket: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Observable<string> {
-    return this.authService.getCurrentUser().pipe(
-      switchMap(user => {
-        if (!user) throw new Error('Usuario no autenticado');
-
-        const newTicket = {
-          ...ticket,
-          createdBy: user.uid,
-          createdByName: user.displayName || user.email,
-          status: 'nuevo' as TicketStatus,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        return from(addDoc(this.ticketsCollection, newTicket));
-      }),
-      map(docRef => docRef.id)
-    );
+  /** @deprecated Usar crearTicket(datos) */
+  createTicket(datos: Partial<Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>>): Observable<string> {
+    return this.crearTicket(datos);
   }
 
-  updateTicket(id: string, data: Partial<Ticket>): Observable<void> {
-    const ticketRef = doc(this.firestore, `tickets/${id}`);
-    const update = {
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-
-    return from(updateDoc(ticketRef, update));
+  /** @deprecated Usar actualizarTicket(id, datos) */
+  updateTicket(id: string, datos: Partial<Ticket>): Observable<Ticket> {
+    return this.actualizarTicket(id, datos);
   }
 
-  updateTicketStatus(id: string, status: TicketStatus, comment?: string): Observable<void> {
-    const ticketRef = doc(this.firestore, `tickets/${id}`);
-    const update: any = {
-      status,
-      updatedAt: new Date().toISOString()
-    };
-
-    // Actualizar fechas específicas según estado
-    if (status === 'resuelto') {
-      update.resolvedAt = new Date().toISOString();
-    } else if (status === 'cerrado') {
-      update.closedAt = new Date().toISOString();
-    }
-
-    if (comment) {
-      update.statusNote = comment;
-    }
-
-    return from(updateDoc(ticketRef, update));
+  /** @deprecated Usar cambiarEstado(id, estado, nota) */
+  updateTicketStatus(id: string, estado: EstadoTicket, nota?: string): Observable<Ticket> {
+    return this.cambiarEstado(id, estado, nota);
   }
 
-  assignTicket(id: string, supportId: string, supportName: string): Observable<void> {
-    const ticketRef = doc(this.firestore, `tickets/${id}`);
-    return from(updateDoc(ticketRef, {
-      assignedTo: supportId,
-      assignedToName: supportName,
-      status: 'asignado',
-      updatedAt: new Date().toISOString()
-    }));
+  /** @deprecated Usar agregarComentario(id, texto) */
+  addComment(id: string, texto: string, _adjuntos: File[] = []): Observable<Ticket> {
+    return this.agregarComentario(id, texto);
   }
 
-  addComment(id: string, comment: string, attachments: File[] = []): Observable<void> {
-    return this.authService.getCurrentUser().pipe(
-      switchMap(user => {
-        if (!user) throw new Error('Usuario no autenticado');
-
-        return this.getTicketById(id).pipe(
-          switchMap(async ticket => {
-            if (!ticket) throw new Error('Ticket no encontrado');
-
-            const ticketRef = doc(this.firestore, `tickets/${id}`);
-            const comments = ticket.comments || [];
-            const newComment: TicketComment = {
-              text: comment,
-              createdBy: user.uid,
-              createdByName: user.displayName || user.email || 'Usuario',
-              createdAt: new Date().toISOString(),
-              attachments: []
-            };
-
-            // Subir archivos adjuntos si hay
-            if (attachments && attachments.length > 0) {
-              const attachmentUrls = await Promise.all(
-                attachments.map(file => this.uploadAttachment(id, file))
-              );
-              newComment.attachments = attachmentUrls;
-            }
-
-            comments.push(newComment);
-
-            await updateDoc(ticketRef, {
-              comments,
-              updatedAt: new Date().toISOString()
-            });
-          })
-        );
-      })
-    );
+  /** @deprecated Usar agregarComentario(id, texto) */
+  addCommentWithAttachments(id: string, texto: string, _urlsAdjuntos: string[]): Observable<Ticket> {
+    return this.agregarComentario(id, texto);
   }
 
-  async uploadAttachment(ticketId: string, file: File): Promise<string> {
+  // ─── Firebase Storage (no se migra a REST) ────────────────────────────────
+
+  async uploadAttachment(ticketId: string, archivo: File): Promise<string> {
     const timestamp = Date.now();
-    const filePath = `tickets/${ticketId}/attachments/${timestamp}_${file.name}`;
-    const fileRef = ref(this.storage, filePath);
-
-    const uploadTask = await uploadBytes(fileRef, file);
-    const downloadUrl = await getDownloadURL(uploadTask.ref);
-
-    return downloadUrl;
+    const ruta = `tickets/${ticketId}/attachments/${timestamp}_${archivo.name}`;
+    const archivoRef = ref(this.storage, ruta);
+    const resultado  = await uploadBytes(archivoRef, archivo);
+    return getDownloadURL(resultado.ref);
   }
 
   deleteAttachment(url: string): Observable<void> {
-    const fileRef = ref(this.storage, url);
-    return from(deleteObject(fileRef));
+    return from(deleteObject(ref(this.storage, url)));
   }
 
-  /**
-   * Sube múltiples archivos y devuelve un array con las URLs resultantes
-   * @param ticketId ID del ticket al que pertenecen los archivos
-   * @param files Archivos a subir
-   * @returns Observable con el array de URLs de los archivos subidos
-   */
-  uploadFiles(ticketId: string, files: File[]): Observable<string[]> {
-    if (!files || files.length === 0) {
-      return of([]);
-    }
-
-    // Convertir cada promesa de subida de archivo en un observable
-    const uploads$ = files.map(file => {
-      return from(this.uploadAttachment(ticketId, file));
-    });
-
-    // Combinar todos los observables y devolver un array con las URLs
-    return forkJoin(uploads$);
-  }
-
-  /**
-   * Añade un comentario con archivos adjuntos
-   * @param ticketId ID del ticket donde se añade el comentario
-   * @param comment Texto del comentario
-   * @param attachmentUrls Array de URLs de los archivos adjuntos
-   * @returns Observable de void
-   */
-  addCommentWithAttachments(ticketId: string, comment: string, attachmentUrls: string[]): Observable<void> {
-    return this.authService.getCurrentUser().pipe(
-      switchMap(user => {
-        if (!user) throw new Error('Usuario no autenticado');
-
-        return this.getTicketById(ticketId).pipe(
-          switchMap(ticket => {
-            if (!ticket) throw new Error('Ticket no encontrado');
-
-            const ticketRef = doc(this.firestore, `tickets/${ticketId}`);
-            const comments = ticket.comments || [];
-            const newComment: TicketComment = {
-              text: comment,
-              createdBy: user.uid,
-              createdByName: user.displayName || user.email || 'Usuario',
-              createdAt: new Date().toISOString(),
-              attachments: attachmentUrls
-            };
-
-            comments.push(newComment);
-
-            return from(updateDoc(ticketRef, {
-              comments,
-              updatedAt: new Date().toISOString()
-            }));
-          })
-        );
-      })
-    );
+  uploadFiles(ticketId: string, archivos: File[]): Observable<string[]> {
+    if (!archivos || archivos.length === 0) return of([]);
+    const subidas$ = archivos.map(a => from(this.uploadAttachment(ticketId, a)));
+    return forkJoin(subidas$);
   }
 }

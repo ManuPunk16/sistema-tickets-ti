@@ -22,7 +22,7 @@ export class TicketCommentsListComponent {
   get sortedComments(): TicketComment[] {
     // Ordenar por fecha (más reciente primero)
     return [...this.comments].sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()
     );
   }
 

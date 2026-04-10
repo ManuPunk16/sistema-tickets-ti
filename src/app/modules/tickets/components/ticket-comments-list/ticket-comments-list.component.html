@@ -13,16 +13,16 @@
       <div class="flex items-start">
         <div class="comment-avatar mr-3">
           <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center">
-            {{ comment.createdByName[0].toUpperCase() }}
+            {{ comment.autorNombre[0].toUpperCase() }}
           </div>
         </div>
         <div class="comment-content flex-1">
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex justify-between items-center mb-2">
-              <h4 class="font-medium">{{ comment.createdByName }}</h4>
-              <span class="text-xs text-gray-500">{{ formatDate(comment.createdAt) }}</span>
+              <h4 class="font-medium">{{ comment.autorNombre }}</h4>
+              <span class="text-xs text-gray-500">{{ formatDate(comment.creadoEn) }}</span>
             </div>
-            <p class="text-gray-700 whitespace-pre-line">{{ comment.text }}</p>
+            <p class="text-gray-700 whitespace-pre-line">{{ comment.texto }}</p>
           </div>
         </div>
       </div>

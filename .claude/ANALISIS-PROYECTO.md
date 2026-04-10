@@ -1,6 +1,7 @@
 # 📊 Análisis del Sistema de Tickets TI
 
 > **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.  
+> **Última actualización:** 10 de Abril de 2026 — Fase 1 (Estabilización) completada.  
 > **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.
 
 ---
@@ -35,18 +36,18 @@
 - ✅ Cálculo de SLA por prioridad: crítica (2h), alta (8h), media (24h), baja (72h)
 - ✅ Filtrar tickets por estado, prioridad, departamento, usuario asignado
 - ✅ API REST completamente implementada en el backend (`/api/tickets/*`)
-- ⚠️ **PROBLEMA:** El frontend (`ticket.service.ts`) aún lee directamente de Firestore en lugar de llamar a la API
+- ✅ **COMPLETADO:** `ticket.service.ts` migrado a REST API (HttpClient) — eliminado Firestore
 
 ### Gestión de Departamentos
 - ✅ CRUD completo de departamentos (admin)
 - ✅ API REST implementada (`/api/departamentos/*`)
-- ⚠️ **PROBLEMA:** El frontend (`department.service.ts`) aún lee de Firestore
+- ✅ **COMPLETADO:** `department.service.ts` migrado a REST API (HttpClient) — eliminado Firestore
 
 ### Reportes y Métricas
 - ✅ API de reportes implementada con aggregation pipelines en MongoDB
 - ✅ KPIs disponibles: resumen general, métricas por departamento, rendimiento por agente, tendencias
 - ✅ Componente `dashboard-report` ya migrado: Signals, OnPush, Tailwind
-- ⚠️ **PROBLEMA:** `report.service.ts` aún lee de Firestore y procesa datos en el cliente
+- ✅ **COMPLETADO:** `report.service.ts` migrado a REST API (HttpClient) — eliminado Firestore
 
 ### Seguridad
 - ✅ Verificación de token Firebase en cada request de API
@@ -89,11 +90,12 @@
 
 | Servicio | Estado | Problema |
 |---|---|---|
-| `ticket.service.ts` | ❌ Firestore | Lee de Firestore; la API MongoDB puede tener datos distintos |
-| `department.service.ts` | ❌ Firestore | Lee de Firestore; los departamentos creados vía API no aparecen |
-| `report.service.ts` | ❌ Firestore | Las métricas no reflejan los datos de MongoDB |
+| `ticket.service.ts` | ✅ REST API | Migrado — lógica de filtros y Firebase Storage conservado |
+| `department.service.ts` | ✅ REST API | Migrado — modelo renombrado a español (`Departamento`) |
+| `report.service.ts` | ✅ REST API | Migrado — `executeTicketsQuery` y `process*` públicos por compatibilidad |
 | `user.service.ts` | ✅ REST API | Correcto |
-| `auth.service.ts` | ✅ Firebase Auth | Correcto |
+| `auth.service.ts` | ✅ Firebase Auth | Import Firestore eliminado — nunca se usaba |
+| `config.service.ts` | ⚠️ Firestore | **Deuda técnica** — requiere crear endpoint `/api/configuracion` primero |
 
 **Riesgo:** Si un administrador crea un departamento desde la pantalla (que llama a la API REST → MongoDB), y luego el usuario ve la lista (que lee de Firestore), el departamento no aparecerá. Los datos están duplicados en dos bases de datos que no se sincronizan.
 
@@ -102,7 +104,7 @@
 | Componente | Módulos Material problemáticos |
 |---|---|
 | `ticket-list` | `MatTableDataSource`, `MatPaginator`, `MatSort` (12+ imports) |
-| `ticket-form` | `MatSnackBar`, `MatFormField`, `MatSelect` |
+| `ticket-form` | ✅ **MIGRADO** — Angular Material eliminado, Signals + Tailwind |
 | `ticket-detail` | MatSnackBar, MatTabs, MatChips, MatMenu |
 | `ticket-timeline` | `MatIconModule` |
 | `ticket-comments-list` | `MatCard`, `MatIcon`, `MatDivider` |
@@ -154,18 +156,20 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 ## 🗺️ ROADMAP DE TRABAJO
 
-### Fase 1 — Estabilización (Prioridad Crítica) 🔴
-> **Objetivo:** El sistema lee y escribe datos desde un solo lugar (MongoDB via API REST)
+### Fase 1 — Estabilización ✅ COMPLETADA
+> **Objetivo cumplido:** El sistema lee y escribe datos desde un solo lugar (MongoDB via API REST)
 
-| Tarea | Dificultad | Impacto |
+| Tarea | Estado | Notas |
 |---|---|---|
-| Migrar `department.service.ts` a REST API | Baja | Alto |
-| Migrar `ticket.service.ts` a REST API | Alta | Crítico |
-| Migrar `report.service.ts` a REST API | Media | Alto |
-| Verificar que los endpoints de tickets soporten todos los filtros del frontend | Media | Crítico |
-| Desactivar acceso a Firestore desde el frontend cuando esté lista la migración | Baja | Alto |
+| Migrar `department.service.ts` a REST API | ✅ | Modelo renombrado a español (`Departamento`) |
+| Migrar `ticket.service.ts` a REST API | ✅ | Storage Firebase conservado; métodos legacy con aliases |
+| Migrar `report.service.ts` a REST API | ✅ | Aggregation pipelines en MongoDB |
+| Corregir errores TS en componentes (campos en inglés vs español) | ✅ | `assignedUser`, `status`, `attachments`, etc. |
+| Eliminar import Firestore de `auth.service.ts` | ✅ | Era código muerto (no se inyectaba) |
+| Migrar `ticket-form` fuera de Angular Material | ✅ | Signals + Tailwind, ChangeDetectionStrategy.OnPush |
+| `config.service.ts` | ⏳ Pendiente | Requiere implementar endpoint `/api/configuracion` en backend primero |
 
-**Criterio de éxito:** No hay ningún `import from '@angular/fire/firestore'` en los servicios del frontend.
+**Criterio de éxito:** ✅ Ningún `import from '@angular/fire/firestore'` activo en servicios del frontend (excepto `config.service.ts`, documentado como deuda técnica pendiente de endpoint).
 
 ---
 
@@ -178,7 +182,7 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Migrar `department-form` | Baja | Departamentos |
 | Migrar `department-list` | Media | Departamentos |
 | Migrar `login.component` a Signals + inject() + Tailwind | Baja | Auth |
-| Migrar `ticket-form` | Alta | Tickets |
+| ~~Migrar `ticket-form`~~ | ✅ Hecho | Tickets |
 | Migrar `ticket-list` (tabla, paginación, filtros) | Alta | Tickets |
 | Migrar `ticket-detail` y sub-componentes | Alta | Tickets |
 | Migrar `performance-report` (tabla con paginación) | Media | Reportes |
@@ -234,14 +238,14 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 | Área | Estado | Necesita |
 |---|---|---|
-| Backend API (Vercel Functions) | ✅ 90% completo | Verificar handler de reportes |
+| Backend API (Vercel Functions) | ✅ 90% completo | Implementar endpoint `/api/configuracion` |
 | Autenticación (Firebase Auth) | ✅ Completo | Nada |
-| Servicios frontend | ⚠️ 40% migrado | Migrar ticket, department, report services |
-| Componentes UI | ⚠️ 50% Tailwind | Eliminar Angular Material de ~9 componentes |
+| Servicios frontend | ✅ **100%** migrado (excepto `config.service.ts`) | Solo falta endpoint backend |
+| Componentes UI | ⚠️ ~60% Tailwind | Eliminar Angular Material de ~8 componentes restantes |
 | Modelos MongoDB | ✅ Completo | |
 | Seguridad API | ✅ Completo | |
 | Tests | ❌ 0% | Crear suite mínima |
-| Notificaciones | ❌ No existe | Email + toast personalizado |
+| Notificaciones | ❌ No existe | Email + NotificacionService personalizado |
 | Monitoreo | ❌ No existe | Error tracking |
 
 **Conclusión:** El sistema tiene una base sólida y arquitectura correcta. Los problemas actuales son de migración incompleta, no de diseño. La prioridad absoluta es cerrar la brecha entre los dos almacenamientos de datos (Firestore vs MongoDB) antes de poner el sistema en producción real.

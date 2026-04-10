@@ -12,7 +12,6 @@ import {
   signInWithRedirect,
   getRedirectResult,
 } from '@angular/fire/auth';
-import { Firestore, doc, getDoc, setDoc, updateDoc } from '@angular/fire/firestore';
 import { Observable, from, map, of, switchMap, catchError, throwError, tap, BehaviorSubject, timeout } from 'rxjs';
 import { UserProfile } from '../models/user.model';
 import { Router } from '@angular/router';

@@ -111,16 +111,16 @@
                       <a [routerLink]="['/tickets', ticket.id]"
                          class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div class="flex justify-between items-start gap-2">
-                          <h4 class="font-medium text-gray-900 truncate">{{ ticket.title }}</h4>
+                          <h4 class="font-medium text-gray-900 truncate">{{ ticket.titulo }}</h4>
                           <span class="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
-                                [class]="claseEstado(ticket.status)">
-                            {{ ticket.status }}
+                                [class]="claseEstado(ticket.estado)">
+                            {{ ticket.estado }}
                           </span>
                         </div>
-                        <p class="text-sm text-gray-500 mt-1 truncate">{{ ticket.description }}</p>
+                        <p class="text-sm text-gray-500 mt-1 truncate">{{ ticket.descripcion }}</p>
                         <div class="flex justify-between mt-2 text-xs text-gray-400">
                           <span>{{ formatearFecha(ticket.createdAt) }}</span>
-                          <span>{{ ticket.department }}</span>
+                          <span>{{ ticket.departamento }}</span>
                         </div>
                       </a>
                     }
@@ -137,16 +137,16 @@
                       <a [routerLink]="['/tickets', ticket.id]"
                          class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                         <div class="flex justify-between items-start gap-2">
-                          <h4 class="font-medium text-gray-900 truncate">{{ ticket.title }}</h4>
+                          <h4 class="font-medium text-gray-900 truncate">{{ ticket.titulo }}</h4>
                           <span class="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
-                                [class]="claseEstado(ticket.status)">
-                            {{ ticket.status }}
+                                [class]="claseEstado(ticket.estado)">
+                            {{ ticket.estado }}
                           </span>
                         </div>
-                        <p class="text-sm text-gray-500 mt-1 truncate">{{ ticket.description }}</p>
+                        <p class="text-sm text-gray-500 mt-1 truncate">{{ ticket.descripcion }}</p>
                         <div class="flex justify-between mt-2 text-xs text-gray-400">
                           <span>{{ formatearFecha(ticket.createdAt) }}</span>
-                          <span>{{ ticket.department }}</span>
+                          <span>{{ ticket.departamento }}</span>
                         </div>
                       </a>
                     }
