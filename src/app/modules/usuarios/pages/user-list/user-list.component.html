@@ -1,132 +1,270 @@
 <div class="p-4 md:p-6">
+  <!-- Cabecera -->
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Gestión de Usuarios</h1>
-    <button mat-raised-button color="primary" [routerLink]="['/auth/register']">
-      <mat-icon class="mr-2">person_add</mat-icon>
+    <h1 class="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
+    <button (click)="abrirModal()"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
       Nuevo Usuario
     </button>
   </div>
 
   <!-- Filtros -->
-  <mat-card class="mb-6">
-    <mat-card-content>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <mat-form-field appearance="outline">
-          <mat-label>Buscar</mat-label>
-          <input matInput [formControl]="searchControl" placeholder="Nombre, email o posición">
-          <mat-icon matPrefix>search</mat-icon>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Filtrar por Rol</mat-label>
-          <mat-select [formControl]="roleFilter">
-            <mat-option value="todos">Todos</mat-option>
-            <mat-option value="admin">Administrador</mat-option>
-            <mat-option value="support">Soporte</mat-option>
-            <mat-option value="user">Usuario</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Departamento</mat-label>
-          <mat-select [formControl]="departmentFilter">
-            <mat-option value="todos">Todos</mat-option>
-            @for (department of departments; track department) {
-              <mat-option [value]="department">
-                {{ department }}
-              </mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Búsqueda -->
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
+             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+        </svg>
+        <input type="text"
+               placeholder="Nombre, email o cargo..."
+               [ngModel]="textoBusqueda()"
+               (ngModelChange)="textoBusqueda.set($event)"
+               class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
       </div>
-    </mat-card-content>
-  </mat-card>
 
-  <!-- Tabla de Usuarios -->
-  <mat-card>
-    <mat-card-content>
-      @if (loading) {
-        <div class="flex justify-center py-8">
-          <mat-spinner diameter="40"></mat-spinner>
-        </div>
-      }
+      <!-- Filtro rol -->
+      <select [ngModel]="rolFiltro()"
+              (ngModelChange)="rolFiltro.set($event)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="todos">Todos los roles</option>
+        @for (rol of rolesDisponibles; track rol) {
+          <option [value]="rol">{{ etiquetaRol[rol] }}</option>
+        }
+      </select>
 
-      @if (!loading) {
-        <div class="overflow-x-auto">
-          <table mat-table [dataSource]="dataSource" matSort class="w-full">
-            <!-- Avatar Column -->
-            <ng-container matColumnDef="avatar">
-              <th mat-header-cell *matHeaderCellDef class="w-16"></th>
-              <td mat-cell *matCellDef="let user">
-                @if (user.photoURL) {
-                  <div class="w-10 h-10 rounded-full overflow-hidden">
-                    <img [src]="user.photoURL" alt="Avatar" class="w-full h-full object-cover">
-                  </div>
-                }
-                @if (!user.photoURL) {
-                  <div
-                    class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center">
-                    {{ (user.displayName || user.email || 'U')[0].toUpperCase() }}
-                  </div>
-                }
-              </td>
-            </ng-container>
-            <!-- Name Column -->
-            <ng-container matColumnDef="name">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre / Email</th>
-              <td mat-cell *matCellDef="let user">
-                <div class="font-medium">{{ user.displayName || 'Sin nombre' }}</div>
-                <div class="text-xs text-gray-500">{{ user.email }}</div>
-              </td>
-            </ng-container>
-            <!-- Role Column -->
-            <ng-container matColumnDef="role">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Rol</th>
-              <td mat-cell *matCellDef="let user">
-                            <mat-chip [ngClass]="{
-                    'bg-indigo-100 text-indigo-800': user.role === 'admin',
-                    'bg-green-100 text-green-800': user.role === 'support',
-                    'bg-gray-100 text-gray-800': user.role === 'user'
-                  }">
-                  {{ formatRole(user.role) }}
-                </mat-chip>
-              </td>
-            </ng-container>
-            <!-- Department Column -->
-            <ng-container matColumnDef="department">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Departamento</th>
-              <td mat-cell *matCellDef="let user">{{ user.department || 'No asignado' }}</td>
-            </ng-container>
-            <!-- Position Column -->
-            <ng-container matColumnDef="position">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header>Cargo</th>
-              <td mat-cell *matCellDef="let user">{{ user.position || 'No especificado' }}</td>
-            </ng-container>
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="w-32 text-right">Acciones</th>
-              <td mat-cell *matCellDef="let user" class="text-right">
-                <button mat-icon-button [routerLink]="['/usuarios', user.uid]" matTooltip="Ver detalles">
-                  <mat-icon>visibility</mat-icon>
-                </button>
-                <button mat-icon-button color="primary" [routerLink]="['/usuarios/editar', user.uid]"
-                  matTooltip="Editar usuario">
-                  <mat-icon>edit</mat-icon>
-                </button>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="hover:bg-gray-50 cursor-pointer"
-            [routerLink]="['/usuarios', row.uid]"></tr>
-            <tr class="mat-row" *matNoDataRow>
-              <td class="mat-cell text-center p-8" [attr.colspan]="displayedColumns.length">
-                No se encontraron usuarios con los filtros aplicados.
-              </td>
+      <!-- Filtro departamento -->
+      <select [ngModel]="departamentoFiltro()"
+              (ngModelChange)="departamentoFiltro.set($event)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="todos">Todos los departamentos</option>
+        @for (dep of departamentos(); track dep) {
+          <option [value]="dep">{{ dep }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <!-- Cargando -->
+  @if (cargando()) {
+    <div class="flex justify-center py-16">
+      <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (mensajeError()) {
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+      {{ mensajeError() }}
+    </div>
+  }
+
+  <!-- Tabla -->
+  @if (!cargando()) {
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="px-4 py-3 w-12"></th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Usuario</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rol</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Departamento</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Cargo</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
-          </table>
-          <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
-        </div>
-      }
-    </mat-card-content>
-  </mat-card>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            @for (user of usuarios(); track user.uid) {
+              <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                  [routerLink]="['/usuarios', user.uid]">
+                <td class="px-4 py-3">
+                  @if (user.photoURL) {
+                    <img [src]="user.photoURL" alt="Avatar"
+                         class="w-9 h-9 rounded-full object-cover"/>
+                  } @else {
+                    <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-sm">
+                      {{ inicialUsuario(user) }}
+                    </div>
+                  }
+                </td>
+                <td class="px-4 py-3">
+                  <div class="font-medium text-gray-900">{{ user.displayName || 'Sin nombre' }}</div>
+                  <div class="text-xs text-gray-500">{{ user.email }}</div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-1 rounded-full text-xs font-semibold"
+                        [class]="claseRol[user.role]">
+                    {{ etiquetaRol[user.role] }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 hidden md:table-cell text-gray-600">
+                  {{ user.department || 'No asignado' }}
+                </td>
+                <td class="px-4 py-3 hidden lg:table-cell text-gray-600">
+                  {{ user.position || 'No especificado' }}
+                </td>
+                <td class="px-4 py-3 text-right" (click)="$event.stopPropagation()">
+                  <div class="inline-flex items-center gap-1">
+                    <a [routerLink]="['/usuarios', user.uid]"
+                       class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                       title="Ver detalles">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    </a>
+                    <a [routerLink]="['/usuarios/editar', user.uid]"
+                       class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                       title="Editar">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="text-center py-12 text-gray-400">
+                  No se encontraron usuarios con los filtros aplicados.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
 </div>
+
+<!-- ─── Modal: Crear usuario ───────────────────────────────────────── -->
+@if (modalCrearAbierto()) {
+  <!-- Backdrop -->
+  <div class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+       (click)="cerrarModal()"></div>
+
+  <!-- Panel -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl"
+         (click)="$event.stopPropagation()">
+
+      <!-- Cabecera del modal -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Nuevo Usuario</h2>
+        <button (click)="cerrarModal()"
+                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Formulario -->
+      <form [formGroup]="formularioCrear" (ngSubmit)="onCrearUsuario()"
+            class="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input type="email" formControlName="email" placeholder="usuario@empresa.com"
+                 class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 [class.border-red-400]="formularioCrear.get('email')?.invalid && formularioCrear.get('email')?.touched"
+                 [class.border-gray-300]="!(formularioCrear.get('email')?.invalid && formularioCrear.get('email')?.touched)"/>
+          @if (formularioCrear.get('email')?.touched && formularioCrear.get('email')?.hasError('required')) {
+            <p class="text-red-500 text-xs mt-1">El email es obligatorio</p>
+          }
+          @if (formularioCrear.get('email')?.touched && formularioCrear.get('email')?.hasError('email')) {
+            <p class="text-red-500 text-xs mt-1">Ingresa un email válido</p>
+          }
+        </div>
+
+        <!-- Nombre -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+          <input type="text" formControlName="displayName" placeholder="Nombre completo"
+                 class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 [class.border-red-400]="formularioCrear.get('displayName')?.invalid && formularioCrear.get('displayName')?.touched"
+                 [class.border-gray-300]="!(formularioCrear.get('displayName')?.invalid && formularioCrear.get('displayName')?.touched)"/>
+          @if (formularioCrear.get('displayName')?.touched && formularioCrear.get('displayName')?.hasError('required')) {
+            <p class="text-red-500 text-xs mt-1">El nombre es obligatorio</p>
+          }
+        </div>
+
+        <!-- Contraseña -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+          <input type="password" formControlName="password" autocomplete="new-password"
+                 class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 [class.border-red-400]="formularioCrear.get('password')?.invalid && formularioCrear.get('password')?.touched"
+                 [class.border-gray-300]="!(formularioCrear.get('password')?.invalid && formularioCrear.get('password')?.touched)"/>
+          @if (formularioCrear.get('password')?.touched && formularioCrear.get('password')?.hasError('required')) {
+            <p class="text-red-500 text-xs mt-1">La contraseña es obligatoria</p>
+          }
+          @if (formularioCrear.get('password')?.touched && formularioCrear.get('password')?.hasError('minlength')) {
+            <p class="text-red-500 text-xs mt-1">Mínimo 6 caracteres</p>
+          }
+        </div>
+
+        <!-- Rol -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
+          <select formControlName="role"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            @for (rol of rolesDisponibles; track rol) {
+              <option [value]="rol">{{ etiquetaRol[rol] }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Departamento + Cargo en grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+            <select formControlName="department"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Sin departamento</option>
+              @for (dep of departamentos(); track dep) {
+                <option [value]="dep">{{ dep }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+            <input type="text" formControlName="position" placeholder="Ej. Analista..."
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+          </div>
+        </div>
+
+        <!-- Error global -->
+        @if (errorCrear()) {
+          <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+            {{ errorCrear() }}
+          </div>
+        }
+
+      </form>
+
+      <!-- Pie del modal -->
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+        <button type="button" (click)="cerrarModal()"
+                class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors">
+          Cancelar
+        </button>
+        <button type="button" (click)="onCrearUsuario()"
+                [disabled]="formularioCrear.invalid || enviandoCrear()"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-semibold rounded-lg transition-colors">
+          @if (enviandoCrear()) {
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          }
+          Crear Usuario
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

@@ -1,193 +1,146 @@
-import { Component, OnInit } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  signal,
+  computed,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { forkJoin, of, switchMap, catchError } from 'rxjs';
 
-import { UserService } from '../../../../core/services/user.service';
+import { UserService }   from '../../../../core/services/user.service';
 import { TicketService } from '../../../../core/services/ticket.service';
-import { AuthService } from '../../../../core/services/auth.service';
-import { UserProfile } from '../../../../core/models/user.model';
-import { Ticket } from '../../../../core/models/ticket.model';
-import { Observable, forkJoin, of, switchMap } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { AuthService }   from '../../../../core/services/auth.service';
+import { UserProfile }   from '../../../../core/models/user.model';
+import { Ticket }        from '../../../../core/models/ticket.model';
+import {
+  RolUsuario,
+  ETIQUETA_ROL,
+  CLASE_ROL,
+} from '../../../../core/enums/roles-usuario.enum';
+
+type TabActiva = 'creados' | 'asignados';
 
 @Component({
   selector: 'app-user-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatTabsModule,
-    MatDividerModule,
-    MatChipsModule,
-    MatProgressSpinnerModule,
-    MatSnackBarModule,
-    MatDialogModule,
-    MatTooltipModule
-  ],
+  imports: [CommonModule, RouterLink],
   templateUrl: './user-detail.component.html',
-  styleUrls: ['./user-detail.component.scss']
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UserDetailComponent implements OnInit {
-  user: UserProfile | null = null;
-  currentUser$: Observable<UserProfile | null>;
-  loading = true;
-  loadingTickets = true;
-  loadingAssignedTickets = false;
-  userTickets: Ticket[] = [];
-  assignedTickets: Ticket[] = [];
-  resolvedTicketsCount = 0;
-  avgResolutionTime: string | null = null;
+export class UserDetailComponent {
+  private route         = inject(ActivatedRoute);
+  private router        = inject(Router);
+  private userService   = inject(UserService);
+  private ticketService = inject(TicketService);
+  private authService   = inject(AuthService);
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private userService: UserService,
-    private ticketService: TicketService,
-    private authService: AuthService,
-    private snackBar: MatSnackBar,
-    private dialog: MatDialog
-  ) {
-    this.currentUser$ = this.authService.getCurrentUser();
-  }
+  usuario         = signal<UserProfile | null>(null);
+  usuarioActual   = signal<UserProfile | null>(null);
+  cargando        = signal(true);
+  cargandoTickets = signal(true);
+  ticketsCreados  = signal<Ticket[]>([]);
+  ticketsAsignados = signal<Ticket[]>([]);
+  tabActiva       = signal<TabActiva>('creados');
 
-  ngOnInit(): void {
-    this.route.params.subscribe(params => {
-      const userId = params['id'];
-      if (!userId) {
-        this.router.navigate(['/usuarios']);
-        return;
-      }
+  esAdmin  = computed(() => this.usuarioActual()?.role === RolUsuario.Admin);
+  esAgente = computed(() => this.usuario()?.role === RolUsuario.Support);
 
-      this.userService.getUserById(userId).pipe(
-        catchError(error => {
-          this.snackBar.open(`Error al cargar usuario: ${error.message}`, 'Cerrar', { duration: 3000 });
-          this.loading = false;
-          return of(null);
-        }),
-        switchMap(user => {
-          this.user = user;
-          this.loading = false;
+  ticketsResueltos = computed(() =>
+    this.ticketsAsignados().filter(t =>
+      t.status === 'resuelto' || t.status === 'cerrado'
+    ).length
+  );
 
-          if (!user) return of(null);
+  tiempoPromedioResolucion = computed(() =>
+    this.calcularTiempoPromedio(this.ticketsAsignados())
+  );
 
-          // Cargar tickets creados por el usuario
-          this.loadingTickets = true;
-          return forkJoin({
-            createdTickets: this.ticketService.getUserTickets(user.uid),
-            assignedTickets: user.role === 'support'
-              ? this.ticketService.getAssignedTickets(user.uid)
-              : of([])
-          });
-        })
-      ).subscribe(result => {
-        if (!result) return;
+  readonly etiquetaRol = ETIQUETA_ROL;
+  readonly claseRol    = CLASE_ROL;
 
-        this.userTickets = result.createdTickets;
-        this.assignedTickets = result.assignedTickets;
-        this.loadingTickets = false;
-
-        if (this.user?.role === 'support') {
-          // Calcular métricas para agentes de soporte
-          this.resolvedTicketsCount = this.assignedTickets.filter(
-            t => t.status === 'resuelto' || t.status === 'cerrado'
-          ).length;
-
-          this.calculateAverageResolutionTime();
-        }
-      });
-    });
-  }
-
-  calculateAverageResolutionTime(): void {
-    const resolvedTickets = this.assignedTickets.filter(
-      t => t.status === 'resuelto' || t.status === 'cerrado'
+  constructor() {
+    this.authService.getCurrentUser().subscribe(u =>
+      this.usuarioActual.set(u as unknown as UserProfile)
     );
 
-    if (resolvedTickets.length === 0) {
-      this.avgResolutionTime = 'N/A';
-      return;
-    }
+    this.route.params.pipe(
+      switchMap(params => {
+        const userId = params['id'];
+        if (!userId) {
+          this.router.navigate(['/usuarios']);
+          return of(null);
+        }
 
-    let totalMinutes = 0;
-    let ticketsWithTime = 0;
+        return this.userService.getUserById(userId).pipe(
+          catchError(() => {
+            this.cargando.set(false);
+            return of(null);
+          })
+        );
+      }),
+      switchMap(user => {
+        this.usuario.set(user as unknown as UserProfile);
+        this.cargando.set(false);
 
-    resolvedTickets.forEach(ticket => {
-      if (ticket.resolvedAt && ticket.createdAt && ticket.actualTime) {
-        totalMinutes += ticket.actualTime;
-        ticketsWithTime++;
-      }
+        if (!user) return of(null);
+
+        return forkJoin({
+          creados: this.ticketService.getUserTickets(user.uid),
+          asignados: user.role === 'support'
+            ? this.ticketService.getAssignedTickets(user.uid)
+            : of([]),
+        });
+      })
+    ).subscribe(result => {
+      if (!result) return;
+      this.ticketsCreados.set(result.creados);
+      this.ticketsAsignados.set(result.asignados);
+      this.cargandoTickets.set(false);
     });
-
-    if (ticketsWithTime === 0) {
-      this.avgResolutionTime = 'N/A';
-      return;
-    }
-
-    const avgMinutes = Math.round(totalMinutes / ticketsWithTime);
-
-    if (avgMinutes < 60) {
-      this.avgResolutionTime = `${avgMinutes} min`;
-    } else if (avgMinutes < 1440) {
-      const hours = Math.floor(avgMinutes / 60);
-      const mins = avgMinutes % 60;
-      this.avgResolutionTime = `${hours}h ${mins}m`;
-    } else {
-      const days = Math.floor(avgMinutes / 1440);
-      const remainingMins = avgMinutes % 1440;
-      const hours = Math.floor(remainingMins / 60);
-      const mins = remainingMins % 60;
-      this.avgResolutionTime = `${days}d ${hours}h ${mins}m`;
-    }
   }
 
-  getStatusClass(status: string): string {
-    switch(status) {
-      case 'nuevo': return 'bg-blue-100 text-blue-800';
-      case 'asignado': return 'bg-purple-100 text-purple-800';
-      case 'en_proceso': return 'bg-yellow-100 text-yellow-800';
-      case 'en_espera': return 'bg-orange-100 text-orange-800';
-      case 'resuelto': return 'bg-green-100 text-green-800';
-      case 'cerrado': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  claseEstado(status: string): string {
+    const clases: Record<string, string> = {
+      nuevo:      'bg-blue-100 text-blue-800',
+      asignado:   'bg-purple-100 text-purple-800',
+      en_proceso: 'bg-yellow-100 text-yellow-800',
+      en_espera:  'bg-orange-100 text-orange-800',
+      resuelto:   'bg-green-100 text-green-800',
+      cerrado:    'bg-gray-100 text-gray-800',
+    };
+    return clases[status] ?? 'bg-gray-100 text-gray-800';
   }
 
-  formatRole(role: string): string {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'support': return 'Soporte';
-      case 'user': return 'Usuario';
-      default: return role;
-    }
+  inicialUsuario(user: UserProfile): string {
+    return (user.displayName || user.email || 'U')[0].toUpperCase();
   }
 
-  formatDate(dateString?: string): string {
-    if (!dateString) return 'N/A';
-
+  formatearFecha(fechaStr?: string): string {
+    if (!fechaStr) return 'N/A';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(fechaStr).toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
       });
-    } catch (error) {
+    } catch {
       return 'Fecha inválida';
     }
+  }
+
+  private calcularTiempoPromedio(tickets: Ticket[]): string {
+    const resueltos = tickets.filter(t =>
+      (t.status === 'resuelto' || t.status === 'cerrado') && t.actualTime
+    );
+    if (!resueltos.length) return 'N/A';
+
+    const avg = Math.round(
+      resueltos.reduce((s, t) => s + (t.actualTime ?? 0), 0) / resueltos.length
+    );
+
+    if (avg < 60) return `${avg} min`;
+    if (avg < 1440) return `${Math.floor(avg / 60)}h ${avg % 60}m`;
+    return `${Math.floor(avg / 1440)}d ${Math.floor((avg % 1440) / 60)}h`;
   }
 }

@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
-import { AdminGuard } from './core/guards/admin.guard';
+import { adminGuard } from './core/guards/admin.guard';
 import { AuthorizedUserGuard } from './core/guards/authorized-user.guard';
 import { redirectUnauthorizedTo } from '@angular/fire/auth-guard';
 
@@ -24,14 +24,14 @@ export const routes: Routes = [
       {
         path: 'usuarios',
         loadChildren: () => import('./modules/usuarios/usuarios.routes').then(mod => mod.USUARIOS_ROUTES),
-        canActivate: [AdminGuard],
+        canActivate: [adminGuard],
         data: { roles: ['admin'] }
       },
       {
         path: 'departamentos',
         loadChildren: () => import('./modules/departamentos/departamentos.routes')
           .then(mod => mod.DEPARTAMENTOS_ROUTES),
-        canActivate: [AdminGuard],
+        canActivate: [adminGuard],
         data: { roles: ['admin'] }
       },
       {
@@ -43,7 +43,7 @@ export const routes: Routes = [
         path: 'configuracion',
         loadComponent: () => import('./modules/configuracion/pages/system-settings/system-settings.component')
           .then(c => c.SystemSettingsComponent),
-        canActivate: [AdminGuard],
+        canActivate: [adminGuard],
         data: { roles: ['admin'] }
       },
       { path: '', redirectTo: '/dashboard', pathMatch: 'full' },

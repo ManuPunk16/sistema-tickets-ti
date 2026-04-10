@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   addDoc,
@@ -29,7 +29,8 @@ export class TicketService {
   constructor(
     private firestore: Firestore,
     private authService: AuthService,
-    private storage: Storage
+    private storage: Storage,
+    private injector: Injector
   ) {
     this.ticketsCollection = collection(this.firestore, 'tickets');
   }
@@ -51,23 +52,31 @@ export class TicketService {
   }
 
   getUserTickets(userId: string): Observable<Ticket[]> {
-    const q = query(
-      this.ticketsCollection,
-      where('createdBy', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-
-    return collectionData(q, { idField: 'id' }) as Observable<Ticket[]>;
+    return runInInjectionContext(this.injector, () => {
+      const q = query(
+        this.ticketsCollection,
+        where('createdBy', '==', userId)
+      );
+      return (collectionData(q, { idField: 'id' }) as Observable<Ticket[]>).pipe(
+        map(tickets => tickets.sort((a, b) =>
+          new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime()
+        ))
+      );
+    });
   }
 
   getAssignedTickets(supportId: string): Observable<Ticket[]> {
-    const q = query(
-      this.ticketsCollection,
-      where('assignedTo', '==', supportId),
-      orderBy('updatedAt', 'desc')
-    );
-
-    return collectionData(q, { idField: 'id' }) as Observable<Ticket[]>;
+    return runInInjectionContext(this.injector, () => {
+      const q = query(
+        this.ticketsCollection,
+        where('assignedTo', '==', supportId)
+      );
+      return (collectionData(q, { idField: 'id' }) as Observable<Ticket[]>).pipe(
+        map(tickets => tickets.sort((a, b) =>
+          new Date(b.updatedAt as string).getTime() - new Date(a.updatedAt as string).getTime()
+        ))
+      );
+    });
   }
 
   getTicketById(id: string): Observable<Ticket | null> {

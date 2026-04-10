@@ -25,6 +25,14 @@ export default async (req: VercelRequest, res: VercelResponse) => {
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Accept, Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
 
+  // Seguridad y privacidad
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   // Rate limiting global

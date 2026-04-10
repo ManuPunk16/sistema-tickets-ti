@@ -1,137 +1,145 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  signal,
+  computed,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSortModule, MatSort } from '@angular/material/sort';
-import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialogModule } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
-import { ReactiveFormsModule, FormControl } from '@angular/forms';
-import { MatSelectModule } from '@angular/material/select';
-import { UserService } from '../../../../core/services/user.service';
-import { UserProfile } from '../../../../core/models/user.model';
+import { FormsModule, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+
+import { UserService }      from '../../../../core/services/user.service';
+import { DepartmentService } from '../../../../core/services/department.service';
+import { UserProfile }      from '../../../../core/models/user.model';
+import {
+  RolUsuario,
+  ETIQUETA_ROL,
+  CLASE_ROL,
+  ROLES_ASIGNABLES,
+} from '../../../../core/enums/roles-usuario.enum';
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSortModule,
-    MatPaginatorModule,
-    MatProgressSpinnerModule,
-    MatChipsModule,
-    MatSnackBarModule,
-    MatDialogModule,
-    MatSelectModule,
-    ReactiveFormsModule,
-    RouterLink
-  ],
+  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule],
   templateUrl: './user-list.component.html',
-  styleUrls: ['./user-list.component.scss']
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UserListComponent implements OnInit {
-  users: UserProfile[] = [];
-  filteredUsers: UserProfile[] = [];
-  displayedColumns: string[] = ['avatar', 'name', 'role', 'department', 'position', 'actions'];
-  dataSource = new MatTableDataSource<UserProfile>([]);
-  loading = true;
+export class UserListComponent {
+  private userService       = inject(UserService);
+  private departmentService = inject(DepartmentService);
+  private fb                = inject(FormBuilder);
 
-  searchControl = new FormControl('');
-  roleFilter = new FormControl('todos');
-  departmentFilter = new FormControl('todos');
+  private todos      = signal<UserProfile[]>([]);
+  cargando           = signal(true);
+  mensajeError       = signal<string | null>(null);
+  textoBusqueda      = signal('');
+  rolFiltro          = signal<RolUsuario | 'todos'>('todos');
+  departamentoFiltro = signal('todos');
+  departamentos      = signal<string[]>([]);
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  // -- Modal crear usuario --
+  modalCrearAbierto = signal(false);
+  enviandoCrear     = signal(false);
+  errorCrear        = signal<string | null>(null);
 
-  // Simulación de departamentos - En una implementación real, esto vendría de un servicio
-  departments = ['Sistemas', 'Contabilidad', 'Recursos Humanos', 'Ventas', 'Marketing', 'Operaciones', 'Dirección'];
+  formularioCrear = this.fb.group({
+    email:       ['', [Validators.required, Validators.email]],
+    displayName: ['', Validators.required],
+    password:    ['', [Validators.required, Validators.minLength(6)]],
+    role:        [RolUsuario.User as string, Validators.required],
+    department:  [''],
+    position:    [''],
+  });
 
-  constructor(
-    private userService: UserService,
-    private snackBar: MatSnackBar
-  ) {}
+  usuarios = computed(() => {
+    let lista = this.todos();
 
-  ngOnInit(): void {
-    this.loadUsers();
-
-    // Configurar el filtrado
-    this.searchControl.valueChanges.subscribe(() => this.applyFilters());
-    this.roleFilter.valueChanges.subscribe(() => this.applyFilters());
-    this.departmentFilter.valueChanges.subscribe(() => this.applyFilters());
-  }
-
-  ngAfterViewInit() {
-    // Configurar paginación y ordenamiento después de que la vista se inicialice
-    if (this.dataSource) {
-      this.dataSource.paginator = this.paginator;
-      this.dataSource.sort = this.sort;
-    }
-  }
-
-  loadUsers(): void {
-    this.userService.getAllUsers().subscribe({
-      next: (users) => {
-        this.users = users;
-        this.applyFilters();
-        this.loading = false;
-      },
-      error: (error) => {
-        this.snackBar.open('Error al cargar usuarios: ' + error.message, 'Cerrar', {
-          duration: 3000
-        });
-        this.loading = false;
-      }
-    });
-  }
-
-  applyFilters(): void {
-    let filtered = [...this.users];
-
-    // Filtrar por búsqueda
-    const searchTerm = this.searchControl.value?.toLowerCase() || '';
-    if (searchTerm) {
-      filtered = filtered.filter(user =>
-        (user.displayName?.toLowerCase().includes(searchTerm) || false) ||
-        (user.email?.toLowerCase().includes(searchTerm) || false) ||
-        (user.position?.toLowerCase().includes(searchTerm) || false)
+    const texto = this.textoBusqueda().toLowerCase();
+    if (texto) {
+      lista = lista.filter(u =>
+        u.displayName?.toLowerCase().includes(texto) ||
+        u.email?.toLowerCase().includes(texto) ||
+        u.position?.toLowerCase().includes(texto)
       );
     }
 
-    // Filtrar por rol
-    const role = this.roleFilter.value;
-    if (role && role !== 'todos') {
-      filtered = filtered.filter(user => user.role === role);
-    }
+    const rol = this.rolFiltro();
+    if (rol !== 'todos') lista = lista.filter(u => u.role === rol);
 
-    // Filtrar por departamento
-    const department = this.departmentFilter.value;
-    if (department && department !== 'todos') {
-      filtered = filtered.filter(user => user.department === department);
-    }
+    const dep = this.departamentoFiltro();
+    if (dep !== 'todos') lista = lista.filter(u => u.department === dep);
 
-    this.filteredUsers = filtered;
-    this.dataSource.data = filtered;
+    return lista;
+  });
+
+  readonly etiquetaRol      = ETIQUETA_ROL;
+  readonly claseRol         = CLASE_ROL;
+  readonly rolesDisponibles = ROLES_ASIGNABLES;
+
+  constructor() {
+    this.cargarUsuarios();
+    this.departmentService.getDepartments().subscribe(deps =>
+      this.departamentos.set(deps)
+    );
   }
 
-  formatRole(role: string): string {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'support': return 'Soporte';
-      case 'user': return 'Usuario';
-      default: return role;
-    }
+  abrirModal(): void {
+    this.formularioCrear.reset({
+      email: '', displayName: '', password: '',
+      role: RolUsuario.User, department: '', position: '',
+    });
+    this.errorCrear.set(null);
+    this.modalCrearAbierto.set(true);
+  }
+
+  cerrarModal(): void {
+    this.modalCrearAbierto.set(false);
+  }
+
+  onCrearUsuario(): void {
+    if (this.formularioCrear.invalid) return;
+
+    this.enviandoCrear.set(true);
+    this.errorCrear.set(null);
+    const datos = this.formularioCrear.getRawValue();
+
+    this.userService.createUser({
+      email:       datos.email!,
+      displayName: datos.displayName!,
+      password:    datos.password!,
+      role:        datos.role as 'admin' | 'support' | 'user',
+      department:  datos.department || undefined,
+      position:    datos.position   || undefined,
+    }).subscribe({
+      next: () => {
+        this.enviandoCrear.set(false);
+        this.cerrarModal();
+        this.cargarUsuarios();
+      },
+      error: (err) => {
+        this.enviandoCrear.set(false);
+        this.errorCrear.set(err.error?.error ?? err.message);
+      },
+    });
+  }
+
+  private cargarUsuarios(): void {
+    this.cargando.set(true);
+    this.userService.getAllUsers().subscribe({
+      next: (usuarios) => {
+        this.todos.set(usuarios as unknown as UserProfile[]);
+        this.cargando.set(false);
+      },
+      error: (err) => {
+        this.mensajeError.set('Error al cargar usuarios: ' + err.message);
+        this.cargando.set(false);
+      },
+    });
+  }
+
+  inicialUsuario(user: UserProfile): string {
+    return (user.displayName || user.email || 'U')[0].toUpperCase();
   }
 }

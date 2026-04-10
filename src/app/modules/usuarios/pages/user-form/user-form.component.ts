@@ -1,147 +1,126 @@
-import { Component, OnInit } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  signal,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { switchMap, of } from 'rxjs';
 
-import { UserService } from '../../../../core/services/user.service';
+import { UserService }       from '../../../../core/services/user.service';
 import { DepartmentService } from '../../../../core/services/department.service';
-import { Observable, tap } from 'rxjs';
+import {
+  RolUsuario,
+  ETIQUETA_ROL,
+  ROLES_ASIGNABLES,
+} from '../../../../core/enums/roles-usuario.enum';
 
 @Component({
   selector: 'app-user-form',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatSelectModule,
-    MatProgressSpinnerModule,
-    MatSnackBarModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './user-form.component.html',
-  styleUrls: ['./user-form.component.scss']
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UserFormComponent implements OnInit {
-  userForm: FormGroup;
-  isEditMode = false;
-  loading = false;
-  isSubmitting = false;
-  userId: string = '';
-  departments$: Observable<string[]>;
+export class UserFormComponent {
+  private fb                = inject(FormBuilder);
+  private route             = inject(ActivatedRoute);
+  private router            = inject(Router);
+  private userService       = inject(UserService);
+  private departmentService = inject(DepartmentService);
 
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-    private userService: UserService,
-    private departmentService: DepartmentService,
-    private snackBar: MatSnackBar
-  ) {
-    this.userForm = this.createForm();
-    this.departments$ = this.departmentService.getDepartments();
-  }
+  modoEdicion  = signal(false);
+  cargando     = signal(false);
+  enviando     = signal(false);
+  mensajeError = signal<string | null>(null);
+  private userId = signal('');
 
-  ngOnInit(): void {
-    this.route.params.subscribe(params => {
-      const id = params['id'];
-      if (!id) {
-        // Ya no manejamos la creación aquí, redirigir a register
-        this.router.navigate(['/auth/register']);
-        return;
-      }
+  departamentos = toSignal(this.departmentService.getDepartments(), { initialValue: [] as string[] });
 
-      // Solo manejar la edición
-      this.isEditMode = true;
-      this.userId = id;
-      this.loading = true;
+  readonly rolesAsignables = ROLES_ASIGNABLES;
+  readonly etiquetaRol     = ETIQUETA_ROL;
 
-      this.userService.getUserById(id).subscribe({
-        next: (user) => {
-          if (user) {
-            this.userForm.patchValue({
-              email: user.email,
-              displayName: user.displayName,
-              role: user.role,
-              department: user.department,
-              position: user.position
-            });
+  formulario = this.fb.group({
+    email:       ['', [Validators.required, Validators.email]],
+    displayName: ['', Validators.required],
+    password:    ['', [Validators.required, Validators.minLength(6)]],
+    role:        [RolUsuario.User as string, Validators.required],
+    department:  [''],
+    position:    [''],
+  });
 
-            // Contraseña no se edita
-            this.userForm.get('password')?.disable();
-          } else {
-            this.snackBar.open('Usuario no encontrado', 'Cerrar', { duration: 3000 });
-            this.router.navigate(['/usuarios']);
-          }
-          this.loading = false;
-        },
-        error: (error) => {
-          this.snackBar.open(`Error al cargar usuario: ${error.message}`, 'Cerrar', { duration: 3000 });
-          this.router.navigate(['/usuarios']);
+  constructor() {
+    this.route.params.pipe(
+      switchMap(params => {
+        const id = params['id'];
+        if (!id) {
+          this.router.navigate(['/auth/register']);
+          return of(null);
         }
-      });
-    });
-  }
 
-  private createForm(): FormGroup {
-    return this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      displayName: ['', [Validators.required]],
-      password: ['', this.isEditMode ? [] : [Validators.required, Validators.minLength(6)]],
-      role: ['user', [Validators.required]],
-      department: [''],
-      position: ['']
+        this.modoEdicion.set(true);
+        this.userId.set(id);
+        this.cargando.set(true);
+        this.formulario.get('password')?.disable();
+
+        return this.userService.getUserById(id);
+      })
+    ).subscribe({
+      next: (usuario) => {
+        if (!usuario) return;
+        this.formulario.patchValue({
+          email:       usuario.email ?? '',
+          displayName: usuario.displayName ?? '',
+          role:        usuario.role,
+          department:  usuario.department ?? '',
+          position:    usuario.position   ?? '',
+        });
+        this.cargando.set(false);
+      },
+      error: (err) => {
+        this.mensajeError.set('Error al cargar usuario: ' + err.message);
+        this.cargando.set(false);
+      },
     });
   }
 
   onSubmit(): void {
-    if (this.userForm.invalid) return;
+    if (this.formulario.invalid) return;
 
-    this.isSubmitting = true;
-    const userData = this.userForm.value;
+    this.enviando.set(true);
+    this.mensajeError.set(null);
+    const datos = this.formulario.getRawValue();
 
-    if (this.isEditMode) {
-      // Actualizar usuario existente
-      this.userService.updateUser(this.userId, userData).subscribe({
-        next: () => {
-          this.snackBar.open('Usuario actualizado correctamente', 'Cerrar', { duration: 3000 });
-          this.router.navigate(['/usuarios']);
+    if (this.modoEdicion()) {
+      this.userService.updateUser(this.userId(), {
+        displayName: datos.displayName ?? undefined,
+        role:        datos.role as unknown as RolUsuario,
+        department:  datos.department  || undefined,
+        position:    datos.position    || undefined,
+      }).subscribe({
+        next: ()    => this.router.navigate(['/usuarios']),
+        error: (err) => {
+          this.enviando.set(false);
+          this.mensajeError.set('Error al actualizar: ' + err.message);
         },
-        error: (error) => {
-          this.isSubmitting = false;
-          this.snackBar.open(`Error al actualizar usuario: ${error.message}`, 'Cerrar', { duration: 5000 });
-        }
       });
     } else {
-      // El backend crea el usuario en Firebase Auth + MongoDB
       this.userService.createUser({
-        email:       userData.email,
-        displayName: userData.displayName,
-        password:    userData.password,
-        role:        userData.role,
-        department:  userData.department || undefined,
-        position:    userData.position   || undefined,
+        email:       datos.email!,
+        displayName: datos.displayName!,
+        password:    datos.password!,
+        role:        datos.role as 'admin' | 'support' | 'user',
+        department:  datos.department || undefined,
+        position:    datos.position   || undefined,
       }).subscribe({
-        next: () => {
-          this.snackBar.open('Usuario creado correctamente', 'Cerrar', { duration: 3000 });
-          this.router.navigate(['/usuarios']);
+        next: ()    => this.router.navigate(['/usuarios']),
+        error: (err) => {
+          this.enviando.set(false);
+          this.mensajeError.set(err.error?.error ?? err.message);
         },
-        error: (error) => {
-          this.isSubmitting = false;
-          this.snackBar.open(`Error: ${error.error?.error ?? error.message}`, 'Cerrar', { duration: 5000 });
-        }
       });
     }
   }

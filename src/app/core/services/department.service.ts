@@ -7,7 +7,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  updateDoc
+  updateDoc,
 } from '@angular/fire/firestore';
 import { Observable, from, map } from 'rxjs';
 
@@ -19,9 +19,7 @@ export interface Department {
   updatedAt: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class DepartmentService {
   private departmentsCollection;
 
@@ -53,25 +51,14 @@ export class DepartmentService {
 
   createDepartment(data: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>): Observable<string> {
     const now = new Date().toISOString();
-    const newDepartment = {
-      ...data,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    return from(addDoc(this.departmentsCollection, newDepartment)).pipe(
-      map(docRef => docRef.id)
+    return from(addDoc(this.departmentsCollection, { ...data, createdAt: now, updatedAt: now })).pipe(
+      map(ref => ref.id)
     );
   }
 
-  updateDepartment(id: string, data: Partial<Department>): Observable<void> {
+  updateDepartment(id: string, data: Partial<Omit<Department, 'id' | 'createdAt'>>): Observable<void> {
     const departmentRef = doc(this.firestore, `departments/${id}`);
-    const updateData = {
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-
-    return from(updateDoc(departmentRef, updateData));
+    return from(updateDoc(departmentRef, { ...data, updatedAt: new Date().toISOString() }));
   }
 
   deleteDepartment(id: string): Observable<void> {

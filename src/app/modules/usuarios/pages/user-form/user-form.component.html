@@ -1,112 +1,131 @@
-<div class="p-4 md:p-6">
-  <div class="flex items-center mb-6">
-    <button mat-icon-button [routerLink]="['/usuarios']" matTooltip="Volver">
-      <mat-icon>arrow_back</mat-icon>
-    </button>
-    <h1 class="text-2xl font-bold ml-2">Editar Usuario</h1>
+<div class="p-4 md:p-6 max-w-2xl mx-auto">
+  <!-- Cabecera -->
+  <div class="flex items-center gap-3 mb-6">
+    <a routerLink="/usuarios"
+       class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900">
+      {{ modoEdicion() ? 'Editar Usuario' : 'Nuevo Usuario' }}
+    </h1>
   </div>
 
-  <mat-card>
-    <mat-card-content>
-      @if (loading) {
-        <div class="flex justify-center py-8">
-          <mat-spinner diameter="40"></mat-spinner>
-        </div>
-      }
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    @if (cargando()) {
+      <div class="flex justify-center py-10">
+        <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    } @else {
+      <form [formGroup]="formulario" (ngSubmit)="onSubmit()" class="space-y-5">
 
-      @if (!loading) {
-        <form [formGroup]="userForm" (ngSubmit)="onSubmit()" class="p-4">
-          <!-- Email -->
-          <mat-form-field appearance="outline" class="w-full mb-4">
-            <mat-label>Email</mat-label>
-            <input matInput formControlName="email" placeholder="ejemplo@correo.com" type="email">
-            @if (userForm.get('email')?.hasError('required')) {
-              <mat-error>
-                El email es obligatorio
-              </mat-error>
-            }
-            @if (userForm.get('email')?.hasError('email')) {
-              <mat-error>
-                Ingresa un email válido
-              </mat-error>
-            }
-          </mat-form-field>
-          <!-- Nombre -->
-          <mat-form-field appearance="outline" class="w-full mb-4">
-            <mat-label>Nombre completo</mat-label>
-            <input matInput formControlName="displayName" placeholder="Nombre completo">
-            @if (userForm.get('displayName')?.hasError('required')) {
-              <mat-error>
-                El nombre es obligatorio
-              </mat-error>
-            }
-          </mat-form-field>
-          <!-- Contraseña (solo para nuevos usuarios) -->
-          @if (!isEditMode) {
-            <div>
-              <mat-form-field appearance="outline" class="w-full mb-4">
-                <mat-label>Contraseña</mat-label>
-                <input matInput formControlName="password" type="password" autocomplete="new-password">
-                @if (userForm.get('password')?.hasError('required')) {
-                  <mat-error>
-                    La contraseña es obligatoria
-                  </mat-error>
-                }
-                @if (userForm.get('password')?.hasError('minlength')) {
-                  <mat-error>
-                    La contraseña debe tener al menos 6 caracteres
-                  </mat-error>
-                }
-              </mat-form-field>
-            </div>
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input type="email"
+                 formControlName="email"
+                 placeholder="usuario@empresa.com"
+                 class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                 [class.border-red-400]="formulario.get('email')?.invalid && formulario.get('email')?.touched"
+                 [class.border-gray-300]="!(formulario.get('email')?.invalid && formulario.get('email')?.touched)"/>
+          @if (formulario.get('email')?.touched && formulario.get('email')?.hasError('required')) {
+            <p class="text-red-500 text-xs mt-1">El email es obligatorio</p>
           }
-          <!-- Rol -->
-          <mat-form-field appearance="outline" class="w-full mb-4">
-            <mat-label>Rol</mat-label>
-            <mat-select formControlName="role">
-              <mat-option value="admin">Administrador</mat-option>
-              <mat-option value="support">Soporte</mat-option>
-              <mat-option value="user">Usuario</mat-option>
-            </mat-select>
-            @if (userForm.get('role')?.hasError('required')) {
-              <mat-error>
-                El rol es obligatorio
-              </mat-error>
+          @if (formulario.get('email')?.touched && formulario.get('email')?.hasError('email')) {
+            <p class="text-red-500 text-xs mt-1">Ingresa un email válido</p>
+          }
+        </div>
+
+        <!-- Nombre -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+          <input type="text"
+                 formControlName="displayName"
+                 placeholder="Nombre completo"
+                 class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 [class.border-red-400]="formulario.get('displayName')?.invalid && formulario.get('displayName')?.touched"
+                 [class.border-gray-300]="!(formulario.get('displayName')?.invalid && formulario.get('displayName')?.touched)"/>
+          @if (formulario.get('displayName')?.touched && formulario.get('displayName')?.hasError('required')) {
+            <p class="text-red-500 text-xs mt-1">El nombre es obligatorio</p>
+          }
+        </div>
+
+        <!-- Contraseña — solo en creación -->
+        @if (!modoEdicion()) {
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+            <input type="password"
+                   formControlName="password"
+                   autocomplete="new-password"
+                   class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   [class.border-red-400]="formulario.get('password')?.invalid && formulario.get('password')?.touched"
+                   [class.border-gray-300]="!(formulario.get('password')?.invalid && formulario.get('password')?.touched)"/>
+            @if (formulario.get('password')?.touched && formulario.get('password')?.hasError('required')) {
+              <p class="text-red-500 text-xs mt-1">La contraseña es obligatoria</p>
             }
-          </mat-form-field>
-          <!-- Departamento -->
-          <mat-form-field appearance="outline" class="w-full mb-4">
-            <mat-label>Departamento</mat-label>
-            <mat-select formControlName="department">
-              <mat-option value="">Sin departamento</mat-option>
-              @for (department of departments$ | async; track department) {
-                <mat-option [value]="department">
-                  {{ department }}
-                </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <!-- Cargo/Posición -->
-          <mat-form-field appearance="outline" class="w-full mb-4">
-            <mat-label>Cargo</mat-label>
-            <input matInput formControlName="position" placeholder="Cargo o posición">
-          </mat-form-field>
-          <div class="flex justify-end gap-2 mt-4">
-            <button mat-stroked-button [routerLink]="['/usuarios']" type="button">
-              Cancelar
-            </button>
-            <button mat-raised-button color="primary" type="submit"
-              [disabled]="userForm.invalid || isSubmitting">
-              <div class="flex items-center">
-                @if (isSubmitting) {
-                  <mat-spinner diameter="20" class="mr-2"></mat-spinner>
-                }
-                <span>{{ isEditMode ? 'Actualizar' : 'Crear' }}</span>
-              </div>
-            </button>
+            @if (formulario.get('password')?.touched && formulario.get('password')?.hasError('minlength')) {
+              <p class="text-red-500 text-xs mt-1">Mínimo 6 caracteres</p>
+            }
           </div>
-        </form>
-      }
-    </mat-card-content>
-  </mat-card>
+        }
+
+        <!-- Rol -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
+          <select formControlName="role"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            @for (rol of rolesAsignables; track rol) {
+              <option [value]="rol">{{ etiquetaRol[rol] }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Departamento -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+          <select formControlName="department"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Sin departamento</option>
+            @for (dep of departamentos(); track dep) {
+              <option [value]="dep">{{ dep }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Cargo -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
+          <input type="text"
+                 formControlName="position"
+                 placeholder="Ej. Desarrollador, Analista..."
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+        </div>
+
+        <!-- Error global -->
+        @if (mensajeError()) {
+          <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+            {{ mensajeError() }}
+          </div>
+        }
+
+        <!-- Acciones -->
+        <div class="flex justify-end gap-3 pt-2">
+          <a routerLink="/usuarios"
+             class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors">
+            Cancelar
+          </a>
+          <button type="submit"
+                  [disabled]="formulario.invalid || enviando()"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-semibold rounded-lg transition-colors">
+            @if (enviando()) {
+              <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            }
+            {{ modoEdicion() ? 'Actualizar' : 'Crear Usuario' }}
+          </button>
+        </div>
+
+      </form>
+    }
+  </div>
 </div>

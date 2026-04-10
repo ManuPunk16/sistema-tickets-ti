@@ -1,39 +1,19 @@
-import { Injectable } from '@angular/core';
-import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
-import { Observable, map, take, tap } from 'rxjs';
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { map, take } from 'rxjs';
 import { AuthService } from '../services/auth.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { RolUsuario } from '../enums/roles-usuario.enum';
 
-@Injectable({
-  providedIn: 'root'
-})
-export class AdminGuard implements CanActivate {
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-    private snackBar: MatSnackBar
-  ) {}
+export const adminGuard = () => {
+  const authService = inject(AuthService);
+  const router      = inject(Router);
 
-  canActivate(
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ): Observable<boolean> {
-    return this.authService.getCurrentUser().pipe(
-      take(1),
-      map(user => {
-        const isAdmin = user?.role === 'admin';
-        
-        if (!isAdmin) {
-          this.snackBar.open('Acceso denegado. Requiere privilegios de administrador', 'Cerrar', {
-            duration: 5000,
-            panelClass: ['error-snackbar']
-          });
-          
-          this.router.navigate(['/dashboard']);
-        }
-        
-        return isAdmin;
-      })
-    );
-  }
-}
+  return authService.getCurrentUser().pipe(
+    take(1),
+    map(usuario => {
+      if (usuario?.role === RolUsuario.Admin) return true;
+      router.navigate(['/dashboard']);
+      return false;
+    })
+  );
+};
