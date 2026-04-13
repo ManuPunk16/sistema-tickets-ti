@@ -1,10 +1,13 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportService } from '../../../../core/services/report.service';
 import { DepartmentService } from '../../../../core/services/department.service';
-import { Subject, takeUntil, finalize, catchError, of, forkJoin, map } from 'rxjs';
+import { AuthService } from '../../../../core/services/auth.service';
+import { UserProfile } from '../../../../core/models/user.model';
+import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
+import { Subject, takeUntil, finalize, catchError, of, forkJoin, map, take } from 'rxjs';
 import { DepartmentMetric } from '../../../../core/models/report.model';
 
 interface DepartmentReport {
@@ -39,9 +42,16 @@ interface IssueStat {
     RouterLink
   ],
   templateUrl: './department-report.component.html',
-  styleUrls: ['./department-report.component.scss']
+  styleUrls: ['./department-report.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DepartmentReportComponent implements OnInit, OnDestroy {
+  private readonly fb               = inject(FormBuilder);
+  private readonly reportService    = inject(ReportService);
+  private readonly departmentService = inject(DepartmentService);
+  private readonly authService       = inject(AuthService);
+  private readonly cdr               = inject(ChangeDetectorRef);
+
   filterForm: FormGroup;
   loading = false;
   hasData = false;
@@ -53,19 +63,19 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
     departmentStats: [],
     issueTypes: []
   };
-  
+
+  readonly usuarioActual = signal<UserProfile | null>(null);
+  readonly esUsuarioNormal = computed(() => this.usuarioActual()?.role === RolUsuario.User);
+  readonly departamentoUsuario = computed(() => this.usuarioActual()?.department ?? null);
+
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private reportService: ReportService,
-    private departmentService: DepartmentService
-  ) {
+  constructor() {
     // Fechas por defecto para el filtro
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
+
     this.filterForm = this.fb.group({
       startDate: [this.formatDateForInput(thirtyDaysAgo)],
       endDate: [this.formatDateForInput(today)],
@@ -74,7 +84,20 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.loadDepartments();
+    this.authService.getCurrentUser().pipe(take(1)).subscribe({
+      next: usuario => {
+        this.usuarioActual.set(usuario);
+
+        if (usuario?.role === RolUsuario.User && usuario.department) {
+          // Usuario normal: auto-rellena su departamento y genera el reporte
+          this.filterForm.patchValue({ department: usuario.department });
+          this.generateReport();
+        } else {
+          // Admin/soporte: carga lista de departamentos para el selector
+          this.loadDepartments();
+        }
+      },
+    });
   }
 
   ngOnDestroy(): void {
@@ -88,34 +111,33 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (depts) => {
           this.departments = depts;
+          this.cdr.markForCheck();
         },
-        error: (error) => {
-          console.error('Error cargando departamentos:', error);
-        }
+        error: () => {}
       });
   }
 
   generateReport(): void {
     this.loading = true;
     this.hasData = false;
-    
+
     const filters = this.filterForm.value;
     const startDate = new Date(filters.startDate);
     const endDate = new Date(filters.endDate);
-    
-    console.log(`Generando reporte con fechas: ${startDate.toISOString()} - ${endDate.toISOString()}`);
-    
+
+
+
     // Filtro por departamento si se ha seleccionado uno
     const selectedDepartment = filters.department || null;
-    
+
     // Usar una única consulta y procesarla para ambos tipos de datos
     this.reportService.executeTicketsQuery(startDate, endDate)
       .pipe(
         takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Error generando informe de departamentos:', error);
+        catchError(() => {
           this.loading = false;
           this.hasData = false;
+          this.cdr.markForCheck();
           return of([]);
         }),
         map(tickets => {
@@ -124,39 +146,27 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           const ticketMetrics = this.reportService.processTicketMetrics(tickets);
           return { departmentMetrics, ticketMetrics };
         }),
-        finalize(() => {
-          // No establecer loading=false aquí, lo haremos en el suscriptor
-        })
+        finalize(() => {})
       )
       .subscribe({
         next: (data) => {
           try {
-            console.log('Datos recibidos en generateReport:', data);
-            
-            // Procesar datos
             const processedData = this.processDepartmentReport(data, selectedDepartment);
-            console.log('Datos después de procesamiento:', processedData);
-            
             if (processedData) {
               this.reportData = processedData;
               this.hasData = true;
-              
-              // Imprimir datos para depuración
-              console.log('Datos a mostrar en el reporte:', this.reportData);
-              console.log('Estadísticas por departamento:', this.reportData.departmentStats);
-              console.log('Estado de hasData:', this.hasData);
             }
-          } catch (err) {
-            console.error('Error en el procesamiento de datos:', err);
+          } catch {
             this.hasData = false;
           } finally {
-            this.loading = false; // Siempre quitar el loading al final
+            this.loading = false;
+            this.cdr.markForCheck();
           }
         },
-        error: (err) => {
-          console.error('Error en la suscripción:', err);
+        error: () => {
           this.loading = false;
           this.hasData = false;
+          this.cdr.markForCheck();
         }
       });
   }
@@ -164,14 +174,14 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
   private processDepartmentReport(data: any, selectedDepartment: string | null): DepartmentReport {
     try {
       const { departmentMetrics, ticketMetrics } = data;
-      
-      console.log('Procesando datos del reporte:');
-      console.log('- Métricas de departamentos:', departmentMetrics);
-      console.log('- Métricas de tickets:', ticketMetrics);
-      
+
+
+
+
+
       // Verificar si tenemos algún dato para procesar
       if (!departmentMetrics && (!ticketMetrics || !ticketMetrics.totalTickets)) {
-        console.log('No hay datos para procesar');
+
         return {
           totalTickets: 0,
           avgResolutionTime: 0,
@@ -180,14 +190,14 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           issueTypes: []
         };
       }
-      
+
       // Si no hay datos en las métricas de departamentos, pero hay en ticketMetrics, crear uno
       const deptMetricsArray = Array.isArray(departmentMetrics) ? [...departmentMetrics] : [];
-      
+
       if (deptMetricsArray.length === 0 && ticketMetrics && ticketMetrics.ticketsByDepartment) {
         // Extraer los datos de ticketMetrics
         const departments = Object.keys(ticketMetrics.ticketsByDepartment || {});
-        
+
         if (departments.length > 0) {
           // Crear departamento genérico
           departments.forEach(dept => {
@@ -200,8 +210,8 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
               ticketsByPriority: ticketMetrics.ticketsByPriority || {}
             });
           });
-          
-          console.log('Métricas de departamento creadas:', deptMetricsArray);
+
+
         } else {
           // Si no hay departamentos en ticketsByDepartment pero hay tickets, crear uno genérico
           if (ticketMetrics.totalTickets > 0) {
@@ -213,49 +223,49 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
               ticketsByCategory: ticketMetrics.ticketsByCategory || {},
               ticketsByPriority: ticketMetrics.ticketsByPriority || {}
             });
-            console.log('Creado departamento genérico para tickets sin departamento');
+
           }
         }
       }
-      
+
       // Filtrar por departamento si es necesario
-      const filteredDepartmentMetrics = selectedDepartment 
+      const filteredDepartmentMetrics = selectedDepartment
         ? deptMetricsArray.filter((dept: DepartmentMetric) => dept.department === selectedDepartment)
         : deptMetricsArray;
-      
-      console.log('Métricas de departamentos filtradas:', filteredDepartmentMetrics);
-      
+
+
+
       // Calcular totales - asegurar que totalTickets sea al menos 1 si hay datos
-      const totalTickets = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      const totalTickets = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) =>
         total + dept.ticketsCount, 0) || (ticketMetrics?.totalTickets || 0);
-      
+
       // Calcular tickets resueltos
-      const totalResolved = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      const totalResolved = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) =>
         total + dept.resolvedCount, 0);
-      
+
       // Tasa de resolución
-      const resolutionRate = totalTickets > 0 
-        ? Math.round((totalResolved / totalTickets) * 100) 
+      const resolutionRate = totalTickets > 0
+        ? Math.round((totalResolved / totalTickets) * 100)
         : 0;
-      
+
       // Tiempo promedio de resolución
-      const totalResolutionTime = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) => 
+      const totalResolutionTime = filteredDepartmentMetrics.reduce((total: number, dept: DepartmentMetric) =>
         total + (dept.avgResolutionTime * dept.resolvedCount), 0);
-        
-      const avgResolutionTime = totalResolved > 0 
+
+      const avgResolutionTime = totalResolved > 0
         ? Math.round(totalResolutionTime / totalResolved)
         : 0;
-      
+
       // Estadísticas por departamento
       let departmentStats: DepartmentStat[] = filteredDepartmentMetrics.map((dept: DepartmentMetric) => {
-        const percentage = totalTickets > 0 
+        const percentage = totalTickets > 0
           ? Math.round((dept.ticketsCount / totalTickets) * 100)
           : 0;
-        
-        const deptResolutionRate = dept.ticketsCount > 0 
+
+        const deptResolutionRate = dept.ticketsCount > 0
           ? Math.round((dept.resolvedCount / dept.ticketsCount) * 100)
           : 0;
-        
+
         return {
           department: dept.department,
           ticketCount: dept.ticketsCount,
@@ -264,12 +274,12 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           resolutionRate: deptResolutionRate
         };
       }).sort((a: { ticketCount: number; }, b: { ticketCount: number; }) => b.ticketCount - a.ticketCount);
-      
+
       // Calcular problemas más comunes por departamento
       // Esto normalmente requeriría datos adicionales de tickets individuales
       // Para una implementación real, podríamos necesitar una consulta adicional
       const issueTypes: IssueStat[] = this.calculateMostCommonIssues(filteredDepartmentMetrics);
-      
+
       // Al final, asegurémonos de que hay algún departamento para mostrar
       if (departmentStats.length === 0 && totalTickets > 0) {
         // Crear al menos un departamento genérico si hay tickets pero no hay stats
@@ -280,10 +290,10 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           avgResolutionTime: avgResolutionTime,
           resolutionRate: resolutionRate
         });
-        
-        console.log('Stats genéricas creadas para mostrar datos:', departmentStats);
+
+
       }
-      
+
       return {
         totalTickets: totalTickets || 0,
         avgResolutionTime: avgResolutionTime || 0,
@@ -292,7 +302,7 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
         issueTypes: issueTypes || []
       };
     } catch (error) {
-      console.error('Error en processDepartmentReport:', error);
+
       // Devolver estructura mínima si hay error
       return {
         totalTickets: 1, // Si llegamos aquí es porque hay al menos un documento
@@ -309,15 +319,15 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
       };
     }
   }
-  
+
   private calculateMostCommonIssues(deptMetrics: DepartmentMetric[]): IssueStat[] {
     const result: IssueStat[] = [];
-    
+
     deptMetrics.forEach(dept => {
       // Encontrar la categoría más común
       let mostCommonCategory = '';
       let maxCount = 0;
-      
+
       if (dept.ticketsByCategory) {
         for (const [category, count] of Object.entries(dept.ticketsByCategory)) {
           if (count > maxCount) {
@@ -326,7 +336,7 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           }
         }
       }
-      
+
       // Si encontramos una categoría común, agregarla al resultado
       if (mostCommonCategory && maxCount > 0) {
         // El tiempo promedio de resolución es una estimación
@@ -339,10 +349,10 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
         });
       }
     });
-    
+
     return result;
   }
-  
+
   private formatCategory(category: string): string {
     const map: {[key: string]: string} = {
       'hardware': 'Problemas de Hardware',
@@ -353,7 +363,7 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
       'printer': 'Problemas de Impresora',
       'other': 'Otros Problemas'
     };
-    
+
     return map[category] || category;
   }
 

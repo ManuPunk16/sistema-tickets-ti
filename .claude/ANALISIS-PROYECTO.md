@@ -1,8 +1,8 @@
 # 📊 Análisis del Sistema de Tickets TI
 
-> **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.  
-> **Última actualización:** 14 de Abril de 2026 — Sesión de corrección de permisos y auditoría de modelos. Error 403 resuelto definitivamente. Departamentos auto-asignados para usuarios normales.  
-> **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.  
+> **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.
+> **Última actualización:** 13 de Abril de 2026 — Sesión de reportes por rol. Error 403 en reportes resuelto. Dashboard, reporte de departamentos y rendimiento ahora respetan el rol del usuario.
+> **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.
 > **Equipo de agentes:** 01-Arquitecto · 02-Backend · 03-Frontend · 04-Seguridad · 05-QA · 06-DevOps · **07-UIUX**
 
 ---
@@ -47,6 +47,14 @@
 - ✅ **CORREGIDO:** `ticket-list` ya no carga la lista de departamentos para usuarios normales (llamada innecesaria eliminada)
 - ✅ **CORREGIDO:** Condición de carrera en `ngOnInit` de `ticket-detail` — el ticket ya no se carga antes de tener el usuario disponible
 - ✅ **AUDITADO:** Modelos y enums frontend/backend son consistentes. Enums `admin|support|user|pending|inactive` idénticos. Campos `Ticket`, `Departamento` sincronizados. Campo muerto `IComentario.archivosAdjuntos` eliminado del modelo frontend
+
+### Módulo de Reportes
+- ✅ `GET /api/reportes/resumen` — accesible para todos los roles activos. Usuarios normales reciben stats filtradas por su propio departamento
+- ✅ `GET /api/reportes/departamento` — accesible para todos. Usuarios normales ven solo su departamento; admin/soporte pueden filtrar con `?departamento=`
+- ✅ `GET /api/reportes/rendimiento` — bloqueado con 403 para rol `user` (requiere admin/soporte)
+- ✅ Dashboard de reportes: botón "Reporte de Rendimiento" oculto para usuarios normales; botón de departamento muestra "Reporte de [DEPTO]" dinámicamente
+- ✅ Reporte de departamentos: selector de departamento oculto para usuarios normales (auto-rellenado desde perfil); reporte se genera automáticamente al entrar
+- ✅ Reporte de rendimiento: redirige a `/reportes` si el usuario es rol `user`; no llama a `GET /api/usuarios?rol=support` para evitar el 403
 
 ### Gestión de Departamentos
 - ✅ CRUD completo de departamentos (admin)
@@ -136,7 +144,7 @@
 | `system-settings` | `MatSnackBar`, `MatSlideToggle`, `MatTabs` |
 | `file-upload` | `MatButtonModule`, `MatIconModule`, `MatProgressBarModule`, `MatChipsModule`, `MatTooltipModule` |
 
-**Total migrados:** 4 / 11 componentes. **Pendientes:** 7 componentes con Angular Material activo.  
+**Total migrados:** 4 / 11 componentes. **Pendientes:** 7 componentes con Angular Material activo.
 **Impacto visual:** Inconsistencia entre los componentes ya migrados a Tailwind y los que usan Material.
 
 #### 🟡 IMPORTANTE — Patrones legacy en componentes viejos
@@ -195,7 +203,7 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 ---
 
 ### Fase 2 — Limpieza de UI (Prioridad Alta) 🟠
-> **Objetivo:** Cero dependencias de Angular Material; UI 100% Tailwind CSS.  
+> **Objetivo:** Cero dependencias de Angular Material; UI 100% Tailwind CSS.
 > **Referencia de diseño:** Agente `07-uiux.md` — diseño inclusivo, mobile-first, accesible para todas las edades.
 
 | Tarea | Dificultad | Componente | Agente |
@@ -247,8 +255,8 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Windows Server Upload Service | ❌ No creado — requiere info del servidor |
 | `environment.ts` | ❌ Falta campo `uploadUrl` |
 
-**Prerrequisito para implementar:** El usuario debe proporcionar la información del servidor detallada en `.claude/context/almacenamiento-archivos.md` (IP, versión Windows Server, espacio en disco, puerto disponible, SSL).  
-**Formatos permitidos tras la migración:** PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG (9 formatos, validación por magic bytes en servidor).  
+**Prerrequisito para implementar:** El usuario debe proporcionar la información del servidor detallada en `.claude/context/almacenamiento-archivos.md` (IP, versión Windows Server, espacio en disco, puerto disponible, SSL).
+**Formatos permitidos tras la migración:** PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG (9 formatos, validación por magic bytes en servidor).
 **Compresor:** `sharp` aplica automáticamente calidad 80% a JPG/PNG. Documentos Office no se comprimen (ya son ZIP internamente).
 
 ---

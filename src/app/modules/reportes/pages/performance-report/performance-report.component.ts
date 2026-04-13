@@ -9,12 +9,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 
 import { ReportService } from '../../../../core/services/report.service';
 import { UserService } from '../../../../core/services/user.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { UserProfile } from '../../../../core/models/user.model';
-import { Subject, takeUntil, finalize, catchError, of, map } from 'rxjs';
+import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
+import { Subject, takeUntil, finalize, catchError, of, map, take } from 'rxjs';
 
 interface PerformanceData {
   resolvedTickets: number;
@@ -56,6 +58,8 @@ export class PerformanceReportComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private reportService = inject(ReportService);
   private userService = inject(UserService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
   filterForm = this.fb.group({
     startDate: [this.formatDateForInput(this.fechaHaceNDias(30))],
@@ -142,7 +146,16 @@ export class PerformanceReportComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
-    this.cargarUsuariosSoporte();
+    // Usuarios normales no tienen acceso a este reporte — redireccionar
+    this.authService.getCurrentUser().pipe(take(1)).subscribe({
+      next: usuario => {
+        if (usuario?.role === RolUsuario.User) {
+          this.router.navigate(['/reportes']);
+          return;
+        }
+        this.cargarUsuariosSoporte();
+      },
+    });
   }
 
   ngOnDestroy(): void {

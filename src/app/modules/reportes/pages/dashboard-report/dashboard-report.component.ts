@@ -3,8 +3,11 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ReportService } from '../../../../core/services/report.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { TicketMetric } from '../../../../core/models/report.model';
-import { finalize, catchError, of } from 'rxjs';
+import { UserProfile } from '../../../../core/models/user.model';
+import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
+import { finalize, catchError, of, take } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard-report',
@@ -20,17 +23,27 @@ import { finalize, catchError, of } from 'rxjs';
 export class DashboardReportComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly reportService = inject(ReportService);
+  private readonly authService = inject(AuthService);
 
   protected readonly metrics = signal<TicketMetric | null>(null);
   protected readonly loading = signal(false);
-  
+  protected readonly usuarioActual = signal<UserProfile | null>(null);
+
+  protected readonly esUsuarioNormal = computed(() =>
+    this.usuarioActual()?.role === RolUsuario.User
+  );
+
+  protected readonly departamentoUsuario = computed(() =>
+    this.usuarioActual()?.department ?? null
+  );
+
   protected readonly filterForm: FormGroup;
 
   protected readonly resolutionRate = computed(() => {
     const metricsValue = this.metrics();
     if (!metricsValue || metricsValue.totalTickets === 0) return 0;
 
-    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) + 
+    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) +
                      (metricsValue.ticketsByStatus['cerrado'] || 0);
     return Math.round((resolved / metricsValue.totalTickets) * 100);
   });
@@ -39,7 +52,7 @@ export class DashboardReportComponent implements OnInit {
     const metricsValue = this.metrics();
     if (!metricsValue) return 0;
 
-    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) + 
+    const resolved = (metricsValue.ticketsByStatus['resuelto'] || 0) +
                      (metricsValue.ticketsByStatus['cerrado'] || 0);
     return metricsValue.totalTickets - resolved;
   });
@@ -56,7 +69,12 @@ export class DashboardReportComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadReportData();
+    this.authService.getCurrentUser().pipe(take(1)).subscribe({
+      next: usuario => {
+        this.usuarioActual.set(usuario);
+        this.loadReportData();
+      },
+    });
   }
 
   applyFilters(): void {
@@ -79,7 +97,7 @@ export class DashboardReportComponent implements OnInit {
   private loadReportData(): void {
     this.loading.set(true);
     const { startDate, endDate } = this.filterForm.value;
-    
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
@@ -114,7 +132,7 @@ export class DashboardReportComponent implements OnInit {
   calculateResolutionRate(metrics: TicketMetric | null): number {
     if (!metrics || metrics.totalTickets === 0) return 0;
 
-    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + 
+    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) +
                      (metrics.ticketsByStatus['cerrado'] || 0);
     return Math.round((resolved / metrics.totalTickets) * 100);
   }
@@ -122,7 +140,7 @@ export class DashboardReportComponent implements OnInit {
   countUnresolvedTickets(metrics: TicketMetric | null): number {
     if (!metrics) return 0;
 
-    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) + 
+    const resolved = (metrics.ticketsByStatus['resuelto'] || 0) +
                      (metrics.ticketsByStatus['cerrado'] || 0);
     return metrics.totalTickets - resolved;
   }
@@ -251,7 +269,7 @@ export class DashboardReportComponent implements OnInit {
 
     return map[category] || category;
   }
-  
+
   formatDateForInput(date: Date): string {
     return date.toISOString().split('T')[0];
   }
