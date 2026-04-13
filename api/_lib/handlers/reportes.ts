@@ -1,7 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { conectarMongoDB } from '../config/database.js';
 import { Ticket } from '../models/Ticket.js';
-import { adminOSoporte } from '../middleware/roles.js';
+import { Usuario } from '../models/Usuario.js';
+import { adminOSoporte, verificarUsuarioActivo } from '../middleware/roles.js';
 import * as R from '../utils/respuestas.js';
 import { logRequest, logError } from '../utils/logger.js';
 import { ESTADO_TICKET, PRIORIDAD, CATEGORIA_TICKET } from '../enums/index.js';
@@ -15,27 +16,41 @@ export default async function reportesHandler(
   await conectarMongoDB();
 
   try {
-    // Solo soporte y admin tienen acceso a reportes
-    const ctx = await adminOSoporte(req, res);
+    // Todos los usuarios activos pueden acceder a reportes, con datos acotados al rol
+    const ctx = await verificarUsuarioActivo(req, res);
     if (!ctx) return;
     logRequest(req, ctx.uid);
 
+    // Para usuarios normales obtenemos su departamento para acotar las consultas
+    let departamentoUsuario: string | null = null;
+    if (ctx.role === 'user') {
+      const perfil = await Usuario.findOne({ uid: ctx.uid }).select('department');
+      departamentoUsuario = perfil?.department ?? null;
+    }
+
     // ── GET /api/reportes/resumen ─────────────────────────────────────────────
     if (pathname === '/api/reportes/resumen' && req.method === 'GET') {
+      // Usuarios normales solo ven estadísticas de su propio departamento
+      const filtroBase = departamentoUsuario ? { departamento: departamentoUsuario } : {};
+
       const [porEstado, porPrioridad, porCategoria, totales] = await Promise.all([
         Ticket.aggregate([
+          { $match: filtroBase },
           { $group: { _id: '$estado', total: { $sum: 1 } } },
           { $sort: { _id: 1 } },
         ]),
         Ticket.aggregate([
+          { $match: filtroBase },
           { $group: { _id: '$prioridad', total: { $sum: 1 } } },
           { $sort: { _id: 1 } },
         ]),
         Ticket.aggregate([
+          { $match: filtroBase },
           { $group: { _id: '$categoria', total: { $sum: 1 } } },
           { $sort: { total: -1 } },
         ]),
         Ticket.aggregate([
+          { $match: filtroBase },
           {
             $group: {
               _id: null,
@@ -66,12 +81,24 @@ export default async function reportesHandler(
         porEstado:    _agruparA(porEstado),
         porPrioridad: _agruparA(porPrioridad),
         porCategoria: _agruparA(porCategoria),
+        // Incluido para que el frontend sepa el alcance del reporte
+        departamentoFiltrado: departamentoUsuario ?? null,
       });
     }
 
     // ── GET /api/reportes/departamento ──────────────────────────────────────
     if (pathname === '/api/reportes/departamento' && req.method === 'GET') {
+      // Usuarios normales solo ven su departamento; admin/soporte puede recibir ?departamento=xxx
+      const filtroDepartamento: Record<string, unknown> = {};
+      if (departamentoUsuario) {
+        filtroDepartamento['departamento'] = departamentoUsuario;
+      } else {
+        const paramDepto = (req.query?.departamento as string) || null;
+        if (paramDepto) filtroDepartamento['departamento'] = paramDepto;
+      }
+
       const porDepartamento = await Ticket.aggregate([
+        ...(Object.keys(filtroDepartamento).length ? [{ $match: filtroDepartamento }] : []),
         {
           $group: {
             _id: '$departamento',
@@ -97,11 +124,19 @@ export default async function reportesHandler(
         },
       ]);
 
-      return R.ok(res, { porDepartamento });
+      return R.ok(res, {
+        porDepartamento,
+        departamentoFiltrado: departamentoUsuario ?? null,
+      });
     }
 
     // ── GET /api/reportes/rendimiento ────────────────────────────────────────
     if (pathname === '/api/reportes/rendimiento' && req.method === 'GET') {
+      // Solo admin y soporte pueden ver el rendimiento de agentes
+      if (ctx.role === 'user') {
+        return R.error(res, 'Se requiere rol de administrador o soporte', 403);
+      }
+
       const porAgente = await Ticket.aggregate([
         { $match: { asignadoAUid: { $exists: true, $ne: null } } },
         {
