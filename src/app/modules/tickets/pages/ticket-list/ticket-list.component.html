@@ -49,17 +49,19 @@
         <option value="cerrado">Cerrado</option>
       </select>
 
-      <!-- Departamento -->
-      <select
-        [ngModel]="filtroDepartamento()"
-        (ngModelChange)="filtroDepartamento.set($event); aplicarFiltro()"
-        class="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-      >
-        <option value="">Todos los departamentos</option>
-        @for (dept of departamentos(); track dept) {
-          <option [value]="dept">{{ dept }}</option>
-        }
-      </select>
+      <!-- Departamento: solo visible para admin y soporte -->
+      @if (!esUsuarioNormal()) {
+        <select
+          [ngModel]="filtroDepartamento()"
+          (ngModelChange)="filtroDepartamento.set($event); aplicarFiltro()"
+          class="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Todos los departamentos</option>
+          @for (dept of departamentos(); track dept) {
+            <option [value]="dept">{{ dept }}</option>
+          }
+        </select>
+      }
 
       <!-- Prioridad + Limpiar -->
       <div class="flex gap-2">

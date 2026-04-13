@@ -1,8 +1,9 @@
 # 📊 Análisis del Sistema de Tickets TI
 
 > **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.  
-> **Última actualización:** 14 de Abril de 2026 — Fase 2 en progreso. Windows Server Storage en planificación.  
-> **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.
+> **Última actualización:** 14 de Abril de 2026 — Sesión de corrección de permisos y auditoría de modelos. Error 403 resuelto definitivamente. Departamentos auto-asignados para usuarios normales.  
+> **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.  
+> **Equipo de agentes:** 01-Arquitecto · 02-Backend · 03-Frontend · 04-Seguridad · 05-QA · 06-DevOps · **07-UIUX**
 
 ---
 
@@ -36,7 +37,16 @@
 - ✅ Cálculo de SLA por prioridad: crítica (2h), alta (8h), media (24h), baja (72h)
 - ✅ Filtrar tickets por estado, prioridad, departamento, usuario asignado
 - ✅ API REST completamente implementada en el backend (`/api/tickets/*`)
-- ✅ **COMPLETADO:** `ticket.service.ts` migrado a REST API (HttpClient) — eliminado Firestore
+- ✅ `ticket.service.ts` migrado a REST API (HttpClient) — eliminado Firestore
+- ✅ **CORREGIDO:** Usuarios normales ya NO ven la sección "Actualizar Estado" en tickets que no son suyos o están en estado previo a `resuelto`
+- ✅ **CORREGIDO:** Dropdown de departamentos oculto en el listado para usuarios normales (solo admin/soporte lo ven)
+- ✅ **CORREGIDO:** Campo departamento es solo lectura en modo edición para usuarios normales
+- ✅ **CORREGIDO:** Error 403 al ver un ticket como usuario normal — `GET /api/usuarios/:uid` ahora permite acceso al perfil propio
+- ✅ **CORREGIDO:** Formulario de ticket (`ticket-form`) auto-rellena el departamento desde el perfil del usuario y lo deshabilita (usuarios no pueden cambiarlo)
+- ✅ **CORREGIDO:** `ticket-detail` ya no llama a `GET /api/usuarios/:uid` innecesariamente para roles no privilegiados — usa los campos `creadoPorNombre`/`asignadoANombre` del ticket
+- ✅ **CORREGIDO:** `ticket-list` ya no carga la lista de departamentos para usuarios normales (llamada innecesaria eliminada)
+- ✅ **CORREGIDO:** Condición de carrera en `ngOnInit` de `ticket-detail` — el ticket ya no se carga antes de tener el usuario disponible
+- ✅ **AUDITADO:** Modelos y enums frontend/backend son consistentes. Enums `admin|support|user|pending|inactive` idénticos. Campos `Ticket`, `Departamento` sincronizados. Campo muerto `IComentario.archivosAdjuntos` eliminado del modelo frontend
 
 ### Gestión de Departamentos
 - ✅ CRUD completo de departamentos (admin)
@@ -99,7 +109,17 @@
 
 **Riesgo:** Si un administrador crea un departamento desde la pantalla (que llama a la API REST → MongoDB), y luego el usuario ve la lista (que lee de Firestore), el departamento no aparecerá. Los datos están duplicados en dos bases de datos que no se sincronizan.
 
-#### 🟡 IMPORTANTE — Angular Material en componentes activos
+#### � RESUELTO (13 de abril de 2026) — Bugs de permisos y control de acceso UI
+
+| Bug | Causa raíz | Solución aplicada |
+|---|---|---|
+| Error 403 al cargar técnicos en `ticket-detail` | `getAllUsers('admin')` se llamaba para todos los roles; el endpoint requiere admin/support | Carga condicional: solo se llama cuando `usuario.role === 'admin' \| 'support'` |
+| Error 403 en `PATCH /api/tickets/:id/estado` | `puedeCambiarEstado` permitía que cualquier creador del ticket cambie el estado; el backend solo permite al usuario cerrar tickets `resuelto` | Computed corregido: usuario solo ve la sección si el ticket es suyo Y está en `resuelto` |
+| Usuario normal ve dropdown departamento en lista | No había verificación de rol en el template | Envuelto en `@if (!esUsuarioNormal())` |
+| Usuario puede cambiar departamento al editar ticket | Formulario no tenía distinción por rol | Campo departamento se vuelve `div` de solo lectura en modo edición para `user` |
+| Opciones de estado ilimitadas para usuario normal | `opcionesEstado` incluía todos los estados | Nuevo computed `opcionesEstadoDisponibles()` filtra solo `cerrado` para usuarios normales |
+
+#### �🟡 IMPORTANTE — Angular Material en componentes activos
 
 | Componente | Módulos Material problemáticos |
 |---|---|
@@ -175,17 +195,20 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 ---
 
 ### Fase 2 — Limpieza de UI (Prioridad Alta) 🟠
-> **Objetivo:** Cero dependencias de Angular Material; UI 100% Tailwind CSS
+> **Objetivo:** Cero dependencias de Angular Material; UI 100% Tailwind CSS.  
+> **Referencia de diseño:** Agente `07-uiux.md` — diseño inclusivo, mobile-first, accesible para todas las edades.
 
-| Tarea | Dificultad | Componente |
-|---|---|---|
-| Migrar `file-upload` (reemplaza 5 módulos Material) | Media | Shared |
-| Migrar `department-form` | Baja | Departamentos |
-| Migrar `department-list` | Media | Departamentos |
-| Migrar `ticket-detail` y sub-componentes | Alta | Tickets | ✅ |
-| Migrar `performance-report` (tabla con paginación) | Media | Reportes | ✅ |
-| Migrar `system-settings` | Media | Configuración |
-| Eliminar dependencia `@angular/material` del `package.json` | Baja | Build |
+| Tarea | Dificultad | Componente | Agente |
+|---|---|---|---|
+| Migrar `file-upload` (reemplaza 5 módulos Material) | Media | Shared | 03-Frontend + 07-UIUX |
+| Migrar `ticket-detail` (MatSnackBar, Tabs, Chips, Menu) | Alta | Tickets | 03-Frontend + 07-UIUX |
+| Migrar `ticket-timeline` (MatIconModule) | Baja | Tickets | 03-Frontend + 07-UIUX |
+| Migrar `ticket-comments-list` (MatCard, MatIcon) | Baja | Tickets | 03-Frontend + 07-UIUX |
+| Migrar `department-form` | Baja | Departamentos | 03-Frontend + 07-UIUX |
+| Migrar `department-list` | Media | Departamentos | 03-Frontend + 07-UIUX |
+| Migrar `performance-report` (MatTable, Paginator, Sort) | Media | Reportes | 03-Frontend + 07-UIUX |
+| Migrar `system-settings` (MatSnackBar, SlideToggle, Tabs) | Media | Configuración | 03-Frontend + 07-UIUX |
+| Eliminar dependencia `@angular/material` del `package.json` | Baja | Build | 06-DevOps |
 
 **Criterio de éxito:** `npm ls @angular/material` no muestra ningún paquete; toda la UI usa clases Tailwind.
 
@@ -230,30 +253,35 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 ---
 
-> **Objetivo:** Experiencia de usuario más fluida y profesional
+### Fase 3 — UX y Flujo de Usuario (Prioridad Normal) 🟡
+> **Objetivo:** Experiencia de usuario más fluida y profesional; especial atención a usuarios adultos mayores.
 
-| Tarea | Dificultad |
-|---|---|
-| Skeleton loaders en listas (tickets, usuarios, departamentos) | Baja |
-| Estado de carga por componente con spinner SVG personalizado | Baja |
-| Páginas de error 404, 403, 500 con diseño Tailwind | Baja |
-| `ErrorInterceptor` HTTP global (maneja 401/403/429/500) | Media |
-| Animaciones de transición entre páginas | Media |
-| Confirmación visual al realizar acciones destructivas (modal de confirmación) | Baja |
+| Tarea | Dificultad | Agente |
+|---|---|---|
+| Skeleton loaders en listas (tickets, usuarios, departamentos) | Baja | 03-Frontend + 07-UIUX |
+| Estado de carga por componente con spinner SVG personalizado | Baja | 07-UIUX |
+| Páginas de error 404, 403, 500 con diseño Tailwind | Baja | 07-UIUX |
+| `ErrorInterceptor` HTTP global (maneja 401/403/429/500) | Media | 02-Backend + 03-Frontend |
+| Animaciones de transición entre páginas | Media | 07-UIUX |
+| Confirmación visual al realizar acciones destructivas (modal de confirmación) | Baja | 07-UIUX |
+| Mejorar tipografía: tamaños mínimos 16px, contraste WCAG AA | Baja | 07-UIUX |
+| Revisar tamaños de toque en móvil (mínimo 44×44px) | Baja | 07-UIUX |
+| Dashboard con KPIs visuales para todos los roles | Media | 03-Frontend + 07-UIUX |
 
 ---
 
 ### Fase 4 — Nuevas Funcionalidades (Prioridad Normal) 🟢
 > **Objetivo:** Funcionalidades que aumentan el valor del sistema
 
-| Tarea | Dificultad | Notas |
-|---|---|---|
-| Notificaciones por email (Resend.com free tier) | Media | Ticket creado, asignado, resuelto |
-| Exportar reportes a CSV (sin dependencias externas) | Baja | `Blob` + `URL.createObjectURL` |
-| Búsqueda de tickets por texto en descripción | Baja | Con índice texto MongoDB |
-| Filtro de rango de fechas en reportes | Media | |
-| Vista de timeline por ticket (historial de cambios) | Media | Requiere guardar historial en BD |
-| Indicador visual de SLA: verde/amarillo/rojo según tiempo restante | Baja | Computed signal |
+| Tarea | Dificultad | Notas | Agente |
+|---|---|---|---|
+| Notificaciones por email (Resend.com free tier) | Media | Ticket creado, asignado, resuelto | 02-Backend |
+| Exportar reportes a CSV (sin dependencias externas) | Baja | `Blob` + `URL.createObjectURL` | 03-Frontend |
+| Búsqueda de tickets por texto en descripción | Baja | Con índice texto MongoDB | 02-Backend |
+| Filtro de rango de fechas en reportes | Media | | 02-Backend + 03-Frontend |
+| Indicador visual de SLA: verde/amarillo/rojo según tiempo restante | Baja | Computed signal | 03-Frontend + 07-UIUX |
+| Calificación de satisfacción por usuario cuando ticket se cierra | Media | Ya hay endpoint backend | 03-Frontend + 07-UIUX |
+| Vista comprimida en móvil para tabla de tickets (card por ticket) | Media | Mobile-first mejora | 07-UIUX + 03-Frontend |
 
 ---
 
@@ -277,12 +305,14 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Backend API (Vercel Functions) | ✅ 90% completo | Implementar endpoint `/api/configuracion` |
 | Autenticación (Firebase Auth) | ✅ Completo | Nada |
 | Servicios frontend | ✅ **100%** migrado (excepto `config.service.ts`) | Solo falta endpoint backend |
-| Componentes UI | ⚠️ ~45% Tailwind | Migrar 7 componentes restantes (ticket-detail, departments, performance-report, system-settings, file-upload) |
+| Control de permisos UI (roles) | ✅ **CORREGIDO** (13 abr 2026) | Bugs de 403 y dropdowns resueltos |
+| Componentes UI | ⚠️ ~35% Tailwind | Migrar 8 componentes restantes |
 | Modelos MongoDB | ✅ Completo | |
 | Seguridad API | ✅ Completo | |
 | Tests | ❌ 0% | Crear suite mínima |
 | Notificaciones toast | ✅ `NotificacionService` implementado | Pendiente solo notificaciones por email |
-| Almacenamiento archivos | ⚠️ Firebase Storage (1 GB límite) | Migrar a Windows Server Upload Service (análisis en `.claude/context/almacenamiento-archivos.md`) |
+| Almacenamiento archivos | ⚠️ Firebase Storage (1 GB límite) | Migrar a Windows Server Upload Service |
 | Monitoreo | ❌ No existe | Error tracking |
+| Agente UIUX | ✅ Creado | `.claude/agents/07-uiux.md` — diseño inclusivo + mobile-first |
 
-**Conclusión:** El sistema tiene una base sólida y arquitectura correcta. Los problemas actuales son de migración incompleta, no de diseño. La prioridad absoluta es cerrar la brecha entre los dos almacenamientos de datos (Firestore vs MongoDB) antes de poner el sistema en producción real.
+**Conclusión:** El sistema tiene una base sólida y arquitectura correcta. La prioridad inmediata es completar la migración de Angular Material a Tailwind CSS (Fase 2), con el agente 07-UIUX guiando el diseño inclusivo y accesible. Los bugs de permisos han sido corregidos.

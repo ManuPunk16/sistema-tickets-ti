@@ -1,8 +1,16 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+  computed,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Observable, map, switchMap, tap } from 'rxjs';
+import { Subject, switchMap, takeUntil, tap, of, filter, take, forkJoin } from 'rxjs';
 
 import { Ticket, TicketStatus, IArchivo } from '../../../../core/models/ticket.model';
 import { TicketService } from '../../../../core/services/ticket.service';
@@ -31,27 +39,66 @@ import { TicketFilesComponent } from '../../components/ticket-files/ticket-files
   styleUrl: './ticket-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TicketDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
+export class TicketDetailComponent implements OnInit, OnDestroy {
+  private route        = inject(ActivatedRoute);
+  private router       = inject(Router);
   private ticketService = inject(TicketService);
-  private authService = inject(AuthService);
-  private userService = inject(UserService);
-  private fb = inject(FormBuilder);
+  private authService   = inject(AuthService);
+  private userService   = inject(UserService);
+  private fb            = inject(FormBuilder);
   private notificaciones = inject(NotificacionService);
-  private cdr = inject(ChangeDetectorRef);
+  private destroy$ = new Subject<void>();
 
-  ticket: Ticket | null = null;
-  currentUser$: Observable<UserProfile | null>;
-  supportUsers$: Observable<UserProfile[]>;
-  supportUsers: UserProfile[] = [];
-  isLoading = true;
-  isUpdating = false;
-  errorMessage: string | null = null;
+  // ─── Estado reactivo con Signals ──────────────────────────────────────────
+  ticket         = signal<Ticket | null>(null);
+  usuarioActual  = signal<UserProfile | null>(null);
+  tecnicoDisponibles = signal<UserProfile[]>([]);
+  cargando       = signal(true);
+  actualizando   = signal(false);
+  errorMensaje   = signal<string | null>(null);
+  tabActivo      = signal<'comentarios' | 'timeline' | 'archivos'>('comentarios');
 
-  // Formularios
+  // ─── Estado derivado ───────────────────────────────────────────────────────
+  puedeAsignar = computed(() => {
+    const u = this.usuarioActual();
+    return u?.role === 'admin' || u?.role === 'support';
+  });
+
+  puedeCambiarEstado = computed(() => {
+    const u = this.usuarioActual();
+    const t = this.ticket();
+    if (!u || !t) return false;
+    if (u.role === 'admin' || u.role === 'support') return true;
+    // Usuario normal solo puede cerrar un ticket PROPIO que ya esté resuelto
+    return u.role === 'user' && t.creadoPorUid === u.uid && t.estado === 'resuelto';
+  });
+
+  puedeEditar = computed(() => {
+    const u = this.usuarioActual();
+    const t = this.ticket();
+    if (!u || !t) return false;
+    return (
+      u.role === 'admin' ||
+      t.creadoPorUid === u.uid ||
+      (u.role === 'support' && t.asignadoAUid === u.uid)
+    );
+  });
+
+  puedeEliminarArchivo = computed(() => {
+    const u = this.usuarioActual();
+    const t = this.ticket();
+    if (!u || !t) return false;
+    return u.role === 'admin' || u.role === 'support' || t.creadoPorUid === u.uid;
+  });
+
+  esTicketCerrado = computed(() => {
+    const t = this.ticket();
+    return t?.estado === 'cerrado' || t?.estado === 'resuelto';
+  });
+
+  // ─── Formularios ──────────────────────────────────────────────────────────
   statusForm = this.fb.group({
-    status: ['', Validators.required],
+    status:     ['', Validators.required],
     statusNote: [''],
   });
 
@@ -60,382 +107,310 @@ export class TicketDetailComponent implements OnInit {
     assignNote: [''],
   });
 
-  // Tab activo
-  activeTab = 'comments';
-
-  // Opciones de estado disponibles
-  availableStatuses: { value: TicketStatus; label: string }[] = [
-    { value: 'nuevo', label: 'Nuevo' },
-    { value: 'asignado', label: 'Asignado' },
+  // ─── Opciones de estado ────────────────────────────────────────────────────
+  readonly opcionesEstado: { value: TicketStatus; label: string }[] = [
+    { value: 'nuevo',      label: 'Nuevo' },
+    { value: 'asignado',   label: 'Asignado' },
     { value: 'en_proceso', label: 'En Proceso' },
-    { value: 'en_espera', label: 'En Espera' },
-    { value: 'resuelto', label: 'Resuelto' },
-    { value: 'cerrado', label: 'Cerrado' },
+    { value: 'en_espera',  label: 'En Espera' },
+    { value: 'resuelto',   label: 'Resuelto' },
+    { value: 'cerrado',    label: 'Cerrado' },
   ];
 
-  get availableStatusOptions() {
-    return this.availableStatuses;
-  }
+  // Para usuario normal solo se muestra la opción de cerrar
+  opcionesEstadoDisponibles = computed(() => {
+    const u = this.usuarioActual();
+    if (!u || u.role === 'admin' || u.role === 'support') return this.opcionesEstado;
+    return this.opcionesEstado.filter(o => o.value === 'cerrado');
+  });
 
-  constructor() {
-    this.currentUser$ = this.authService.getCurrentUser();
-    this.supportUsers$ = this.userService.getUsersByRole('support');
-  }
-
-  // Métodos helper para clases de badges (evitar [ngClass])
-  protected claseBadgeEstado(estado: string): string {
-    const mapa: { [key: string]: string } = {
-      nuevo:     'bg-gray-100 text-gray-800',
-      asignado:  'bg-blue-100 text-blue-800',
-      en_proceso:'bg-yellow-100 text-yellow-800',
-      en_espera: 'bg-orange-100 text-orange-800',
-      resuelto:  'bg-green-100 text-green-800',
-      cerrado:   'bg-red-100 text-red-800',
+  // ─── Helpers de clase para badges ─────────────────────────────────────────
+  claseBadgeEstado(estado: string): string {
+    const mapa: Record<string, string> = {
+      nuevo:      'bg-slate-100 text-slate-700 border border-slate-200',
+      asignado:   'bg-blue-100 text-blue-700 border border-blue-200',
+      en_proceso: 'bg-amber-100 text-amber-700 border border-amber-200',
+      en_espera:  'bg-orange-100 text-orange-700 border border-orange-200',
+      resuelto:   'bg-green-100 text-green-700 border border-green-200',
+      cerrado:    'bg-red-100 text-red-700 border border-red-200',
     };
-    return mapa[estado] ?? 'bg-gray-100 text-gray-800';
+    return mapa[estado] ?? 'bg-slate-100 text-slate-700';
   }
 
-  protected claseBadgePrioridad(prioridad: string): string {
-    const mapa: { [key: string]: string } = {
-      baja:   'bg-green-100 text-green-800',
-      media:  'bg-yellow-100 text-yellow-800',
-      alta:   'bg-red-100 text-red-800',
-      critica:'bg-purple-100 text-purple-800',
+  claseBadgePrioridad(prioridad: string): string {
+    const mapa: Record<string, string> = {
+      baja:   'bg-emerald-100 text-emerald-700 border border-emerald-200',
+      media:  'bg-yellow-100 text-yellow-700 border border-yellow-200',
+      alta:   'bg-rose-100 text-rose-700 border border-rose-200',
+      critica:'bg-purple-100 text-purple-700 border border-purple-200',
     };
-    return mapa[prioridad] ?? 'bg-gray-100 text-gray-800';
+    return mapa[prioridad] ?? 'bg-slate-100 text-slate-700';
   }
 
+  getEtiquetaEstado(estado: string): string {
+    const mapa: Record<string, string> = {
+      nuevo: 'Nuevo', asignado: 'Asignado', en_proceso: 'En Proceso',
+      en_espera: 'En Espera', resuelto: 'Resuelto', cerrado: 'Cerrado',
+    };
+    return mapa[estado] ?? estado;
+  }
+
+  getEtiquetaPrioridad(prioridad: string): string {
+    const mapa: Record<string, string> = {
+      baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica',
+    };
+    return mapa[prioridad] ?? prioridad;
+  }
+
+  getIniciales(nombre: string): string {
+    return nombre.split(' ').map(p => p.charAt(0)).join('').substring(0, 2).toUpperCase();
+  }
+
+  // ─── Ciclo de vida ─────────────────────────────────────────────────────────
   ngOnInit(): void {
-    this.route.data.subscribe(data => {
-      this.ticket = data['ticket'];
-      this.isLoading = false;
+    // 1. Cargar usuario actual primero y esperar un valor no-null
+    //    (BehaviorSubject: dispara inmediatamente si ya hay sesión activa)
+    this.authService.getCurrentUser()
+      .pipe(
+        filter(u => u !== null),
+        take(1),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(user => {
+        this.usuarioActual.set(user);
 
-      if (this.ticket) {
-        // Inicializar el formulario de estado con el valor actual
-        this.statusForm.patchValue({
-          status: this.ticket.estado,
+        // 2. Cargar técnicos (solo admin/soporte — el endpoint los requiere)
+        if (user?.role === 'admin' || user?.role === 'support') {
+          forkJoin({
+            admins:   this.userService.getAllUsers('admin'),
+            soportes: this.userService.getAllUsers('support'),
+          })
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(({ admins, soportes }) => {
+            this.tecnicoDisponibles.set([...admins, ...soportes]);
+          });
+        }
+
+        // 3. Cargar ticket DESPUÉS de tener el usuario (garantiza permisos en cargarInfoExtendida)
+        this.route.data.pipe(take(1), takeUntil(this.destroy$)).subscribe(data => {
+          const ticketResuelto = data['ticket'] as Ticket | null;
+          if (ticketResuelto) {
+            this.ticket.set(ticketResuelto);
+            this.statusForm.patchValue({ status: ticketResuelto.estado });
+            this.cargarInfoExtendida(ticketResuelto);
+            this.cargando.set(false);
+            return;
+          }
+          // Fallback: buscar por :id de la URL si el resolver no entregó ticket
+          const id = this.route.snapshot.paramMap.get('id');
+          if (!id) {
+            this.router.navigate(['/tickets']);
+            return;
+          }
+          this.ticketService.obtenerTicketPorId(id)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: (t) => {
+                if (!t) { this.router.navigate(['/tickets']); return; }
+                this.ticket.set(t);
+                this.statusForm.patchValue({ status: t.estado });
+                this.cargarInfoExtendida(t);
+                this.cargando.set(false);
+              },
+              error: () => this.router.navigate(['/tickets']),
+            });
         });
-
-        // Cargar información extendida del ticket
-        this.loadExtendedTicketInfo();
-      }
-
-      // Cargar lista de usuarios de soporte
-      this.supportUsers$.subscribe(users => {
-        this.supportUsers = users;
-        this.cdr.markForCheck();
       });
 
-      this.cdr.markForCheck();
-    });
+    // Continuar suscripción al usuario para reaccionar a cambios de rol en tiempo de vida del componente
+    this.authService.getCurrentUser()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(user => this.usuarioActual.set(user));
   }
 
-  /**
-   * Actualiza el estado del ticket
-   */
-  updateStatus(): void {
-    if (!this.ticket || this.statusForm.invalid) return;
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ─── Carga de info extendida (nombre creador / asignado) ──────────────────
+  private cargarInfoExtendida(t: Ticket): void {
+    const u = this.usuarioActual();
+    const esAdminOSoporte = u?.role === 'admin' || u?.role === 'support';
+
+    // Si el ticket ya trae creadoPorNombre (siempre lo trae desde el backend),
+    // rellenar el resumen del creador sin necesidad de otra petición HTTP
+    if (t.creadoPorUid && !t.creadoPorUsuario?.displayName) {
+      // Intentar cargar perfil completo solo si admin/soporte,
+      // o si el creador es el mismo usuario logueado (propio perfil — 200 OK garantizado)
+      const esPropioTicket = t.creadoPorUid === u?.uid;
+      if (esAdminOSoporte || esPropioTicket) {
+        this.userService.getUserById(t.creadoPorUid)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: user => {
+              if (user) {
+                this.ticket.update(actual => actual
+                  ? { ...actual, creadoPorUsuario: { uid: user.uid, displayName: user.displayName || user.email || 'Usuario', email: user.email || '', photoURL: user.photoURL ?? null } }
+                  : actual
+                );
+              }
+            },
+            // Si falla la petición, rellenar con los datos que ya trae el ticket
+            error: () => {
+              this.ticket.update(actual => actual
+                ? { ...actual, creadoPorUsuario: { uid: t.creadoPorUid, displayName: t.creadoPorNombre || 'Usuario', email: '', photoURL: null } }
+                : actual
+              );
+            },
+          });
+      } else {
+        // Usuarios normales viendo tickets ajenos (no deberían) — usar nombre del ticket
+        this.ticket.update(actual => actual
+          ? { ...actual, creadoPorUsuario: { uid: t.creadoPorUid, displayName: t.creadoPorNombre || 'Usuario', email: '', photoURL: null } }
+          : actual
+        );
+      }
+    }
+
+    // Para el asignado: solo admin/soporte necesitan ver el perfil completo.
+    // El ticket ya trae asignadoANombre — usarlo directamente para usuarios normales.
+    if (t.asignadoAUid && !t.asignadoUsuario?.displayName) {
+      if (esAdminOSoporte) {
+        this.userService.getUserById(t.asignadoAUid)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: user => {
+              if (user) {
+                this.ticket.update(actual => actual
+                  ? { ...actual, asignadoUsuario: { uid: user.uid, displayName: user.displayName || user.email || '', email: user.email || '', photoURL: user.photoURL ?? null } }
+                  : actual
+                );
+              }
+            },
+            error: () => {
+              // Fallback con el nombre ya guardado en el ticket
+              if (t.asignadoAUid && t.asignadoANombre) {
+                this.ticket.update(actual => actual
+                  ? { ...actual, asignadoUsuario: { uid: t.asignadoAUid!, displayName: t.asignadoANombre!, email: '', photoURL: null } }
+                  : actual
+                );
+              }
+            },
+          });
+      } else if (t.asignadoANombre) {
+        // Rellenar con el nombre guardado directamente en el ticket
+        this.ticket.update(actual => actual
+          ? { ...actual, asignadoUsuario: { uid: t.asignadoAUid!, displayName: t.asignadoANombre!, email: '', photoURL: null } }
+          : actual
+        );
+      }
+    }
+  }
+
+  // ─── Acciones de usuario ───────────────────────────────────────────────────
+  actualizarEstado(): void {
+    const t = this.ticket();
+    if (!t || this.statusForm.invalid) return;
 
     const { status, statusNote } = this.statusForm.value;
-
-    if (status === this.ticket.estado) {
-      this.notificaciones.advertencia('No se detectaron cambios para actualizar');
+    if (status === t.estado) {
+      this.notificaciones.advertencia('No se detectaron cambios');
       return;
     }
 
-    this.isUpdating = true;
-
-    this.ticketService.updateTicketStatus(this.ticket.id, status as TicketStatus, statusNote ?? '')
-      .subscribe({
-        next: () => {
-          this.handleSuccess('Estado actualizado correctamente');
-        },
-        error: (err) => {
-          this.handleError(err);
-        }
-      });
+    this.actualizando.set(true);
+    this.ticketService.cambiarEstado(t.id, status as TicketStatus, statusNote ?? '')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: () => this.exito('Estado actualizado'), error: (e) => this.fallo(e) });
   }
 
-  /**
-   * Asigna el ticket al técnico seleccionado
-   */
-  assignTicket(): void {
-    if (!this.ticket || this.assignForm.invalid) return;
+  asignarTicket(): void {
+    const t = this.ticket();
+    if (!t || this.assignForm.invalid) return;
 
-    const { assignedTo, assignNote } = this.assignForm.value;
-
-    if (assignedTo === this.ticket.asignadoAUid) {
+    const { assignedTo } = this.assignForm.value;
+    if (assignedTo === t.asignadoAUid) {
       this.notificaciones.advertencia('El ticket ya está asignado a este técnico');
       return;
     }
 
-    this.isUpdating = true;
-
-    this.userService.getUserById(assignedTo!).pipe(
-      switchMap(user => {
-        if (!user) throw new Error('Usuario no encontrado');
-        return this.ticketService.asignarTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
-      })
-    ).subscribe({
-      next: () => {
-        this.handleSuccess('Ticket asignado correctamente');
-        this.assignForm.reset({
-          assignedTo: '',
-          assignNote: ''
-        });
-      },
-      error: (err) => {
-        this.handleError(err);
-      }
-    });
-  }
-
-  /**
-   * Asigna el ticket al usuario actual
-   */
-  assignToMe(): void {
-    if (!this.ticket) return;
-
-    this.isUpdating = true;
-
-    this.currentUser$.pipe(
-      switchMap(user => {
-        if (!user) throw new Error('Usuario no autenticado');
-        return this.ticketService.asignarTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
-      })
-    ).subscribe({
-      next: () => {
-        this.handleSuccess('Ticket asignado a ti correctamente');
-      },
-      error: (err) => {
-        this.handleError(err);
-      }
-    });
-  }
-
-  /**
-   * Añade un comentario al ticket
-   */
-  addComment(commentData: { comment: string; files: File[] }, ticketId: string): void {
-    if (!commentData.comment.trim()) return;
-
-    this.isUpdating = true;
-
-    // Si hay archivos adjuntos, primero subimos los archivos
-    if (commentData.files && commentData.files.length > 0) {
-      this.uploadFilesAndAddComment(commentData.files, commentData.comment, ticketId);
-    } else {
-      // Si no hay archivos, simplemente añadimos el comentario
-      this.ticketService.addComment(ticketId, commentData.comment).subscribe({
+    this.actualizando.set(true);
+    this.ticketService.asignarTicket(t.id, assignedTo!, '')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
         next: () => {
-          this.handleSuccess('Comentario añadido correctamente');
+          this.assignForm.reset({ assignedTo: '', assignNote: '' });
+          this.exito('Ticket asignado correctamente');
         },
-        error: (err) => {
-          this.handleError(err);
-        }
+        error: (e) => this.fallo(e),
       });
-    }
   }
 
-  /**
-   * Sube archivos y luego añade el comentario con referencias a los archivos
-   */
-  private uploadFilesAndAddComment(files: File[], comment: string, ticketId: string): void {
-    // Utilizamos el método uploadFiles implementado en el servicio
-    this.ticketService.uploadFiles(ticketId, files).pipe(
-      switchMap(fileUrls => {
-        // Añadir comentario con archivos adjuntos
-        return this.ticketService.addCommentWithAttachments(ticketId, comment, fileUrls);
-      })
-    ).subscribe({
-      next: () => {
-        this.handleSuccess('Comentario y archivos añadidos correctamente');
-      },
-      error: (error: Error) => {
-        this.handleError(error);
-      }
-    });
+  asignarmeTicket(): void {
+    const t = this.ticket();
+    const u = this.usuarioActual();
+    if (!t || !u) return;
+
+    this.actualizando.set(true);
+    this.ticketService.asignarTicket(t.id, u.uid, u.displayName || u.email || '')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: () => this.exito('Ticket asignado a ti correctamente'), error: (e) => this.fallo(e) });
   }
 
-  /**
-   * Navega hacia atrás
-   */
-  goBack(): void {
+  agregarComentario(datos: { comment: string; files: File[] }, ticketId: string): void {
+    if (!datos.comment.trim()) return;
+    this.actualizando.set(true);
+    this.ticketService.addComment(ticketId, datos.comment)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: () => this.exito('Comentario añadido'), error: (e) => this.fallo(e) });
+  }
+
+  eliminarArchivo(archivo: IArchivo): void {
+    const t = this.ticket();
+    if (!t) return;
+    this.actualizando.set(true);
+    this.ticketService.eliminarArchivoDeTicket(t.id, archivo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (ticketActualizado) => {
+          this.ticket.set(ticketActualizado);
+          this.actualizando.set(false);
+          this.notificaciones.exito('Archivo eliminado');
+        },
+        error: (e) => this.fallo(e),
+      });
+  }
+
+  volver(): void {
     this.router.navigate(['/tickets']);
   }
 
-  /**
-   * Verifica si el usuario puede cambiar el estado del ticket
-   */
-  canChangeStatus(user: UserProfile | null): boolean {
-    if (!user || !this.ticket) return false;
-    return user.role === 'admin' ||
-           user.role === 'support' ||
-           this.ticket.creadoPorUid === user.uid;
-  }
-
-  /**
-   * Verifica si el usuario puede asignar el ticket
-   */
-  canAssignTicket(user: UserProfile | null): boolean {
-    if (!user || !this.ticket) return false;
-    return user.role === 'admin' || user.role === 'support';
-  }
-
-  /**
-   * Verifica si el usuario puede editar el ticket
-   */
-  canEditTicket(user: UserProfile | null): boolean {
-    if (!user || !this.ticket) return false;
-    return user.role === 'admin' ||
-           this.ticket.creadoPorUid === user.uid ||
-           (user.role === 'support' && this.ticket.asignadoAUid === user.uid);
-  }
-
-  /** Verifica si el usuario puede eliminar archivos adjuntos del ticket */
-  puedeEliminarArchivo(user: UserProfile | null): boolean {
-    if (!user || !this.ticket) return false;
-    return user.role === 'admin' ||
-           user.role === 'support' ||
-           this.ticket.creadoPorUid === user.uid;
-  }
-
-  /** Elimina un archivo adjunto de Firebase Storage y de MongoDB */
-  eliminarArchivo(archivo: IArchivo): void {
-    if (!this.ticket) return;
-    this.isUpdating = true;
-    this.ticketService.eliminarArchivoDeTicket(this.ticket.id, archivo).subscribe({
-      next: (ticketActualizado) => {
-        this.ticket = ticketActualizado;
-        this.isUpdating = false;
-        this.notificaciones.exito('Archivo eliminado correctamente');
-        this.cdr.markForCheck();
-      },
-      error: (err: Error) => {
-        this.isUpdating = false;
-        this.notificaciones.error(`Error al eliminar el archivo: ${err.message}`);
-        this.cdr.markForCheck();
-      },
-    });
-  }
-
-  /** @deprecated Ya no es necesario; el componente recibe IArchivo[] directamente */
-  obtenerUrlsArchivos(archivos: IArchivo[] | undefined): string[] {
-    return (archivos ?? []).map(a => a.url);
-  }
-
-  /**
-   * Obtiene las iniciales del nombre de usuario para mostrar en el avatar
-   */
-  getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map(part => part.charAt(0))
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
-  }
-
-  /**
-   * Obtiene la etiqueta para mostrar el estado del ticket
-   */
-  getStatusLabel(status: string): string {
-    const statusMap: { [key: string]: string } = {
-      'nuevo': 'Nuevo',
-      'asignado': 'Asignado',
-      'en_proceso': 'En proceso',
-      'en_espera': 'En espera',
-      'resuelto': 'Resuelto',
-      'cerrado': 'Cerrado'
-    };
-
-    return statusMap[status] || status;
-  }
-
-  /**
-   * Obtiene la etiqueta para mostrar la prioridad del ticket
-   */
-  getPriorityLabel(priority: string): string {
-    const priorityMap: { [key: string]: string } = {
-      'baja': 'Baja',
-      'media': 'Media',
-      'alta': 'Alta',
-      'critica': 'Crítica'
-    };
-
-    return priorityMap[priority] || priority;
-  }
-
-  /**
-   * Maneja el éxito de una operación
-   */
-  private handleSuccess(message: string): void {
-    this.refreshTicket().subscribe(() => {
-      this.isUpdating = false;
-      this.notificaciones.exito(message);
-      this.cdr.markForCheck();
-    });
-  }
-
-  private handleError(err: Error): void {
-    this.isUpdating = false;
-    this.notificaciones.error(`Error: ${err.message}`);
-    this.cdr.markForCheck();
-  }
-
-  /**
-   * Actualiza el ticket desde el servidor
-   */
-  private refreshTicket() {
-    if (!this.ticket) {
-      return new Observable(observer => observer.complete());
-    }
-
-    return this.ticketService.getTicketById(this.ticket.id).pipe(
-      tap(refreshedTicket => {
-        if (refreshedTicket) {
-          this.ticket = refreshedTicket;
-
-          // Cargar información extendida del ticket actualizado
-          this.loadExtendedTicketInfo();
-        }
-      }),
-      map(() => undefined)
-    );
-  }
-
-  /**
-   * Carga datos extendidos para el ticket (información de usuario)
-   */
-  private loadExtendedTicketInfo(): void {
-    if (!this.ticket) return;
-
-    // Cargar información del creador
-    if (this.ticket.creadoPorUid) {
-      this.userService.getUserById(this.ticket.creadoPorUid).subscribe(user => {
-        if (user) {
-          this.ticket!.creadoPorUsuario = {
-            uid: user.uid,
-            displayName: user.displayName || user.email || 'Usuario',
-            email: user.email || 'correo@ejemplo.com',
-            photoURL: user.photoURL || null
-          };
-        }
+  // ─── Helpers de éxito/error ────────────────────────────────────────────────
+  private exito(mensaje: string): void {
+    const t = this.ticket();
+    if (!t) { this.actualizando.set(false); return; }
+    this.ticketService.obtenerTicketPorId(t.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (ticketRefrescado) => {
+          if (ticketRefrescado) {
+            this.ticket.set(ticketRefrescado);
+            this.statusForm.patchValue({ status: ticketRefrescado.estado });
+            this.cargarInfoExtendida(ticketRefrescado);
+          }
+          this.actualizando.set(false);
+          this.notificaciones.exito(mensaje);
+        },
+        error: () => {
+          this.actualizando.set(false);
+          this.notificaciones.exito(mensaje);
+        },
       });
-    }
+  }
 
-    // Cargar información del asignado
-    if (this.ticket.asignadoAUid) {
-      this.userService.getUserById(this.ticket.asignadoAUid).subscribe(user => {
-        if (user) {
-          this.ticket!.asignadoUsuario = {
-            uid: user.uid,
-            displayName: user.displayName || user.email || 'Usuario',
-            email: user.email || 'correo@ejemplo.com',
-            photoURL: user.photoURL || null
-          };
-        }
-      });
-    }
+  private fallo(err: Error): void {
+    this.actualizando.set(false);
+    this.notificaciones.error(err?.message ?? 'Error inesperado');
   }
 }

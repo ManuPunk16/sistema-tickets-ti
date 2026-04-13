@@ -122,7 +122,24 @@ export default async function usuariosHandler(
 
   // ── GET /api/usuarios/:uid ───────────────────────────────────────────────
   if (uid && !accion && req.method === 'GET') {
-    if (!await verificarAdminOSoporte(req, res)) return;
+    const token = await verificarToken(req, res);
+    if (!token) return;
+
+    const solicitante = await Usuario.findOne({ uid: token.uid }).select('role');
+    if (!solicitante) {
+      res.status(403).json({ error: 'Usuario no encontrado en el sistema' });
+      return;
+    }
+
+    // Un usuario activo puede ver únicamente su propio perfil
+    // Admin y soporte pueden ver cualquier perfil
+    const esAdminOSoporte = ['admin', 'support'].includes(solicitante.role);
+    const esPerfilPropio  = token.uid === uid;
+
+    if (!esAdminOSoporte && !esPerfilPropio) {
+      res.status(403).json({ error: 'Solo puedes consultar tu propio perfil' });
+      return;
+    }
 
     const usuario = await Usuario.findOne({ uid }).select('-__v');
     if (!usuario) { res.status(404).json({ error: 'Usuario no encontrado' }); return; }

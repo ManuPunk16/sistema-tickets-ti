@@ -9,6 +9,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { DepartmentService } from '../../../../core/services/department.service';
 import { NotificacionService } from '../../../../core/services/notificacion.service';
 import { Ticket, EstadoTicket } from '../../../../core/models/ticket.model';
+import { UserProfile } from '../../../../core/models/user.model';
 import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
 
 @Component({
@@ -26,9 +27,15 @@ export class TicketListComponent implements OnInit {
   private notificaciones   = inject(NotificacionService);
 
   // ─── Estado ───────────────────────────────────────────────────────────────
-  protected tickets      = signal<Ticket[]>([]);
-  protected departamentos = signal<string[]>([]);
-  protected cargando     = signal(true);
+  protected tickets       = signal<Ticket[]>([]);
+  protected departamentos  = signal<string[]>([]);
+  protected cargando      = signal(true);
+  protected usuarioActual  = signal<UserProfile | null>(null);
+
+  // ─── Permisos derivados del rol ──────────────────────────────────────
+  protected esUsuarioNormal = computed(
+    () => this.usuarioActual()?.role === RolUsuario.User
+  );
 
   // ─── Filtros ──────────────────────────────────────────────────────────────
   protected busqueda          = signal('');
@@ -108,12 +115,12 @@ export class TicketListComponent implements OnInit {
 
   // ─── Ciclo de vida ────────────────────────────────────────────────────────
   ngOnInit(): void {
-    this.cargarDepartamentos();
     this.cargarTickets();
   }
 
   // ─── Carga de datos ───────────────────────────────────────────────────────
   private cargarDepartamentos(): void {
+    // Solo cargamos departamentos para admin/soporte (el filtro no aplica a usuarios normales)
     this.departmentService.getDepartments().subscribe({
       next: deptos => this.departamentos.set(deptos),
       error: () => {}
@@ -128,6 +135,14 @@ export class TicketListComponent implements OnInit {
         if (!usuario) {
           this.cargando.set(false);
           return;
+        }
+
+        // Guardar usuario para permisos de UI
+        this.usuarioActual.set(usuario);
+
+        // Cargar departamentos solo para roles que pueden filtrar por ellos
+        if (usuario.role === RolUsuario.Admin || usuario.role === RolUsuario.Support) {
+          this.cargarDepartamentos();
         }
 
         const obs$ = usuario.role === RolUsuario.Admin

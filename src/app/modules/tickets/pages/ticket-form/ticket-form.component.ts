@@ -1,12 +1,15 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { TicketService } from '../../../../core/services/ticket.service';
 import { DepartmentService } from '../../../../core/services/department.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { Observable, of } from 'rxjs';
 import { Ticket, CategoriaTicket, PrioridadTicket } from '../../../../core/models/ticket.model';
+import { UserProfile } from '../../../../core/models/user.model';
+import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
 import { FileUploadComponent } from '../../../../shared/components/file-upload/file-upload.component';
 
 @Component({
@@ -28,6 +31,7 @@ export class TicketFormComponent implements OnInit {
   private router = inject(Router);
   private ticketService = inject(TicketService);
   private departmentService = inject(DepartmentService);
+  private authService = inject(AuthService);
 
   ticketForm: FormGroup = this.createForm();
   isEditMode = false;
@@ -37,6 +41,12 @@ export class TicketFormComponent implements OnInit {
   departments$: Observable<string[]> = of([]);
   selectedFiles: File[] = [];
   protected errorMensaje = signal<string | null>(null);
+  protected usuarioActual = signal<UserProfile | null>(null);
+
+  // Usuario normal no puede cambiar departamento (solo al crear puede elegir)
+  protected esUsuarioNormal = computed(
+    () => this.usuarioActual()?.role === RolUsuario.User
+  );
 
   categories: { value: CategoriaTicket, label: string }[] = [
     { value: 'hardware', label: 'Hardware' },
@@ -59,10 +69,22 @@ export class TicketFormComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    // Obtener departamentos
+    // 1. Cargar usuario actual para controlar permisos de UI
+    this.authService.getCurrentUser().subscribe(u => {
+      this.usuarioActual.set(u);
+
+      // Si es usuario normal y tiene departamento asignado en su perfil,
+      // rellenar automáticamente el campo y bloquearlo (no se puede modificar)
+      if (u?.role === RolUsuario.User && u.department && !this.isEditMode) {
+        this.ticketForm.patchValue({ departamento: u.department });
+        this.ticketForm.get('departamento')?.disable();
+      }
+    });
+
+    // 2. Obtener departamentos (solo útil para admin/soporte — dropdown visible)
     this.departments$ = this.departmentService.getDepartments();
 
-    // Verificar si estamos en modo edición
+    // 3. Verificar si estamos en modo edición
     this.route.params.subscribe(params => {
       const id = params['id'];
       if (id) {
@@ -73,6 +95,10 @@ export class TicketFormComponent implements OnInit {
           this.ticket = data['ticket'];
           if (this.ticket) {
             this.patchFormValues(this.ticket);
+            // En modo edición, bloquear departamento para usuarios normales
+            if (this.esUsuarioNormal()) {
+              this.ticketForm.get('departamento')?.disable();
+            }
           }
           this.loading = false;
         });
@@ -104,7 +130,8 @@ export class TicketFormComponent implements OnInit {
     if (this.ticketForm.invalid) return;
 
     this.submitLoading = true;
-    const ticketData = this.ticketForm.value;
+    // getRawValue() incluye los campos deshabilitados (como departamento para usuarios normales)
+    const ticketData = this.ticketForm.getRawValue();
 
     if (this.isEditMode && this.ticket) {
       this.ticketService.updateTicket(this.ticket.id, ticketData).subscribe({
