@@ -1,7 +1,7 @@
 <div class="p-4 md:p-6">
   <h1 class="text-2xl font-bold mb-6 text-gray-800">Dashboard</h1>
 
-  @if (currentUser$ | async; as user) {
+  @if (currentUser$(); as user) {
     <div class="mb-8">
       <h2 class="text-lg font-semibold mb-4 text-gray-700">Bienvenido, {{ user.displayName || user.email }}</h2>
       <!-- Resumen rápido -->
@@ -148,10 +148,10 @@
                     <div class="mb-6">
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-gray-600">Nuevos</span>
-                        <span class="text-sm font-medium text-gray-600">{{ newTicketsPercent }}%</span>
+                        <span class="text-sm font-medium text-gray-600">{{ newTicketsPercent() }}%</span>
                       </div>
                       <div class="h-2 w-full bg-gray-200 rounded-full">
-                        <div class="h-2 bg-blue-600 rounded-full" [style.width]="newTicketsPercent + '%'">
+                        <div class="h-2 bg-blue-600 rounded-full" [style.width]="newTicketsPercent() + '%'">
                         </div>
                       </div>
                     </div>
@@ -159,10 +159,10 @@
                     <div class="mb-6">
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-gray-600">Asignados</span>
-                        <span class="text-sm font-medium text-gray-600">{{ assignedTicketsPercent }}%</span>
+                        <span class="text-sm font-medium text-gray-600">{{ assignedTicketsPercent() }}%</span>
                       </div>
                       <div class="h-2 w-full bg-gray-200 rounded-full">
-                        <div class="h-2 bg-indigo-600 rounded-full" [style.width]="assignedTicketsPercent + '%'">
+                        <div class="h-2 bg-indigo-600 rounded-full" [style.width]="assignedTicketsPercent() + '%'">
                         </div>
                       </div>
                     </div>
@@ -170,10 +170,10 @@
                     <div class="mb-6">
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-gray-600">En proceso</span>
-                        <span class="text-sm font-medium text-gray-600">{{ inProgressTicketsPercent }}%</span>
+                        <span class="text-sm font-medium text-gray-600">{{ inProgressTicketsPercent() }}%</span>
                       </div>
                       <div class="h-2 w-full bg-gray-200 rounded-full">
-                        <div class="h-2 bg-yellow-500 rounded-full" [style.width]="inProgressTicketsPercent + '%'">
+                        <div class="h-2 bg-yellow-500 rounded-full" [style.width]="inProgressTicketsPercent() + '%'">
                         </div>
                       </div>
                     </div>
@@ -181,10 +181,10 @@
                     <div class="mb-6">
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-gray-600">En espera</span>
-                        <span class="text-sm font-medium text-gray-600">{{ waitingTicketsPercent }}%</span>
+                        <span class="text-sm font-medium text-gray-600">{{ waitingTicketsPercent() }}%</span>
                       </div>
                       <div class="h-2 w-full bg-gray-200 rounded-full">
-                        <div class="h-2 bg-orange-500 rounded-full" [style.width]="waitingTicketsPercent + '%'">
+                        <div class="h-2 bg-orange-500 rounded-full" [style.width]="waitingTicketsPercent() + '%'">
                         </div>
                       </div>
                     </div>
@@ -192,10 +192,10 @@
                     <div class="mb-1">
                       <div class="flex justify-between mb-1">
                         <span class="text-sm font-medium text-gray-600">Resueltos</span>
-                        <span class="text-sm font-medium text-gray-600">{{ resolvedTicketsPercent }}%</span>
+                        <span class="text-sm font-medium text-gray-600">{{ resolvedTicketsPercent() }}%</span>
                       </div>
                       <div class="h-2 w-full bg-gray-200 rounded-full">
-                        <div class="h-2 bg-green-500 rounded-full" [style.width]="resolvedTicketsPercent + '%'">
+                        <div class="h-2 bg-green-500 rounded-full" [style.width]="resolvedTicketsPercent() + '%'">
                         </div>
                       </div>
                     </div>

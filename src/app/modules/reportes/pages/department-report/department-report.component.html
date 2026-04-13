@@ -50,7 +50,7 @@
                 <select formControlName="department"
                   class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white">
                   <option value="">Todos</option>
-                  @for (dept of departments; track dept) {
+                  @for (dept of departments(); track dept) {
                     <option [value]="dept">{{ dept }}</option>
                   }
                 </select>
@@ -73,7 +73,7 @@
           </div>
 
           <!-- Cargando -->
-          @if (loading) {
+          @if (loading()) {
             <div class="flex flex-col items-center justify-center py-12 md:py-16">
               <div class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-2 border-b-2 border-indigo-600 mb-4">
               </div>
@@ -82,7 +82,7 @@
           }
 
           <!-- Contenido del Reporte -->
-          @if (!loading && hasData) {
+          @if (!loading() && hasData()) {
             <div class="space-y-5 md:space-y-6">
               <!-- KPIs -->
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -99,7 +99,7 @@
                       </svg>
                     </div>
                     <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Total Tickets</p>
-                    <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData.totalTickets }}</p>
+                    <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData().totalTickets }}</p>
                   </div>
                 </div>
                 <!-- Tiempo Promedio -->
@@ -116,7 +116,7 @@
                         </svg>
                       </div>
                       <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tiempo Promedio</p>
-                      <p class="text-xl md:text-3xl font-bold text-gray-800">{{ formatTime(reportData.avgResolutionTime)
+                      <p class="text-xl md:text-3xl font-bold text-gray-800">{{ formatTime(reportData().avgResolutionTime)
                       }}</p>
                     </div>
                   </div>
@@ -134,7 +134,7 @@
                           </svg>
                         </div>
                         <p class="text-gray-500 font-medium mb-1 text-sm md:text-base">Tasa de Resolución</p>
-                        <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData.resolutionRate }}%</p>
+                        <p class="text-xl md:text-3xl font-bold text-gray-800">{{ reportData().resolutionRate }}%</p>
                       </div>
                     </div>
                   </div>
@@ -166,7 +166,7 @@
                           </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                          @for (item of reportData.departmentStats; track item) {
+                          @for (item of reportData().departmentStats; track item) {
                             <tr>
                               <td
                                 class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">
@@ -186,11 +186,13 @@
                               <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">{{
                               formatTimeShort(item.avgResolutionTime) }}</td>
                               <td class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
-                                <span class="px-1.5 py-0.5 text-xs font-medium rounded-full" [ngClass]="{
-                            'bg-red-100 text-red-800': item.resolutionRate < 75,
-                            'bg-yellow-100 text-yellow-800': item.resolutionRate >= 75 && item.resolutionRate < 90,
-                            'bg-green-100 text-green-800': item.resolutionRate >= 90
-                          }">
+                                <span class="px-1.5 py-0.5 text-xs font-medium rounded-full"
+                                  [class.bg-red-100]="item.resolutionRate < 75"
+                                  [class.text-red-800]="item.resolutionRate < 75"
+                                  [class.bg-yellow-100]="item.resolutionRate >= 75 && item.resolutionRate < 90"
+                                  [class.text-yellow-800]="item.resolutionRate >= 75 && item.resolutionRate < 90"
+                                  [class.bg-green-100]="item.resolutionRate >= 90"
+                                  [class.text-green-800]="item.resolutionRate >= 90">
                                   {{ item.resolutionRate }}%
                                 </span>
                               </td>
@@ -202,15 +204,17 @@
                     <!-- Versión de tarjetas para móviles -->
                     <div class="sm:hidden">
                       <div class="divide-y divide-gray-200">
-                        @for (item of reportData.departmentStats; track item) {
+                        @for (item of reportData().departmentStats; track item) {
                           <div class="p-4 hover:bg-gray-50">
                             <div class="flex justify-between items-center mb-2">
                               <h3 class="font-medium text-gray-900">{{ item.department }}</h3>
-                            <span class="px-1.5 py-0.5 text-xs font-medium rounded-full" [ngClass]="{
-                          'bg-red-100 text-red-800': item.resolutionRate < 75,
-                          'bg-yellow-100 text-yellow-800': item.resolutionRate >= 75 && item.resolutionRate < 90,
-                          'bg-green-100 text-green-800': item.resolutionRate >= 90
-                        }">
+                            <span class="px-1.5 py-0.5 text-xs font-medium rounded-full"
+                              [class.bg-red-100]="item.resolutionRate < 75"
+                              [class.text-red-800]="item.resolutionRate < 75"
+                              [class.bg-yellow-100]="item.resolutionRate >= 75 && item.resolutionRate < 90"
+                              [class.text-yellow-800]="item.resolutionRate >= 75 && item.resolutionRate < 90"
+                              [class.bg-green-100]="item.resolutionRate >= 90"
+                              [class.text-green-800]="item.resolutionRate >= 90">
                                 {{ item.resolutionRate }}%
                               </span>
                             </div>
@@ -258,7 +262,7 @@
                           </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                          @for (item of reportData.issueTypes; track item) {
+                          @for (item of reportData().issueTypes; track item) {
                             <tr>
                               <td
                                 class="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">
@@ -277,7 +281,7 @@
                     <!-- Versión de tarjetas para móviles -->
                     <div class="sm:hidden">
                       <div class="divide-y divide-gray-200">
-                        @for (item of reportData.issueTypes; track item) {
+                        @for (item of reportData().issueTypes; track item) {
                           <div class="p-4 hover:bg-gray-50">
                             <div class="flex justify-between">
                               <h3 class="font-medium text-gray-900 text-sm">{{ item.department }}</h3>
@@ -299,7 +303,7 @@
               }
 
               <!-- No hay datos -->
-              @if (!loading && !hasData) {
+              @if (!loading() && !hasData()) {
                 <div
                   class="bg-white rounded-xl shadow-sm p-6 md:p-10 text-center border border-gray-100">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 md:h-16 md:w-16 mx-auto text-gray-300 mb-3 md:mb-4"

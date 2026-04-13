@@ -1,13 +1,14 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReportService } from '../../../../core/services/report.service';
 import { DepartmentService } from '../../../../core/services/department.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserProfile } from '../../../../core/models/user.model';
 import { RolUsuario } from '../../../../core/enums/roles-usuario.enum';
-import { Subject, takeUntil, finalize, catchError, of, forkJoin, map, take } from 'rxjs';
+import { finalize, catchError, of, map, take } from 'rxjs';
 import { DepartmentMetric } from '../../../../core/models/report.model';
 
 interface DepartmentReport {
@@ -45,30 +46,30 @@ interface IssueStat {
   styleUrls: ['./department-report.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DepartmentReportComponent implements OnInit, OnDestroy {
-  private readonly fb               = inject(FormBuilder);
+export class DepartmentReportComponent {
+  private readonly fb                = inject(FormBuilder);
   private readonly reportService    = inject(ReportService);
   private readonly departmentService = inject(DepartmentService);
   private readonly authService       = inject(AuthService);
-  private readonly cdr               = inject(ChangeDetectorRef);
+  private readonly destroyRef        = inject(DestroyRef);
 
-  filterForm: FormGroup;
-  loading = false;
-  hasData = false;
-  departments: string[] = [];
-  reportData: DepartmentReport = {
+  // Estado reactivo con signals — OnPush detecta cambios automáticamente
+  readonly loading    = signal(false);
+  readonly hasData    = signal(false);
+  readonly departments = signal<string[]>([]);
+  readonly reportData  = signal<DepartmentReport>({
     totalTickets: 0,
     avgResolutionTime: 0,
     resolutionRate: 0,
     departmentStats: [],
-    issueTypes: []
-  };
+    issueTypes: [],
+  });
 
-  readonly usuarioActual = signal<UserProfile | null>(null);
-  readonly esUsuarioNormal = computed(() => this.usuarioActual()?.role === RolUsuario.User);
+  readonly usuarioActual     = signal<UserProfile | null>(null);
+  readonly esUsuarioNormal   = computed(() => this.usuarioActual()?.role === RolUsuario.User);
   readonly departamentoUsuario = computed(() => this.usuarioActual()?.department ?? null);
 
-  private destroy$ = new Subject<void>();
+  filterForm: FormGroup;
 
   constructor() {
     // Fechas por defecto para el filtro
@@ -81,9 +82,8 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
       endDate: [this.formatDateForInput(today)],
       department: ['']
     });
-  }
 
-  ngOnInit(): void {
+    // Cargar usuario y arrancar los datos al inicializar — sin ngOnInit
     this.authService.getCurrentUser().pipe(take(1)).subscribe({
       next: usuario => {
         this.usuarioActual.set(usuario);
@@ -100,32 +100,22 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
   loadDepartments(): void {
     this.departmentService.getDepartments()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (depts) => {
-          this.departments = depts;
-          this.cdr.markForCheck();
-        },
-        error: () => {}
+        next: (depts) => this.departments.set(depts),
+        error: () => {},
       });
   }
 
   generateReport(): void {
-    this.loading = true;
-    this.hasData = false;
+    this.loading.set(true);
+    this.hasData.set(false);
 
     const filters = this.filterForm.value;
     const startDate = new Date(filters.startDate);
     const endDate = new Date(filters.endDate);
-
-
 
     // Filtro por departamento si se ha seleccionado uno
     const selectedDepartment = filters.department || null;
@@ -133,17 +123,15 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
     // Usar una única consulta y procesarla para ambos tipos de datos
     this.reportService.executeTicketsQuery(startDate, endDate)
       .pipe(
-        takeUntil(this.destroy$),
+        takeUntilDestroyed(this.destroyRef),
         catchError(() => {
-          this.loading = false;
-          this.hasData = false;
-          this.cdr.markForCheck();
+          this.loading.set(false);
+          this.hasData.set(false);
           return of([]);
         }),
         map(tickets => {
-          // Procesar los mismos tickets para ambos tipos de métricas
           const departmentMetrics = this.reportService.processDepartmentMetrics(tickets);
-          const ticketMetrics = this.reportService.processTicketMetrics(tickets);
+          const ticketMetrics     = this.reportService.processTicketMetrics(tickets);
           return { departmentMetrics, ticketMetrics };
         }),
         finalize(() => {})
@@ -153,21 +141,19 @@ export class DepartmentReportComponent implements OnInit, OnDestroy {
           try {
             const processedData = this.processDepartmentReport(data, selectedDepartment);
             if (processedData) {
-              this.reportData = processedData;
-              this.hasData = true;
+              this.reportData.set(processedData);
+              this.hasData.set(true);
             }
           } catch {
-            this.hasData = false;
+            this.hasData.set(false);
           } finally {
-            this.loading = false;
-            this.cdr.markForCheck();
+            this.loading.set(false);
           }
         },
         error: () => {
-          this.loading = false;
-          this.hasData = false;
-          this.cdr.markForCheck();
-        }
+          this.loading.set(false);
+          this.hasData.set(false);
+        },
       });
   }
 

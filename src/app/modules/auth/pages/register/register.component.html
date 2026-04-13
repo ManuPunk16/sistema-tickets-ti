@@ -1,5 +1,5 @@
 <!-- Navbar -->
-<app-navbar [user]="currentUser$ | async" [showLoginButtons]="false"></app-navbar>
+<app-navbar [user]="usuarioActual()" [showLoginButtons]="false"></app-navbar>
 
 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 px-4 py-12 sm:px-6 lg:px-8 pt-20">
   <div class="w-full max-w-md">
@@ -16,7 +16,7 @@
 
     <!-- Tarjeta de formulario -->
     <div class="bg-white py-8 px-6 shadow-2xl rounded-2xl">
-      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      <form [formGroup]="formulario" (ngSubmit)="onSubmit()" class="space-y-6">
         <!-- Nombre input -->
         <div>
           <label for="displayName" class="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
@@ -34,7 +34,7 @@
               placeholder="Nombre completo"
               />
             </div>
-            @if (registerForm.get('displayName')?.hasError('required') && registerForm.get('displayName')?.touched) {
+            @if (formulario.get('displayName')?.hasError('required') && formulario.get('displayName')?.touched) {
               <p class="mt-1 text-sm text-red-600">
                 El nombre es obligatorio
               </p>
@@ -59,12 +59,12 @@
                 placeholder="nombre@ejemplo.com"
                 />
               </div>
-              @if (registerForm.get('email')?.hasError('required') && registerForm.get('email')?.touched) {
+              @if (formulario.get('email')?.hasError('required') && formulario.get('email')?.touched) {
                 <p class="mt-1 text-sm text-red-600">
                   El correo es obligatorio
                 </p>
               }
-              @if (registerForm.get('email')?.hasError('email') && registerForm.get('email')?.touched) {
+              @if (formulario.get('email')?.hasError('email') && formulario.get('email')?.touched) {
                 <p class="mt-1 text-sm text-red-600">
                   Ingrese un correo electrónico válido
                 </p>
@@ -83,23 +83,23 @@
                 <input
                   formControlName="password"
                   id="password"
-                  [type]="hidePassword ? 'password' : 'text'"
+                  [type]="ocultarPassword() ? 'password' : 'text'"
                   class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                   placeholder="••••••••"
                   />
                   <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
                     <button
                       type="button"
-                      (click)="hidePassword = !hidePassword"
+                      (click)="toggleOcultarPassword()"
                       class="text-gray-400 hover:text-gray-600 focus:outline-none"
                       >
-                      @if (hidePassword) {
+                        @if (ocultarPassword()) {
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                           <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                         </svg>
                       }
-                      @if (!hidePassword) {
+                        @if (!ocultarPassword()) {
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
                           <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
@@ -108,12 +108,12 @@
                     </button>
                   </div>
                 </div>
-                @if (registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched) {
+                @if (formulario.get('password')?.hasError('required') && formulario.get('password')?.touched) {
                   <p class="mt-1 text-sm text-red-600">
                     La contraseña es obligatoria
                   </p>
                 }
-                @if (registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched) {
+                @if (formulario.get('password')?.hasError('minlength') && formulario.get('password')?.touched) {
                   <p class="mt-1 text-sm text-red-600">
                     La contraseña debe tener al menos 6 caracteres
                   </p>
@@ -132,23 +132,23 @@
                   <input
                     formControlName="confirmPassword"
                     id="confirmPassword"
-                    [type]="hideConfirmPassword ? 'password' : 'text'"
+                    [type]="ocultarConfirmPassword() ? 'password' : 'text'"
                     class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                     placeholder="••••••••"
                     />
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
                       <button
                         type="button"
-                        (click)="hideConfirmPassword = !hideConfirmPassword"
+                        (click)="toggleOcultarConfirmPassword()"
                         class="text-gray-400 hover:text-gray-600 focus:outline-none"
                         >
-                        @if (hideConfirmPassword) {
+                          @if (ocultarConfirmPassword()) {
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                             <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                           </svg>
                         }
-                        @if (!hideConfirmPassword) {
+                          @if (!ocultarConfirmPassword()) {
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" />
                             <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
@@ -157,12 +157,12 @@
                       </button>
                     </div>
                   </div>
-                  @if (registerForm.get('confirmPassword')?.hasError('required') && registerForm.get('confirmPassword')?.touched) {
+                  @if (formulario.get('confirmPassword')?.hasError('required') && formulario.get('confirmPassword')?.touched) {
                     <p class="mt-1 text-sm text-red-600">
                       Confirme la contraseña
                     </p>
                   }
-                  @if (registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched) {
+                  @if (formulario.hasError('passwordMismatch') && formulario.get('confirmPassword')?.touched) {
                     <p class="mt-1 text-sm text-red-600">
                       Las contraseñas no coinciden
                     </p>
@@ -205,7 +205,7 @@
                       class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-gray-900"
                       >
                       <option value="">Sin departamento</option>
-                      @for (dept of departments$ | async; track dept) {
+                      @for (dept of departamentos(); track dept) {
                         <option [value]="dept">{{ dept }}</option>
                       }
                     </select>
@@ -236,10 +236,10 @@
                   <div class="pt-2">
                     <button
                       type="submit"
-                      [disabled]="registerForm.invalid || isLoading"
+                      [disabled]="formulario.invalid || cargando()"
                       class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-200"
                       >
-                      @if (isLoading) {
+                      @if (cargando()) {
                         <div class="absolute left-0 inset-y-0 flex items-center pl-3">
                           <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

@@ -1,5 +1,4 @@
-import { Component, Input } from '@angular/core';
-
+import { Component, ChangeDetectionStrategy, signal, input, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserProfile } from '../../../core/models/user.model';
@@ -9,39 +8,37 @@ import { UserProfile } from '../../../core/models/user.model';
   standalone: true,
   imports: [RouterLink],
   templateUrl: './navbar.component.html',
-  styleUrls: ['./navbar.component.scss']
+  styleUrl: './navbar.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavbarComponent {
-  @Input() user: UserProfile | null = null;
-  @Input() showLoginButtons: boolean = true;
-  mobileMenuOpen = false;
-  isProfileMenuOpen = false;
+  private readonly authService = inject(AuthService);
 
-  constructor(private authService: AuthService) {}
+  readonly user = input<UserProfile | null>(null);
+  readonly showLoginButtons = input(true);
 
-  toggleMobileMenu() {
-    this.mobileMenuOpen = !this.mobileMenuOpen;
+  protected readonly mobileMenuOpen = signal(false);
+  protected readonly isProfileMenuOpen = signal(false);
+
+  protected toggleMobileMenu(): void {
+    this.mobileMenuOpen.update(v => !v);
     // Cerrar el menú de perfil si está abierto
-    if (this.isProfileMenuOpen) {
-      this.isProfileMenuOpen = false;
-    }
+    if (this.isProfileMenuOpen()) this.isProfileMenuOpen.set(false);
   }
 
-  toggleProfileMenu() {
-    this.isProfileMenuOpen = !this.isProfileMenuOpen;
+  protected toggleProfileMenu(): void {
+    this.isProfileMenuOpen.update(v => !v);
     // Cerrar el menú móvil si está abierto
-    if (this.mobileMenuOpen) {
-      this.mobileMenuOpen = false;
-    }
+    if (this.mobileMenuOpen()) this.mobileMenuOpen.set(false);
   }
 
-  closeProfileMenu() {
-    this.isProfileMenuOpen = false;
+  protected closeProfileMenu(): void {
+    this.isProfileMenuOpen.set(false);
   }
 
-  logout() {
-    this.isProfileMenuOpen = false;
-    this.mobileMenuOpen = false;
+  protected logout(): void {
+    this.isProfileMenuOpen.set(false);
+    this.mobileMenuOpen.set(false);
     this.authService.logout().subscribe();
   }
 }

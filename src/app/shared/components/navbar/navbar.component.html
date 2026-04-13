@@ -19,13 +19,13 @@
 
         <!-- Menú de Navegación (Escritorio) -->
         <div class="hidden md:flex items-center space-x-4">
-          @if (user) {
+          @if (user()) {
             <a [routerLink]="['/dashboard']"
             class="text-white hover:bg-indigo-500 hover:bg-opacity-75 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Dashboard</a>
             <a [routerLink]="['/tickets']"
             class="text-white hover:bg-indigo-500 hover:bg-opacity-75 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Tickets</a>
             <!-- Enlaces de Admin -->
-            @if (user.role === 'admin') {
+            @if (user()?.role === 'admin') {
               <a [routerLink]="['/usuarios']"
               class="text-white hover:bg-indigo-500 hover:bg-opacity-75 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Usuarios</a>
               <a [routerLink]="['/configuracion']"
@@ -37,13 +37,13 @@
         <!-- Sección derecha (Perfil/Login y botón móvil) -->
         <div class="flex items-center">
           <!-- Botón de menú móvil -->
-          @if (user) {
+          @if (user()) {
             <button type="button"
               class="md:hidden p-2 rounded-md text-white hover:bg-indigo-500 hover:bg-opacity-75 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
               (click)="toggleMobileMenu()">
               <span class="sr-only">Abrir menú</span>
               <!-- Icono de hamburguesa cuando está cerrado -->
-              @if (!mobileMenuOpen) {
+              @if (!mobileMenuOpen()) {
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                   viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -51,7 +51,7 @@
                   </svg>
                 }
                 <!-- Icono X cuando está abierto -->
-                @if (mobileMenuOpen) {
+                @if (mobileMenuOpen()) {
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                     viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -61,18 +61,18 @@
                 </button>
               }
 
-              @if (user) {
+              @if (user()) {
                 <div class="relative">
                   <!-- Botón de perfil con click -->
                   <button (click)="toggleProfileMenu()"
                     class="flex items-center text-sm focus:outline-none hover:bg-indigo-500 hover:bg-opacity-30 py-2 px-3 rounded-md transition-colors duration-200">
                     <div
                       class="w-8 h-8 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center mr-2">
-                      {{ (user.displayName || user.email || 'U')[0].toUpperCase() }}
+                      {{ (user()!.displayName || user()!.email || 'U')[0].toUpperCase() }}
                     </div>
-                    <span class="text-white mr-1 hidden sm:block">{{ user.displayName || user.email }}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" [class.transform]="isProfileMenuOpen"
-                      [class.rotate-180]="isProfileMenuOpen"
+                    <span class="text-white mr-1 hidden sm:block">{{ user()!.displayName || user()!.email }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" [class.transform]="isProfileMenuOpen()"
+                      [class.rotate-180]="isProfileMenuOpen()"
                       class="h-5 w-5 text-white transition-transform duration-200" viewBox="0 0 20 20"
                       fill="currentColor">
                       <path fill-rule="evenodd"
@@ -81,10 +81,10 @@
                       </svg>
                     </button>
                     <!-- Menú desplegable con click -->
-                    @if (isProfileMenuOpen) {
+                    @if (isProfileMenuOpen()) {
                       <div
                         class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 transition-all duration-200 ease-in-out scale-in-origin-top">
-                        <a [routerLink]="['/perfil']" (click)="isProfileMenuOpen = false"
+                        <a [routerLink]="['/perfil']" (click)="closeProfileMenu()"
                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                           Mi Perfil
                         </a>
@@ -95,13 +95,13 @@
                       </div>
                     }
                     <!-- Overlay para cerrar el menú al hacer click fuera -->
-                    @if (isProfileMenuOpen) {
+                    @if (isProfileMenuOpen()) {
                       <div (click)="closeProfileMenu()"
                       class="fixed inset-0 z-10 bg-transparent"></div>
                     }
                   </div>
                 } @else {
-                  @if (showLoginButtons) {
+                  @if (showLoginButtons()) {
                     <div>
                       <a [routerLink]="['/auth/login']"
                         class="text-white bg-indigo-500 hover:bg-indigo-600 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200">
@@ -116,7 +116,7 @@
           </div>
 
           <!-- Menú móvil -->
-          @if (user && mobileMenuOpen) {
+          @if (user() && mobileMenuOpen()) {
             <div class="md:hidden border-t border-indigo-400">
               <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                 <a [routerLink]="['/dashboard']" (click)="toggleMobileMenu()"
@@ -128,7 +128,7 @@
                   Tickets
                 </a>
                 <!-- Enlaces de Admin -->
-                @if (user.role === 'admin') {
+                @if (user()?.role === 'admin') {
                   <a [routerLink]="['/usuarios']" (click)="toggleMobileMenu()"
                     class="text-white hover:bg-indigo-500 hover:bg-opacity-75 block px-3 py-2 rounded-md text-base font-medium">
                     Usuarios
@@ -143,7 +143,7 @@
                   </a>
                 }
                 <!-- Enlaces de Soporte -->
-                @if (user.role === 'admin' || user.role === 'support') {
+                @if (user()?.role === 'admin' || user()?.role === 'support') {
                   <a [routerLink]="['/reportes']" (click)="toggleMobileMenu()"
                     class="text-white hover:bg-indigo-500 hover:bg-opacity-75 block px-3 py-2 rounded-md text-base font-medium">
                     Reportes

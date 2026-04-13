@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -18,9 +18,10 @@ import { finalize, catchError, of, take } from 'rxjs';
     ReactiveFormsModule
   ],
   templateUrl: './dashboard-report.component.html',
-  styleUrls: ['./dashboard-report.component.scss']
+  styleUrl: './dashboard-report.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardReportComponent implements OnInit {
+export class DashboardReportComponent {
   private readonly fb = inject(FormBuilder);
   private readonly reportService = inject(ReportService);
   private readonly authService = inject(AuthService);
@@ -66,9 +67,8 @@ export class DashboardReportComponent implements OnInit {
       startDate: [this.formatDateForInput(thirtyDaysAgo)],
       endDate: [this.formatDateForInput(today)]
     });
-  }
 
-  ngOnInit(): void {
+    // Cargar usuario y datos al inicializar — sin ngOnInit
     this.authService.getCurrentUser().pipe(take(1)).subscribe({
       next: usuario => {
         this.usuarioActual.set(usuario);
@@ -104,10 +104,7 @@ export class DashboardReportComponent implements OnInit {
 
     this.reportService.getTicketMetrics(start, end)
       .pipe(
-        catchError(error => {
-          console.error('Error al cargar las métricas:', error);
-          return of(null);
-        }),
+        catchError(() => of(null)),
         finalize(() => {
           this.loading.set(false);
         })

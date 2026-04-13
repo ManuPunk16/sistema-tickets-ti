@@ -1,7 +1,7 @@
 # 📊 Análisis del Sistema de Tickets TI
 
 > **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.
-> **Última actualización:** 13 de Abril de 2026 — Sesión de reportes por rol. Error 403 en reportes resuelto. Dashboard, reporte de departamentos y rendimiento ahora respetan el rol del usuario.
+> **Última actualización:** 14 de Abril de 2026 — Auditoría de migración completada. UI 100% Tailwind CSS (11/11 componentes migrados). 0% Angular Material. 0% Firestore en frontend. `config.service.ts` ya era REST API — ANALISIS estaba desactualizado.
 > **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.
 > **Equipo de agentes:** 01-Arquitecto · 02-Backend · 03-Frontend · 04-Seguridad · 05-QA · 06-DevOps · **07-UIUX**
 
@@ -82,7 +82,8 @@
 - ✅ Dashboard con KPIs visuales
 - ✅ Página de gestión de usuarios completamente en Tailwind
 - ✅ Página de reportes completamente en Tailwind
-- ✅ Mobile-first design en los componentes ya migrados
+- ✅ Mobile-first design en todos los componentes
+- ✅ **AUDITADO (14 abr 2026):** UI 100% Tailwind CSS — **11/11 componentes migrados**. Cero `@angular/material`, cero `*ngIf`/`@Input()` legacy, cero Firestore en todo el frontend
 
 ---
 
@@ -113,9 +114,9 @@
 | `report.service.ts` | ✅ REST API | Migrado — `executeTicketsQuery` y `process*` públicos por compatibilidad |
 | `user.service.ts` | ✅ REST API | Correcto |
 | `auth.service.ts` | ✅ Firebase Auth | Import Firestore eliminado — nunca se usaba |
-| `config.service.ts` | ⚠️ Firestore | **Deuda técnica** — requiere crear endpoint `/api/configuracion` primero |
+| `config.service.ts` | ✅ REST API | Confirmado — usa `HttpClient` → `/api/configuracion`. Endpoint backend implementado con GET+PUT en MongoDB |
 
-**Riesgo:** Si un administrador crea un departamento desde la pantalla (que llama a la API REST → MongoDB), y luego el usuario ve la lista (que lee de Firestore), el departamento no aparecerá. Los datos están duplicados en dos bases de datos que no se sincronizan.
+**Estado:** ✅ Riesgo de inconsistencia **eliminado** — auditoría (14 abr 2026) confirmó que ningún servicio lee de Firestore. Todos los datos fluyen exclusivamente a través de la API REST → MongoDB.
 
 #### � RESUELTO (13 de abril de 2026) — Bugs de permisos y control de acceso UI
 
@@ -135,22 +136,23 @@
 | `ticket-form` | ✅ **MIGRADO** — Angular Material eliminado, Signals + Tailwind |
 | `login` | ✅ **MIGRADO** — Signals + inject() + Tailwind. Sin `MatSnackBar` |
 | `forgot-password` | ✅ **MIGRADO** — Signals + inject() + Tailwind. Sin `MatCard` ni `MatFormField` |
-| `ticket-detail` | MatSnackBar, MatTabs, MatChips, MatMenu |
-| `ticket-timeline` | `MatIconModule` |
-| `ticket-comments-list` | `MatCard`, `MatIcon`, `MatDivider` |
-| `department-list` | 13+ imports, template completo en `mat-*` |
-| `department-form` | `MatFormField`, `MatSnackBar` |
-| `performance-report` | `MatTableDataSource`, `MatPaginator`, `MatSort` |
-| `system-settings` | `MatSnackBar`, `MatSlideToggle`, `MatTabs` |
-| `file-upload` | `MatButtonModule`, `MatIconModule`, `MatProgressBarModule`, `MatChipsModule`, `MatTooltipModule` |
+| `ticket-detail` | ✅ **MIGRADO** — Signals (`tabActivo`, `puedeCambiarEstado`), `input()`/`output()`, Tailwind. Sin MatSnackBar/Tabs/Chips |
+| `ticket-timeline` | ✅ **MIGRADO** — `imports: []`, Tailwind puro, `input()` signal, OnPush |
+| `ticket-comments-list` | ✅ **MIGRADO** — `imports: []`, `input<TicketComment[]>([])`, OnPush |
+| `department-list` | ✅ **MIGRADO** — Inline Tailwind template, `imports: [CommonModule, RouterLink]`, signals |
+| `department-form` | ✅ **MIGRADO** — `imports: [ReactiveFormsModule, RouterLink]`, `inject()`, signals |
+| `performance-report` | ✅ **MIGRADO** — Paginación custom con signals, `imports: [CommonModule, ReactiveFormsModule, RouterLink]` |
+| `system-settings` | ✅ **MIGRADO** — Tabs via `pestanaActiva = signal(...)`, toggles via ReactiveFormsModule, 0 Material |
+| `file-upload` | ✅ **MIGRADO** — `imports: []`, `input()`/`output()` funciones, `inject()`, OnPush |
 
-**Total migrados:** 4 / 11 componentes. **Pendientes:** 7 componentes con Angular Material activo.
-**Impacto visual:** Inconsistencia entre los componentes ya migrados a Tailwind y los que usan Material.
+**Total migrados:** 11 / 11 componentes. ✅ **MIGRACIÓN COMPLETA.**
+**Verificado:** `grep -r "@angular/material" src/` → **cero resultados**.
 
-#### 🟡 IMPORTANTE — Patrones legacy en componentes viejos
-- Varios componentes aún usan `@Input()`/`@Output()` en lugar de `input()`/`output()`
-- Algunos componentes tienen `*ngIf`/`*ngFor` en lugar del control flow nativo
-- No se usa `ChangeDetectionStrategy.OnPush` en componentes con Material
+#### ✅ RESUELTO — Patrones legacy eliminados
+- Todos los componentes usan `input()`/`output()` funciones (sin `@Input()` ni `@Output()` legacy)
+- Todos los componentes usan control flow nativo `@if`/`@for`/`@switch` (sin `*ngIf` ni `*ngFor`)
+- Todos los componentes tienen `ChangeDetectionStrategy.OnPush`
+- **Verificado:** `grep -r "@Input()\|@Output()\|\*ngIf\|\*ngFor" src/` → **cero resultados**
 
 #### 🟢 MENOR — Calidad de código
 - No hay suite de pruebas unitarias ni e2e
@@ -161,19 +163,14 @@
 
 ## 💡 RECOMENDACIONES
 
-### Recomendación #1 — Completar la migración de servicios ANTES que cualquier otra cosa
-El riesgo de inconsistencia de datos entre Firestore y MongoDB es el problema más serio porque afecta la integridad del sistema. Un ticket creado desde la API no aparece en la lista porque la lista lee de Firestore. **Esto debe resolverse antes de usar el sistema en producción.**
+### ✅ Recomendación #1 — COMPLETADA: Migración de servicios
+Todos los servicios (`ticket.service.ts`, `department.service.ts`, `report.service.ts`, `user.service.ts`, `auth.service.ts`, `config.service.ts`) usan exclusivamente `HttpClient` → REST API → MongoDB. Cero lecturas/escrituras a Firestore.
 
-Orden de migración: `department.service.ts` → `ticket.service.ts` → `report.service.ts`
-- `department.service.ts` es el más sencillo (5 métodos CRUD)
-- `ticket.service.ts` es el más complejo (queries con filtros, adjuntos de Storage)
-- `report.service.ts` solo requiere llamar a los endpoints ya implementados
+### ✅ Recomendación #2 — COMPLETADA: NotificacionService creado
+`NotificacionService` implementado con Signals. Reemplazó `MatSnackBar` en todos los componentes migrados.
 
-### Recomendación #2 — Crear un NotificacionService propio antes de migrar componentes
-Antes de eliminar `MatSnackBar` de 9 componentes, crear un `NotificacionService` basado en Signals que lo reemplace en todos lados. Así la migración de Material es atómica por componente y no queda ninguno sin sistema de toast.
-
-### Recomendación #3 — Migrar department-form y department-list primero (menor complejidad)
-Son los componentes con menos lógica de negocio. Migrarlos primero establece el patrón Tailwind que luego se replica en los componentes de tickets.
+### ✅ Recomendación #3 — COMPLETADA: Migración de todos los componentes
+Los 11 componentes están completamente migrados a Tailwind CSS con Signals, `inject()` y `ChangeDetectionStrategy.OnPush`.
 
 ### Recomendación #4 — Implementar notificaciones por email en Fase 2
 [Resend.com](https://resend.com) tiene un plan gratuito de 3,000 emails/mes, sin tarjeta de crédito. Se integra fácilmente desde una Vercel Function. Los casos de uso críticos son: ticket creado, ticket asignado, ticket resuelto.
@@ -196,29 +193,29 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Corregir errores TS en componentes (campos en inglés vs español) | ✅ | `assignedUser`, `status`, `attachments`, etc. |
 | Eliminar import Firestore de `auth.service.ts` | ✅ | Era código muerto (no se inyectaba) |
 | Migrar `ticket-form` fuera de Angular Material | ✅ | Signals + Tailwind, ChangeDetectionStrategy.OnPush |
-| `config.service.ts` | ⏳ Pendiente | Requiere implementar endpoint `/api/configuracion` en backend primero |
+| `config.service.ts` | ✅ Completado | Usa `HttpClient` → `/api/configuracion`. Endpoint backend GET+PUT implementado con MongoDB |
 
-**Criterio de éxito:** ✅ Ningún `import from '@angular/fire/firestore'` activo en servicios del frontend (excepto `config.service.ts`, documentado como deuda técnica pendiente de endpoint).
+**Criterio de éxito:** ✅ Ningún `import from '@angular/fire/firestore'` activo en ningún servicio del frontend. **Confirmado por auditoría completa (14 abr 2026).**
 
 ---
 
-### Fase 2 — Limpieza de UI (Prioridad Alta) 🟠
-> **Objetivo:** Cero dependencias de Angular Material; UI 100% Tailwind CSS.
-> **Referencia de diseño:** Agente `07-uiux.md` — diseño inclusivo, mobile-first, accesible para todas las edades.
+### Fase 2 — Limpieza de UI ✅ COMPLETADA
+> **Objetivo cumplido:** Cero dependencias de Angular Material; UI 100% Tailwind CSS.
+> **Auditado:** 14 de Abril de 2026 — todos los componentes confirmados migrados.
 
-| Tarea | Dificultad | Componente | Agente |
-|---|---|---|---|
-| Migrar `file-upload` (reemplaza 5 módulos Material) | Media | Shared | 03-Frontend + 07-UIUX |
-| Migrar `ticket-detail` (MatSnackBar, Tabs, Chips, Menu) | Alta | Tickets | 03-Frontend + 07-UIUX |
-| Migrar `ticket-timeline` (MatIconModule) | Baja | Tickets | 03-Frontend + 07-UIUX |
-| Migrar `ticket-comments-list` (MatCard, MatIcon) | Baja | Tickets | 03-Frontend + 07-UIUX |
-| Migrar `department-form` | Baja | Departamentos | 03-Frontend + 07-UIUX |
-| Migrar `department-list` | Media | Departamentos | 03-Frontend + 07-UIUX |
-| Migrar `performance-report` (MatTable, Paginator, Sort) | Media | Reportes | 03-Frontend + 07-UIUX |
-| Migrar `system-settings` (MatSnackBar, SlideToggle, Tabs) | Media | Configuración | 03-Frontend + 07-UIUX |
-| Eliminar dependencia `@angular/material` del `package.json` | Baja | Build | 06-DevOps |
+| Tarea | Estado | Componente |
+|---|---|---|
+| Migrar `file-upload` | ✅ MIGRADO | Shared |
+| Migrar `ticket-detail` | ✅ MIGRADO | Tickets |
+| Migrar `ticket-timeline` | ✅ MIGRADO | Tickets |
+| Migrar `ticket-comments-list` | ✅ MIGRADO | Tickets |
+| Migrar `department-form` | ✅ MIGRADO | Departamentos |
+| Migrar `department-list` | ✅ MIGRADO | Departamentos |
+| Migrar `performance-report` | ✅ MIGRADO | Reportes |
+| Migrar `system-settings` | ✅ MIGRADO | Configuración |
+| Eliminar dependencia `@angular/material` del `package.json` | ⏳ Pendiente | Build — ejecutar `npm uninstall @angular/material` |
 
-**Criterio de éxito:** `npm ls @angular/material` no muestra ningún paquete; toda la UI usa clases Tailwind.
+**Criterio de éxito:** ✅ Toda la UI usa clases Tailwind. Pendiente solo el `npm uninstall @angular/material` para limpiar `package.json` (no genera errores de runtime porque no se importa en ningún componente).
 
 ---
 
@@ -312,9 +309,9 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 |---|---|---|
 | Backend API (Vercel Functions) | ✅ 90% completo | Implementar endpoint `/api/configuracion` |
 | Autenticación (Firebase Auth) | ✅ Completo | Nada |
-| Servicios frontend | ✅ **100%** migrado (excepto `config.service.ts`) | Solo falta endpoint backend |
+| Servicios frontend | ✅ **100%** migrado | Todos los servicios usan REST API. `config.service.ts` confirmado ✅ |
 | Control de permisos UI (roles) | ✅ **CORREGIDO** (13 abr 2026) | Bugs de 403 y dropdowns resueltos |
-| Componentes UI | ⚠️ ~35% Tailwind | Migrar 8 componentes restantes |
+| Componentes UI | ✅ **100% Tailwind** | **11/11 componentes migrados** — 0% Angular Material (14 abr 2026) |
 | Modelos MongoDB | ✅ Completo | |
 | Seguridad API | ✅ Completo | |
 | Tests | ❌ 0% | Crear suite mínima |
@@ -323,4 +320,4 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Monitoreo | ❌ No existe | Error tracking |
 | Agente UIUX | ✅ Creado | `.claude/agents/07-uiux.md` — diseño inclusivo + mobile-first |
 
-**Conclusión:** El sistema tiene una base sólida y arquitectura correcta. La prioridad inmediata es completar la migración de Angular Material a Tailwind CSS (Fase 2), con el agente 07-UIUX guiando el diseño inclusivo y accesible. Los bugs de permisos han sido corregidos.
+**Conclusión:** El sistema tiene una base sólida y arquitectura correcta. Las Fases 1 y 2 están **completamente terminadas**: 100% REST API, 100% Tailwind CSS, 0% Angular Material, 0% Firestore en el frontend. La prioridad ahora es ejecutar `npm uninstall @angular/material` (limpieza de dependencia), continuar con la Fase 2.5 (almacenamiento Windows Server) o avanzar a las Fases 3-5 (UX, nuevas funcionalidades y calidad).
