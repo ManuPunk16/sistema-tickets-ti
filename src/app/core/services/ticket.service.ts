@@ -139,7 +139,7 @@ export class TicketService {
   }
 
   asignarTicket(id: string, uid: string, nombre: string): Observable<Ticket> {
-    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/asignar`, { uid, nombre }).pipe(
+    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/asignar`, { asignadoAUid: uid }).pipe(
       map(res => this.mapearTicket(res.ticket))
     );
   }

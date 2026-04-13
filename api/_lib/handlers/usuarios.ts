@@ -3,7 +3,7 @@ import { verificarToken, firebaseAdmin } from '../middleware/autenticacion.js';
 import { Usuario } from '../models/Usuario.js';
 import { conectarMongoDB } from '../config/database.js';
 
-// Helper reutilizable: verifica token + rol admin en una sola llamada
+// Helper: verifica token + rol admin (escritura)
 async function verificarAdmin(req: VercelRequest, res: VercelResponse) {
   const token = await verificarToken(req, res);
   if (!token) return null;
@@ -11,6 +11,19 @@ async function verificarAdmin(req: VercelRequest, res: VercelResponse) {
   const solicitante = await Usuario.findOne({ uid: token.uid }).select('role');
   if (!solicitante || solicitante.role !== 'admin') {
     res.status(403).json({ error: 'Solo los administradores pueden realizar esta acción' });
+    return null;
+  }
+  return solicitante;
+}
+
+// Helper: verifica token + rol admin O soporte (lectura de usuarios)
+async function verificarAdminOSoporte(req: VercelRequest, res: VercelResponse) {
+  const token = await verificarToken(req, res);
+  if (!token) return null;
+
+  const solicitante = await Usuario.findOne({ uid: token.uid }).select('role');
+  if (!solicitante || !['admin', 'support'].includes(solicitante.role)) {
+    res.status(403).json({ error: 'Se requiere rol de administrador o soporte' });
     return null;
   }
   return solicitante;
@@ -32,7 +45,7 @@ export default async function usuariosHandler(
 
   // ── GET /api/usuarios ────────────────────────────────────────────────────
   if (pathname === '/api/usuarios' && req.method === 'GET') {
-    if (!await verificarAdmin(req, res)) return;
+    if (!await verificarAdminOSoporte(req, res)) return;
 
     const { rol, pagina = '1', limite = '50' } = req.query as Record<string, string>;
     const filtro: Record<string, unknown> = {};
@@ -109,7 +122,7 @@ export default async function usuariosHandler(
 
   // ── GET /api/usuarios/:uid ───────────────────────────────────────────────
   if (uid && !accion && req.method === 'GET') {
-    if (!await verificarAdmin(req, res)) return;
+    if (!await verificarAdminOSoporte(req, res)) return;
 
     const usuario = await Usuario.findOne({ uid }).select('-__v');
     if (!usuario) { res.status(404).json({ error: 'Usuario no encontrado' }); return; }
