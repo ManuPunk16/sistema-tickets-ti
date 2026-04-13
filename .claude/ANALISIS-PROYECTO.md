@@ -178,12 +178,12 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 | Tarea | Dificultad | Componente |
 |---|---|---|
-| Crear `NotificacionService` personalizado (reemplaza MatSnackBar) | Media | Core |
+| Crear `NotificacionService` personalizado (reemplaza MatSnackBar) | ✅ Hecho | Core |
 | Migrar `department-form` | Baja | Departamentos |
 | Migrar `department-list` | Media | Departamentos |
-| Migrar `login.component` a Signals + inject() + Tailwind | Baja | Auth |
+| Migrar `login.component` a Signals + inject() + Tailwind | ✅ Hecho | Auth |
 | ~~Migrar `ticket-form`~~ | ✅ Hecho | Tickets |
-| Migrar `ticket-list` (tabla, paginación, filtros) | Alta | Tickets |
+| Migrar `ticket-list` (tabla, paginación, filtros) | ✅ Hecho | Tickets |
 | Migrar `ticket-detail` y sub-componentes | Alta | Tickets |
 | Migrar `performance-report` (tabla con paginación) | Media | Reportes |
 | Migrar `system-settings` | Media | Configuración |

@@ -21,8 +21,19 @@ export default async function authHandler(
 
     let usuario = await Usuario.findOne({ uid });
 
+    // Si no se encontró por UID, buscar por email (puede haber un UID desactualizado en BD)
+    if (!usuario && email) {
+      const usuarioPorEmail = await Usuario.findOne({ email });
+      if (usuarioPorEmail) {
+        // Actualizar el UID al correcto de Firebase y continuar
+        usuarioPorEmail.uid = uid;
+        await usuarioPorEmail.save();
+        usuario = usuarioPorEmail;
+      }
+    }
+
     if (!usuario) {
-      // Primer acceso: crear como 'pending'
+      // Primer acceso genuino: crear como 'pending'
       usuario = await Usuario.create({
         uid,
         email: email || '',

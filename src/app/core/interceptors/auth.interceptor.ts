@@ -25,7 +25,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       return next(reqConToken);
     }),
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 || error.status === 403) {
+      // Excluir rutas de autenticación que manejan su propio 401/403
+      const esRutaAuth = req.url.includes('/auth/verificar') || req.url.includes('/auth/registrar');
+
+      if (error.status === 401 && !esRutaAuth) {
         authService.logout().subscribe(() => {
           router.navigate(['/auth/login'], { queryParams: { expired: 'true' } });
         });

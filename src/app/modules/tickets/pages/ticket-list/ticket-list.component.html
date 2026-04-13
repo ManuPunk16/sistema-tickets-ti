@@ -1,263 +1,322 @@
 <div class="p-4 md:p-6">
-  <!-- Encabezado y botón de nuevo ticket -->
-  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Tickets</h1>
 
-    <!-- Botón de nuevo ticket -->
-    <a [routerLink]="['/tickets/nuevo']"
-      class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+  <!-- Encabezado -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Tickets</h1>
+    <a
+      [routerLink]="['/tickets/nuevo']"
+      class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+    >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
       </svg>
-      <span>Nuevo ticket</span>
+      Nuevo ticket
     </a>
   </div>
 
-  <!-- Filtros - Mejorados para responsividad -->
-  <div class="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-100">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <!-- Filtros -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+
       <!-- Búsqueda -->
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
           </svg>
         </div>
         <input
           type="text"
-          [(ngModel)]="searchTerm"
-          placeholder="Buscar tickets..."
-          class="pl-10 h-10 p-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full border border-gray-300 rounded-md text-sm"
-          (keyup.enter)="applyFilters()">
-        </div>
+          [ngModel]="busqueda()"
+          (ngModelChange)="busqueda.set($event); aplicarFiltro()"
+          placeholder="Buscar por título, ID..."
+          class="block w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
 
-        <!-- Filtro por estado -->
-        <div>
-          <select
-            [(ngModel)]="statusFilter"
-            class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            (change)="applyFilters()">
-            <option value="">Todos los estados</option>
-            <option value="nuevo">Nuevo</option>
-            <option value="asignado">Asignado</option>
-            <option value="en_proceso">En proceso</option>
-            <option value="en_espera">En espera</option>
-            <option value="resuelto">Resuelto</option>
-            <option value="cerrado">Cerrado</option>
-          </select>
-        </div>
+      <!-- Estado -->
+      <select
+        [ngModel]="filtroEstado()"
+        (ngModelChange)="filtroEstado.set($event); aplicarFiltro()"
+        class="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+      >
+        <option value="">Todos los estados</option>
+        <option value="nuevo">Nuevo</option>
+        <option value="asignado">Asignado</option>
+        <option value="en_proceso">En proceso</option>
+        <option value="en_espera">En espera</option>
+        <option value="resuelto">Resuelto</option>
+        <option value="cerrado">Cerrado</option>
+      </select>
 
-        <!-- Filtro por departamento -->
-        <div>
-          <select
-            [(ngModel)]="departmentFilter"
-            class="block w-full h-10 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            (change)="applyFilters()">
-            <option value="">Todos los departamentos</option>
-            @for (dept of departments$ | async; track dept) {
-              <option [value]="dept">{{ dept }}</option>
-            }
-          </select>
-        </div>
+      <!-- Departamento -->
+      <select
+        [ngModel]="filtroDepartamento()"
+        (ngModelChange)="filtroDepartamento.set($event); aplicarFiltro()"
+        class="block w-full py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+      >
+        <option value="">Todos los departamentos</option>
+        @for (dept of departamentos(); track dept) {
+          <option [value]="dept">{{ dept }}</option>
+        }
+      </select>
 
-        <!-- Botón de limpiar filtros -->
-        <div class="flex items-center">
-          <button
-            (click)="clearFilters()"
-            class="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            <span>Limpiar filtros</span>
-          </button>
-        </div>
+      <!-- Prioridad + Limpiar -->
+      <div class="flex gap-2">
+        <select
+          [ngModel]="filtroPrioridad()"
+          (ngModelChange)="filtroPrioridad.set($event); aplicarFiltro()"
+          class="flex-1 py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Todas las prioridades</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+        <button
+          (click)="limpiarFiltros()"
+          title="Limpiar filtros"
+          class="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- Contenedor de tabla con scroll horizontal para dispositivos pequeños -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-      <!-- Estado de carga -->
-      @if (isLoading) {
-        <div class="flex justify-center items-center p-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      }
+    @if (!cargando()) {
+      <p class="text-xs text-gray-500 mt-2">
+        {{ totalFiltrados() }} ticket{{ totalFiltrados() !== 1 ? 's' : '' }} encontrado{{ totalFiltrados() !== 1 ? 's' : '' }}
+      </p>
+    }
+  </div>
 
-      <!-- Vista para móviles (tarjetas en lugar de tabla) -->
-      @if (!isLoading && dataSource.data.length > 0) {
-        <div class="block sm:hidden">
-          @for (ticket of dataSource.data; track ticket) {
-            <div class="border-b border-gray-200 p-4">
-              <div class="flex justify-between items-start mb-2">
-                <a [routerLink]="['/tickets', ticket.id]" class="text-indigo-600 font-medium hover:text-indigo-800">
-                  {{ ticket.titulo }}
-                </a>
-          <span [ngClass]="{
-            'bg-gray-100 text-gray-800': ticket.estado === 'nuevo',
-            'bg-blue-100 text-blue-800': ticket.estado === 'asignado',
-            'bg-yellow-100 text-yellow-800': ticket.estado === 'en_proceso',
-            'bg-orange-100 text-orange-800': ticket.estado === 'en_espera',
-            'bg-green-100 text-green-800': ticket.estado === 'resuelto',
-            'bg-red-100 text-red-800': ticket.estado === 'cerrado'
-          }" class="px-2 py-1 text-xs font-medium rounded-full">
-                  {{ getStatusLabel(ticket.estado) }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-500 truncate mb-2">{{ ticket.descripcion }}</p>
-              <div class="flex justify-between items-center">
-                <div>
-                  <span class="text-xs text-gray-500">Prioridad:</span>
-            <span [ngClass]="{
-              'bg-green-100 text-green-800': ticket.prioridad === 'baja',
-              'bg-yellow-100 text-yellow-800': ticket.prioridad === 'media',
-              'bg-red-100 text-red-800': ticket.prioridad === 'alta',
-              'bg-purple-100 text-purple-800': ticket.prioridad === 'critica'
-            }" class="ml-1 px-2 py-0.5 text-xs font-medium rounded-full">
-                    {{ getPriorityLabel(ticket.prioridad) }}
-                  </span>
-                </div>
-                <div class="text-xs text-gray-500">
-                  {{ ticket.createdAt | date:'dd/MM/yyyy' }}
-                </div>
-              </div>
-              <div class="mt-2 text-xs">
-                <span class="text-gray-500">Asignado:</span>
-                <span class="ml-1">{{ ticket.asignadoANombre || 'Sin asignar' }}</span>
-              </div>
+  <!-- Contenido principal -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+    <!-- Skeleton de carga -->
+    @if (cargando()) {
+      <div class="p-6 space-y-3">
+        @for (i of [1,2,3,4,5]; track i) {
+          <div class="animate-pulse flex space-x-4">
+            <div class="flex-1 space-y-2">
+              <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+              <div class="h-3 bg-gray-200 rounded w-1/2"></div>
             </div>
-          }
-        </div>
-      }
+            <div class="h-6 w-16 bg-gray-200 rounded-full self-start"></div>
+            <div class="h-6 w-14 bg-gray-200 rounded-full self-start"></div>
+          </div>
+        }
+      </div>
+    }
 
-      <!-- Tabla para tablets y escritorio -->
-      @if (!isLoading && dataSource.data.length > 0) {
-        <div class="hidden sm:block overflow-x-auto">
-          <table mat-table [dataSource]="dataSource" matSort class="min-w-full divide-y divide-gray-200">
-            <!-- ID Column -->
-            <ng-container matColumnDef="id">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                ID
+    <!-- Sin datos -->
+    @if (!cargando() && ticketsFiltrados().length === 0) {
+      <div class="flex flex-col items-center justify-center py-16 px-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p class="text-lg font-medium text-gray-700">No hay tickets disponibles</p>
+        <p class="text-sm text-gray-500 mt-1">No se encontraron tickets con los filtros actuales.</p>
+        <button
+          (click)="limpiarFiltros()"
+          class="mt-4 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Limpiar filtros
+        </button>
+      </div>
+    }
+
+    <!-- Vista móvil: tarjetas -->
+    @if (!cargando() && ticketsPagina().length > 0) {
+      <div class="block sm:hidden divide-y divide-gray-100">
+        @for (ticket of ticketsPagina(); track ticket.id) {
+          <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-start justify-between mb-2">
+              <a
+                [routerLink]="['/tickets', ticket.id]"
+                class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 leading-snug flex-1 mr-2"
+              >
+                @if (ticket.numero) {
+                  <span class="text-gray-400 text-xs mr-1">#{{ ticket.numero }}</span>
+                }
+                {{ ticket.titulo }}
+              </a>
+              <span class="shrink-0 px-2 py-0.5 text-xs font-medium rounded-full" [class]="claseEstado(ticket.estado)">
+                {{ etiquetaEstado(ticket.estado) }}
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 line-clamp-1 mb-2">{{ ticket.descripcion }}</p>
+            <div class="flex items-center justify-between text-xs">
+              <span class="px-2 py-0.5 rounded-full font-medium" [class]="clasePrioridad(ticket.prioridad)">
+                {{ etiquetaPrioridad(ticket.prioridad) }}
+              </span>
+              <span class="text-gray-500">{{ ticket.createdAt | date:'dd/MM/yyyy' }}</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">{{ ticket.asignadoANombre || 'Sin asignar' }}</p>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Vista escritorio: tabla -->
+    @if (!cargando() && ticketsPagina().length > 0) {
+      <div class="hidden sm:block overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                (click)="ordenarPor('numero')"
+              >
+                #&nbsp;<span class="text-gray-400 font-normal">{{ iconoOrden('numero') }}</span>
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-800">
-                <a [routerLink]="['/tickets', ticket.id]">{{ ticket.id }}</a>
-              </td>
-            </ng-container>
-            <!-- Título Column -->
-            <ng-container matColumnDef="title">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Título
+              <th
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                (click)="ordenarPor('titulo')"
+              >
+                Título&nbsp;<span class="text-gray-400 font-normal">{{ iconoOrden('titulo') }}</span>
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4">
-                <div class="text-sm font-medium text-gray-900 truncate max-w-xs">{{ ticket.titulo }}</div>
-                <div class="text-xs text-gray-500 truncate max-w-xs">{{ ticket.descripcion }}</div>
-              </td>
-            </ng-container>
-            <!-- Estado Column -->
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Estado
+              <th
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                (click)="ordenarPor('estado')"
+              >
+                Estado&nbsp;<span class="text-gray-400 font-normal">{{ iconoOrden('estado') }}</span>
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
-            <span [ngClass]="{
-              'bg-gray-100 text-gray-800': ticket.estado === 'nuevo',
-              'bg-blue-100 text-blue-800': ticket.estado === 'asignado',
-              'bg-yellow-100 text-yellow-800': ticket.estado === 'en_proceso',
-              'bg-orange-100 text-orange-800': ticket.estado === 'en_espera',
-              'bg-green-100 text-green-800': ticket.estado === 'resuelto',
-              'bg-red-100 text-red-800': ticket.estado === 'cerrado'
-            }" class="px-2 py-1 text-xs font-medium rounded-full">
-                  {{ getStatusLabel(ticket.estado) }}
-                </span>
-              </td>
-            </ng-container>
-            <!-- Prioridad Column -->
-            <ng-container matColumnDef="priority">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Prioridad
+              <th
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+                (click)="ordenarPor('prioridad')"
+              >
+                Prioridad&nbsp;<span class="text-gray-400 font-normal">{{ iconoOrden('prioridad') }}</span>
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap">
-            <span [ngClass]="{
-              'bg-green-100 text-green-800': ticket.prioridad === 'baja',
-              'bg-yellow-100 text-yellow-800': ticket.prioridad === 'media',
-              'bg-red-100 text-red-800': ticket.prioridad === 'alta',
-              'bg-purple-100 text-purple-800': ticket.prioridad === 'critica'
-            }" class="px-2 py-1 text-xs font-medium rounded-full">
-                  {{ getPriorityLabel(ticket.prioridad) }}
-                </span>
-              </td>
-            </ng-container>
-            <!-- Asignado Column - Oculto en tablets -->
-            <ng-container matColumnDef="assignedTo">
-              <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">
                 Asignado a
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                @if (ticket.asignadoAUid) {
-                  <div class="text-sm text-gray-900">
-                    {{ ticket.asignadoUsuario?.displayName || ticket.asignadoUsuario?.email || 'Usuario' }}
-                  </div>
-                } @else {
-                  <span class="text-xs text-gray-500">Sin asignar</span>
-                }
-              </td>
-            </ng-container>
-            <!-- Fecha Column - Oculto en tablets -->
-            <ng-container matColumnDef="createdAt">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap hidden lg:table-cell">
-                Fecha
+              <th
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap hidden lg:table-cell"
+                (click)="ordenarPor('createdAt')"
+              >
+                Fecha&nbsp;<span class="text-gray-400 font-normal">{{ iconoOrden('createdAt') }}</span>
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                {{ ticket.createdAt | date:'dd/MM/yyyy HH:mm' }}
-              </td>
-            </ng-container>
-            <!-- Acciones Column -->
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Acciones
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Acción
               </th>
-              <td mat-cell *matCellDef="let ticket" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  [routerLink]="['/tickets', ticket.id]"
-                  class="text-indigo-600 hover:text-indigo-900 focus:outline-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </td>
-            </ng-container>
-            <tr mat-header-row *matHeaderRowDef="displayedColumns" class="bg-gray-50"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"
-            class="hover:bg-gray-50 transition-colors duration-150 ease-in-out border-b border-gray-200"></tr>
-          </table>
-        </div>
-      }
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            @for (ticket of ticketsPagina(); track ticket.id) {
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-400">
+                  @if (ticket.numero) { #{{ ticket.numero }} }
+                </td>
+                <td class="px-4 py-3">
+                  <a
+                    [routerLink]="['/tickets', ticket.id]"
+                    class="text-sm font-medium text-indigo-600 hover:text-indigo-800 block max-w-xs truncate"
+                  >{{ ticket.titulo }}</a>
+                  <p class="text-xs text-gray-400 max-w-xs truncate">{{ ticket.descripcion }}</p>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="px-2 py-1 text-xs font-medium rounded-full" [class]="claseEstado(ticket.estado)">
+                    {{ etiquetaEstado(ticket.estado) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <span class="px-2 py-1 text-xs font-medium rounded-full" [class]="clasePrioridad(ticket.prioridad)">
+                    {{ etiquetaPrioridad(ticket.prioridad) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                  @if (ticket.asignadoANombre) {
+                    {{ ticket.asignadoANombre }}
+                  } @else {
+                    <span class="text-xs text-gray-400 italic">Sin asignar</span>
+                  }
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 hidden lg:table-cell">
+                  {{ ticket.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-right">
+                  <a
+                    [routerLink]="['/tickets', ticket.id]"
+                    class="inline-flex items-center text-indigo-500 hover:text-indigo-700 transition-colors"
+                    title="Ver detalle"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
 
-      <!-- Mensaje de sin datos -->
-      @if (!isLoading && dataSource.data.length === 0) {
-        <div class="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 class="text-lg font-medium text-gray-900 text-center">No hay tickets disponibles</h3>
-          <p class="mt-1 text-sm text-gray-500 text-center">No se encontraron tickets con los filtros actuales.</p>
+    <!-- Paginación -->
+    @if (!cargando() && totalFiltrados() > 0) {
+      <div class="border-t border-gray-100 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <!-- Info y selector -->
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <span>
+            {{ (paginaActual() - 1) * itemsPorPagina() + 1 }}–{{ paginaActual() * itemsPorPagina() < totalFiltrados() ? paginaActual() * itemsPorPagina() : totalFiltrados() }}
+            de {{ totalFiltrados() }}
+          </span>
+          <select
+            [ngModel]="itemsPorPagina()"
+            (ngModelChange)="cambiarItemsPorPagina(+$event)"
+            class="py-1 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option [value]="5">5</option>
+            <option [value]="10">10</option>
+            <option [value]="25">25</option>
+            <option [value]="50">50</option>
+          </select>
+          <span>por página</span>
+        </div>
+
+        <!-- Botones de páginas -->
+        <div class="flex items-center gap-1">
           <button
-            (click)="clearFilters()"
-            class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-            Limpiar filtros
+            (click)="irAPagina(paginaActual() - 1)"
+            [disabled]="paginaActual() === 1"
+            class="p-1.5 rounded text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            aria-label="Página anterior"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          @for (pagina of numeroPaginas(); track $index) {
+            @if (esPagina(pagina)) {
+              <button
+                (click)="irAPagina(pagina)"
+                [class]="pagina === paginaActual()
+                  ? 'min-w-[2rem] h-8 rounded text-xs font-semibold bg-indigo-600 text-white'
+                  : 'min-w-[2rem] h-8 rounded text-xs text-gray-600 hover:bg-gray-100 transition-colors'"
+              >{{ pagina }}</button>
+            } @else {
+              <span class="min-w-[2rem] h-8 flex items-center justify-center text-xs text-gray-400">…</span>
+            }
+          }
+
+          <button
+            (click)="irAPagina(paginaActual() + 1)"
+            [disabled]="paginaActual() === totalPaginas()"
+            class="p-1.5 rounded text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            aria-label="Página siguiente"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
-      }
-
-      <!-- Paginador de Angular Material con estilos de Tailwind -->
-      <div class="border-t border-gray-200 px-4 py-3">
-        <mat-paginator
-          [length]="totalItems"
-          [pageSize]="pageSize"
-          [pageSizeOptions]="[5, 10, 25, 50]"
-          (page)="onPageChange($event)"
-          class="bg-transparent shadow-none">
-        </mat-paginator>
       </div>
-    </div>
+    }
   </div>
+</div>
