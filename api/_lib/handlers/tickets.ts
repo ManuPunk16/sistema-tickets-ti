@@ -350,6 +350,43 @@ export default async function ticketsHandler(
 
       return R.ok(res, { mensaje: `Ticket #${ticket.numero} eliminado` });
     }
+    // ── POST /api/tickets/:id/archivos ───────────────────────────────────────
+    if (id && accion === 'archivos' && req.method === 'POST') {
+      if (!limitadorEscritura(req, res)) return;
+      const ctx = await verificarUsuarioActivo(req, res);
+      if (!ctx) return;
+      logRequest(req, ctx.uid);
+
+      const ticket = await Ticket.findById(id);
+      if (!ticket) return R.noEncontrado(res, 'Ticket');
+
+      // Solo el creador del ticket o soporte/admin pueden adjuntar archivos
+      const esCreador = ticket.creadoPorUid === ctx.uid;
+      const esSoporte = ctx.role === 'admin' || ctx.role === 'support';
+      if (!esCreador && !esSoporte) {
+        return R.prohibido(res, 'No tienes permiso para adjuntar archivos a este ticket');
+      }
+
+      const { url, nombre, tipo, tamanio } = req.body as {
+        url: string; nombre: string; tipo: string; tamanio: number;
+      };
+
+      if (!url?.trim() || !nombre?.trim() || !tipo?.trim() || !tamanio) {
+        return R.error(res, 'Campos requeridos: url, nombre, tipo, tamanio');
+      }
+
+      // Máximo 5 archivos por ticket (límite plan gratuito Firebase)
+      if (ticket.archivos.length >= 5) {
+        return R.error(res, 'Se ha alcanzado el límite de 5 archivos por ticket', 400);
+      }
+
+      ticket.archivos.push({ url: url.trim(), nombre: nombre.trim(), tipo, tamanio, creadoEn: new Date() });
+      await ticket.save();
+
+      const nuevoArchivo = ticket.archivos[ticket.archivos.length - 1];
+      return R.creado(res, { archivo: nuevoArchivo, ticket });
+    }
+
     // ── DELETE /api/tickets/:id/archivos/:archivoId ───────────────────────────
 if (matchArchivoAccion && req.method === 'DELETE') {
       if (!limitadorEscritura(req, res)) return;

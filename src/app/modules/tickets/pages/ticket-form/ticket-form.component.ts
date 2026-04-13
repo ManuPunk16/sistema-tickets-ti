@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,6 +32,7 @@ export class TicketFormComponent implements OnInit {
   private ticketService = inject(TicketService);
   private departmentService = inject(DepartmentService);
   private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   ticketForm: FormGroup = this.createForm();
   isEditMode = false;
@@ -165,28 +166,22 @@ export class TicketFormComponent implements OnInit {
   }
 
   private uploadFiles(ticketId: string): void {
-    // Esta función simula la carga de archivos y luego navega
-    // En una implementación real, esto debería ser manejado por TicketService
-    const uploadPromises = this.selectedFiles.map(file => {
-      return this.ticketService.uploadAttachment(ticketId, file);
-    });
-
-    Promise.all(uploadPromises)
-      .then(() => {
-        this.handleSuccess('Ticket creado correctamente con archivos adjuntos');
-      })
-      .catch(err => {
-        this.handleError(err);
+    this.ticketService.subirYRegistrarArchivos(ticketId, this.selectedFiles)
+      .subscribe({
+        next: () => this.handleSuccess('Ticket creado correctamente con archivos adjuntos'),
+        error: (err) => this.handleError(err),
       });
   }
 
   private handleSuccess(_mensaje: string): void {
     this.submitLoading = false;
+    this.cdr.markForCheck();
     this.router.navigate(['/tickets']);
   }
 
   private handleError(err: unknown): void {
     this.submitLoading = false;
+    this.cdr.markForCheck();
     const msg = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
     this.errorMensaje.set(msg);
   }

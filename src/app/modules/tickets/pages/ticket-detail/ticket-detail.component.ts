@@ -117,11 +117,29 @@ export class TicketDetailComponent implements OnInit, OnDestroy {
     { value: 'cerrado',    label: 'Cerrado' },
   ];
 
-  // Para usuario normal solo se muestra la opción de cerrar
+  // Transiciones válidas sincronizadas con las reglas del backend
+  private readonly transicionesValidas: Record<TicketStatus, TicketStatus[]> = {
+    nuevo:      ['asignado', 'cerrado'],
+    asignado:   ['en_proceso', 'en_espera', 'cerrado'],
+    en_proceso: ['en_espera', 'resuelto', 'cerrado'],
+    en_espera:  ['en_proceso', 'cerrado'],
+    resuelto:   ['cerrado'],
+    cerrado:    [],
+  };
+
+  // Solo muestra los estados a los que se puede transicionar desde el estado actual
   opcionesEstadoDisponibles = computed(() => {
     const u = this.usuarioActual();
-    if (!u || u.role === 'admin' || u.role === 'support') return this.opcionesEstado;
-    return this.opcionesEstado.filter(o => o.value === 'cerrado');
+    const t = this.ticket();
+    const estadoActual = t?.estado as TicketStatus | undefined;
+    const siguientes = estadoActual ? (this.transicionesValidas[estadoActual] ?? []) : [];
+
+    if (!u) return [];
+    if (u.role === 'admin' || u.role === 'support') {
+      return this.opcionesEstado.filter(op => siguientes.includes(op.value as TicketStatus));
+    }
+    // Usuario normal solo puede cerrar tickets resueltos propios
+    return this.opcionesEstado.filter(op => op.value === 'cerrado' && siguientes.includes('cerrado'));
   });
 
   // ─── Helpers de clase para badges ─────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, from, of, forkJoin, map, catchError, switchMap } from 'rxjs';
+import { Observable, from, of, forkJoin, map, catchError, switchMap, firstValueFrom } from 'rxjs';
 import {
   Storage,
   deleteObject,
@@ -145,7 +145,7 @@ export class TicketService {
   }
 
   cambiarEstado(id: string, estado: EstadoTicket, nota?: string): Observable<Ticket> {
-    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/estado`, { estado, nota }).pipe(
+    return this.http.patch<RespuestaTicket>(`${this.apiUrl}/${id}/estado`, { estado, comentario: nota }).pipe(
       map(res => this.mapearTicket(res.ticket))
     );
   }
@@ -217,6 +217,19 @@ export class TicketService {
     return getDownloadURL(resultado.ref);
   }
 
+  /** Sube el archivo a Firebase Storage y luego registra los metadatos en MongoDB */
+  async subirYRegistrarArchivo(ticketId: string, archivo: File): Promise<IArchivo> {
+    const url = await this.uploadAttachment(ticketId, archivo);
+    const cuerpo = { url, nombre: archivo.name, tipo: archivo.type, tamanio: archivo.size };
+    const res = await firstValueFrom(
+      this.http.post<{ ok: boolean; archivo: Record<string, unknown> }>(
+        `${this.apiUrl}/${ticketId}/archivos`,
+        cuerpo,
+      )
+    );
+    return res.archivo as unknown as IArchivo;
+  }
+
   eliminarArchivoDeTicket(ticketId: string, archivo: IArchivo): Observable<Ticket> {
     const archivoId = archivo._id ?? archivo.id ?? '';
     // Intenta borrar de Firebase Storage; si ya no existe, continúa de todas formas
@@ -239,5 +252,12 @@ export class TicketService {
     if (!archivos || archivos.length === 0) return of([]);
     const subidas$ = archivos.map(a => from(this.uploadAttachment(ticketId, a)));
     return forkJoin(subidas$);
+  }
+
+  /** Sube múltiples archivos a Firebase Storage y registra todos en MongoDB */
+  subirYRegistrarArchivos(ticketId: string, archivos: File[]): Observable<IArchivo[]> {
+    if (!archivos || archivos.length === 0) return of([]);
+    const operaciones$ = archivos.map(a => from(this.subirYRegistrarArchivo(ticketId, a)));
+    return forkJoin(operaciones$);
   }
 }
