@@ -21,7 +21,7 @@
                   </div>
                   <div class="ml-4">
                     <h3 class="text-sm font-medium text-gray-500">Sin asignar</h3>
-                    <p class="text-2xl font-semibold text-gray-800">{{ unassignedTicketsCount || 0 }}</p>
+                    <p class="text-2xl font-semibold text-gray-800">{{ unassignedTicketsCount() }}</p>
                   </div>
                 </div>
               </div>
@@ -45,7 +45,7 @@
                   </div>
                   <div class="ml-4">
                     <h3 class="text-sm font-medium text-gray-500">En proceso</h3>
-                    <p class="text-2xl font-semibold text-gray-800">{{ inProgressTicketsCount || 0 }}</p>
+                    <p class="text-2xl font-semibold text-gray-800">{{ inProgressTicketsCount() }}</p>
                   </div>
                 </div>
               </div>
@@ -68,7 +68,7 @@
                     </div>
                     <div class="ml-4">
                       <h3 class="text-sm font-medium text-gray-500">Resueltos</h3>
-                      <p class="text-2xl font-semibold text-gray-800">{{ resolvedTicketsCount || 0 }}</p>
+                      <p class="text-2xl font-semibold text-gray-800">{{ resolvedTicketsCount() }}</p>
                     </div>
                   </div>
                 </div>
@@ -91,7 +91,7 @@
                       </div>
                       <div class="ml-4">
                         <h3 class="text-sm font-medium text-gray-500">Total tickets</h3>
-                        <p class="text-2xl font-semibold text-gray-800">{{ totalTicketsCount || 0 }}</p>
+                        <p class="text-2xl font-semibold text-gray-800">{{ totalTicketsCount() }}</p>
                       </div>
                     </div>
                   </div>
