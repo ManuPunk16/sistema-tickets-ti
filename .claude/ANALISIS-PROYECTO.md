@@ -182,8 +182,8 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Migrar `file-upload` (reemplaza 5 módulos Material) | Media | Shared |
 | Migrar `department-form` | Baja | Departamentos |
 | Migrar `department-list` | Media | Departamentos |
-| Migrar `ticket-detail` y sub-componentes | Alta | Tickets |
-| Migrar `performance-report` (tabla con paginación) | Media | Reportes |
+| Migrar `ticket-detail` y sub-componentes | Alta | Tickets | ✅ |
+| Migrar `performance-report` (tabla con paginación) | Media | Reportes | ✅ |
 | Migrar `system-settings` | Media | Configuración |
 | Eliminar dependencia `@angular/material` del `package.json` | Baja | Build |
 

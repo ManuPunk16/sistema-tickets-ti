@@ -1,22 +1,27 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+  computed,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
-import { MatSort, MatSortModule } from '@angular/material/sort';
 
 import { ReportService } from '../../../../core/services/report.service';
 import { UserService } from '../../../../core/services/user.service';
 import { UserProfile } from '../../../../core/models/user.model';
-import { Subject, takeUntil, finalize, catchError, of, forkJoin, map } from 'rxjs';
+import { Subject, takeUntil, finalize, catchError, of, map } from 'rxjs';
 
 interface PerformanceData {
   resolvedTickets: number;
   avgResolutionTime: number;
   customerSatisfaction: number;
-  resolutionTimes: any[];
-  productivityData: any[];
+  resolutionTimes: ResolutionTimeItem[];
+  productivityData: ProductivityItem[];
 }
 
 interface ResolutionTimeItem {
@@ -35,76 +40,109 @@ interface ProductivityItem {
   noDataPeriod?: boolean;
 }
 
+type ColumnaResolucion = 'ticketId' | 'title' | 'priority' | 'resolutionTime' | 'slaStatus';
+type ColumnaProductividad = 'day' | 'ticketsAssigned' | 'ticketsResolved' | 'avgResponseTime' | 'efficiency';
+type DireccionOrden = 'asc' | 'desc' | null;
+
 @Component({
   selector: 'app-performance-report',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterLink,
-    MatTableModule,
-    MatPaginatorModule,
-    MatSortModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './performance-report.component.html',
-  styleUrls: ['./performance-report.component.scss']
+  styleUrl: './performance-report.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PerformanceReportComponent implements OnInit, OnDestroy {
-  @ViewChild('resolutionPaginator') resolutionPaginator!: MatPaginator;
-  @ViewChild('productivityPaginator') productivityPaginator!: MatPaginator;
-  @ViewChild('resolutionSort') resolutionSort!: MatSort;
-  @ViewChild('productivitySort') productivitySort!: MatSort;
+  private fb = inject(FormBuilder);
+  private reportService = inject(ReportService);
+  private userService = inject(UserService);
 
-  filterForm: FormGroup;
-  loading = false;
-  hasData = false;
-  supportUsers: UserProfile[] = [];
-  activeTab = 'resolution';
-  
-  resolutionDataSource = new MatTableDataSource<ResolutionTimeItem>([]);
-  productivityDataSource = new MatTableDataSource<ProductivityItem>([]);
-  
-  performanceData: PerformanceData = {
+  filterForm = this.fb.group({
+    startDate: [this.formatDateForInput(this.fechaHaceNDias(30))],
+    endDate: [this.formatDateForInput(new Date())],
+    supportAgent: [''],
+  });
+
+  // Estado reactivo con signals
+  loading = signal(false);
+  hasData = signal(false);
+  supportUsers = signal<UserProfile[]>([]);
+  activeTab = signal<'resolution' | 'productivity'>('resolution');
+
+  performanceData = signal<PerformanceData>({
     resolvedTickets: 0,
     avgResolutionTime: 0,
     customerSatisfaction: 0,
     resolutionTimes: [],
-    productivityData: []
-  };
-  
+    productivityData: [],
+  });
+
+  // Paginación — tabla resolución
+  paginaResolucion = signal(1);
+  tamanioPaginaResolucion = signal(10);
+  ordenColumnaResolucion = signal<ColumnaResolucion | null>(null);
+  ordenDireccionResolucion = signal<DireccionOrden>(null);
+
+  // Paginación — tabla productividad
+  paginaProductividad = signal(1);
+  tamanioPaginaProductividad = signal(10);
+  ordenColumnaProductividad = signal<ColumnaProductividad | null>(null);
+  ordenDireccionProductividad = signal<DireccionOrden>(null);
+
+  // Datos ordenados y paginados para resolución
+  datosResolucionOrdenados = computed(() => {
+    const datos = [...(this.performanceData().resolutionTimes ?? [])];
+    const col = this.ordenColumnaResolucion();
+    const dir = this.ordenDireccionResolucion();
+    if (col && dir) {
+      datos.sort((a, b) => {
+        const va = a[col as keyof ResolutionTimeItem];
+        const vb = b[col as keyof ResolutionTimeItem];
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return dir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return datos;
+  });
+
+  totalPaginasResolucion = computed(() =>
+    Math.max(1, Math.ceil(this.datosResolucionOrdenados().length / this.tamanioPaginaResolucion()))
+  );
+
+  datosResolucionPaginados = computed(() => {
+    const inicio = (this.paginaResolucion() - 1) * this.tamanioPaginaResolucion();
+    return this.datosResolucionOrdenados().slice(inicio, inicio + this.tamanioPaginaResolucion());
+  });
+
+  // Datos ordenados y paginados para productividad
+  datosProductividadOrdenados = computed(() => {
+    const datos = [...(this.performanceData().productivityData ?? [])];
+    const col = this.ordenColumnaProductividad();
+    const dir = this.ordenDireccionProductividad();
+    if (col && dir) {
+      datos.sort((a, b) => {
+        const va = a[col as keyof ProductivityItem];
+        const vb = b[col as keyof ProductivityItem];
+        const cmp = (va ?? 0) < (vb ?? 0) ? -1 : (va ?? 0) > (vb ?? 0) ? 1 : 0;
+        return dir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return datos;
+  });
+
+  totalPaginasProductividad = computed(() =>
+    Math.max(1, Math.ceil(this.datosProductividadOrdenados().length / this.tamanioPaginaProductividad()))
+  );
+
+  datosProductividadPaginados = computed(() => {
+    const inicio = (this.paginaProductividad() - 1) * this.tamanioPaginaProductividad();
+    return this.datosProductividadOrdenados().slice(inicio, inicio + this.tamanioPaginaProductividad());
+  });
+
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private fb: FormBuilder,
-    private reportService: ReportService,
-    private userService: UserService
-  ) {
-    // Convertir las fechas a formato adecuado para input date
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    
-    this.filterForm = this.fb.group({
-      startDate: [this.formatDateForInput(thirtyDaysAgo)],
-      endDate: [this.formatDateForInput(today)],
-      supportAgent: ['']
-    });
-  }
-
   ngOnInit(): void {
-    this.loadSupportUsers();
-  }
-
-  ngAfterViewInit(): void {
-    if (this.resolutionPaginator && this.resolutionSort) {
-      this.resolutionDataSource.paginator = this.resolutionPaginator;
-      this.resolutionDataSource.sort = this.resolutionSort;
-    }
-    
-    if (this.productivityPaginator && this.productivitySort) {
-      this.productivityDataSource.paginator = this.productivityPaginator;
-      this.productivityDataSource.sort = this.productivitySort;
-    }
+    this.cargarUsuariosSoporte();
   }
 
   ngOnDestroy(): void {
@@ -112,452 +150,313 @@ export class PerformanceReportComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  loadSupportUsers(): void {
-    this.userService.getUsersByRole('support')
+  cargarUsuariosSoporte(): void {
+    this.userService
+      .getUsersByRole('support')
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (users) => {
-          this.supportUsers = users;
-        },
-        error: (error) => {
-          console.error('Error loading support users:', error);
-        }
+        next: users => this.supportUsers.set(users),
       });
   }
 
   generateReport(): void {
-    this.loading = true;
-    this.hasData = false;
-    
+    this.loading.set(true);
+    this.hasData.set(false);
+
     const filters = this.filterForm.value;
-    const startDate = new Date(filters.startDate);
-    const endDate = new Date(filters.endDate);
-    
-    console.log(`Generando reporte de rendimiento con fechas: ${startDate.toISOString()} - ${endDate.toISOString()}`);
-    
-    // Búsqueda de agente específico
+    const startDate = new Date(filters.startDate!);
+    const endDate = new Date(filters.endDate!);
     const supportAgent = filters.supportAgent || null;
-    
-    // Usar una única consulta y procesarla para todos los tipos de datos necesarios
-    this.reportService.executeTicketsQuery(startDate, endDate)
+
+    this.reportService
+      .executeTicketsQuery(startDate, endDate)
       .pipe(
         takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Error generando informe de rendimiento:', error);
-          this.loading = false;
-          this.hasData = false;
+        catchError(() => {
+          this.loading.set(false);
           return of([]);
         }),
         map(tickets => {
-          // Procesar los mismos tickets para todos los tipos de métricas
           const userMetrics = this.reportService.processUserMetrics(tickets);
           const ticketMetrics = this.reportService.processTicketMetrics(tickets);
-          
-          // Crear datos de series temporales manualmente
           const timeSeriesData = this.reportService.processTimeSeriesData(tickets, 'day');
-          
-          // Pasar también los tickets originales para extracción de detalles
           return { userMetrics, ticketMetrics, timeSeriesData, tickets };
         }),
-        finalize(() => {
-          // No establecemos loading=false aquí, lo haremos en el suscriptor
-        })
+        finalize(() => this.loading.set(false))
       )
       .subscribe({
-        next: (data) => {
+        next: data => {
           try {
-            console.log('Datos recibidos en generateReport:', data);
-            
-            // Procesar datos
-            const processedData = this.processPerformanceData(data, supportAgent);
-            console.log('Datos después de procesamiento:', processedData);
-            
-            if (processedData) {
-              this.performanceData = processedData;
-              this.resolutionDataSource.data = processedData.resolutionTimes || [];
-              this.productivityDataSource.data = processedData.productivityData || [];
-              
-              // Si tenemos algún ticket, mostrar los datos
-              this.hasData = true;
-              
-              // Actualizar paginadores y ordenadores
-              if (this.resolutionPaginator) this.resolutionDataSource.paginator = this.resolutionPaginator;
-              if (this.resolutionSort) this.resolutionDataSource.sort = this.resolutionSort;
-              if (this.productivityPaginator) this.productivityDataSource.paginator = this.productivityPaginator;
-              if (this.productivitySort) this.productivityDataSource.sort = this.productivitySort;
-              
-              console.log('Datos de rendimiento procesados:', this.performanceData);
+            const processed = this.processPerformanceData(data, supportAgent);
+            if (processed) {
+              this.performanceData.set(processed);
+              this.hasData.set(true);
+              // Reiniciar paginación al generar nuevo reporte
+              this.paginaResolucion.set(1);
+              this.paginaProductividad.set(1);
             }
-          } catch (err) {
-            console.error('Error en el procesamiento de datos:', err);
-            this.hasData = false;
-          } finally {
-            this.loading = false; // Siempre quitar el loading al final
+          } catch {
+            this.hasData.set(false);
           }
         },
-        error: (err) => {
-          console.error('Error en la suscripción:', err);
-          this.loading = false;
-          this.hasData = false;
-        }
       });
   }
 
-  private processPerformanceData(data: any, supportAgent: string | null): PerformanceData {
-    try {
-      const { userMetrics, ticketMetrics, timeSeriesData } = data;
-      
-      console.log('Procesando datos de rendimiento:');
-      console.log('- Métricas de usuarios:', userMetrics);
-      console.log('- Métricas de tickets:', ticketMetrics);
-      console.log('- Series temporales:', timeSeriesData);
-      
-      // Verificar si tenemos datos mínimos para procesar
-      if (!userMetrics || userMetrics.length === 0) {
-        // Crear datos mínimos para mostrar algo
-        return {
-          resolvedTickets: ticketMetrics?.resolvedTickets || 0,
-          avgResolutionTime: ticketMetrics?.avgResolutionTime || 0,
-          customerSatisfaction: 0,
-          resolutionTimes: [],
-          productivityData: this.generateProductivityData(timeSeriesData, supportAgent)
-        };
-      }
-      
-      // Filtrar por agente específico si es necesario
-      const filteredUserMetrics = supportAgent 
-        ? userMetrics.filter((u: any) => u.userId === supportAgent)
-        : userMetrics;
-      
-      // Verificar si después del filtro tenemos datos
-      if (filteredUserMetrics.length === 0 && supportAgent) {
-        return {
-          resolvedTickets: 0,
-          avgResolutionTime: 0,
-          customerSatisfaction: 0,
-          resolutionTimes: [],
-          productivityData: []
-        };
-      }
-      
-      // Calcular datos para el informe de rendimiento
-      const resolvedTickets = filteredUserMetrics.reduce((total: number, user: any) => 
-        total + user.ticketsResolved, 0) || ticketMetrics?.resolvedTickets || 0;
-      
-      // Calcular tiempo promedio de resolución de todos los usuarios filtrados
-      const avgResolutionTime = filteredUserMetrics.length > 0 
-        ? filteredUserMetrics.reduce((total: number, user: any) => 
-            total + (user.avgResolutionTime * user.ticketsResolved), 0) 
-            / resolvedTickets || 0
-        : ticketMetrics?.avgResolutionTime || 0;
-      
-      // Calcular satisfacción del cliente con lógica correcta
-      const customerSatisfaction = ticketMetrics && ticketMetrics.resolvedTickets > 0
-        ? Math.round((ticketMetrics.resolvedOnTime / ticketMetrics.resolvedTickets) * 100)
-        : 0; // Debe ser 0 si no hay tickets resueltos, no 100%
-      
-      // Generar datos de resolución de tickets
-      const resolutionTimes = this.getResolutionTimes(data);
-      
-      // Generar datos de productividad diaria
-      const productivityData = this.generateProductivityData(timeSeriesData, supportAgent);
-      
-      // Asegurar valores por defecto válidos
-      return {
-        resolvedTickets: resolvedTickets || 0,
-        avgResolutionTime: Math.round(avgResolutionTime) || 0,
-        customerSatisfaction: customerSatisfaction !== undefined ? customerSatisfaction : 0, // Corregido para evitar el valor por defecto de 100
-        resolutionTimes: resolutionTimes || [],
-        productivityData: productivityData || []
-      };
-    } catch (error) {
-      console.error('Error en processPerformanceData:', error);
-      // Devolver estructura mínima si hay error
-      return {
-        resolvedTickets: 1, // Si llegamos aquí es porque hay al menos un documento
-        avgResolutionTime: 0,
-        customerSatisfaction: 100,
-        resolutionTimes: [],
-        productivityData: []
-      };
-    }
-  }
+  // ──────────── Ordenamiento ────────────
 
-  private getResolutionTimes(data: any): ResolutionTimeItem[] {
-    const result: ResolutionTimeItem[] = [];
-    
-    // Si hay tickets y están en las métricas
-    if (data.ticketMetrics && data.ticketMetrics.totalTickets > 0) {
-      // Intentar extraer información real
-      if (Array.isArray(data.tickets)) {
-        // Filtra solo tickets resueltos o cerrados
-        const resolvedTickets = data.tickets.filter((ticket: any) => 
-          ticket.status === 'resuelto' || ticket.status === 'cerrado');
-        
-        // Si hay tickets resueltos, usa esos
-        if (resolvedTickets.length > 0) {
-          return resolvedTickets.map((ticket: any) => {
-            const createdDate = new Date(ticket.createdAt);
-            const resolvedDate = new Date(ticket.resolvedAt || new Date());
-            const resolutionTime = Math.round((resolvedDate.getTime() - createdDate.getTime()) / (1000 * 60));
-            
-            // Determinar si cumplió SLA
-            let targetTime;
-            switch (ticket.priority) {
-              case 'critica': targetTime = 4 * 60; break; // 4 horas
-              case 'alta': targetTime = 8 * 60; break; // 8 horas
-              case 'media': targetTime = 24 * 60; break; // 24 horas
-              default: targetTime = 48 * 60; break; // 48 horas
-            }
-            
-            return {
-              ticketId: ticket.id || `TKT-${Math.floor(Math.random() * 10000)}`,
-              title: ticket.title || 'Ticket sin título',
-              priority: this.formatPriority(ticket.priority || 'media'),
-              resolutionTime: resolutionTime,
-              slaCompliance: resolutionTime <= targetTime
-            };
-          });
-        }
-      }
-      
-      // Si no hay tickets resueltos, mostrar "No hay tickets resueltos" en vez de tabla vacía
-      return [{
-        ticketId: 'N/A',
-        title: 'No hay tickets resueltos en el período seleccionado',
-        priority: 'N/A',
-        resolutionTime: 0,
-        slaCompliance: true
-      }];
-    }
-    
-    return result;
-  }
-  
-  // Método auxiliar para formatear prioridades
-  private formatPriority(priority: string): string {
-    const map: {[key: string]: string} = {
-      'baja': 'Baja',
-      'media': 'Media', 
-      'alta': 'Alta',
-      'critica': 'Crítica'
-    };
-    
-    return map[priority] || priority;
-  }
-
-  private generateProductivityData(timeSeriesData: any, supportAgent: string | null): ProductivityItem[] {
-    // Si no hay datos o los arrays están vacíos - mantener el código existente
-    if (!timeSeriesData || 
-        (!timeSeriesData.created || timeSeriesData.created.length === 0) && 
-        (!timeSeriesData.resolved || timeSeriesData.resolved.length === 0)) {
-      // Código existente para el caso sin datos
-      return [{
-        day: 'Sin datos',
-        ticketsAssigned: 0,
-        ticketsResolved: 0,
-        avgResponseTime: 0,
-        noDataPeriod: true
-      }];
-    }
-    
-    // Generar datos de productividad basados en series temporales
-    const result: ProductivityItem[] = [];
-    
-    // Crear mapas para días -> resueltos/creados (mismo código que tenías)
-    const resolvedByDay = new Map<string, number>();
-    if (timeSeriesData.resolved && Array.isArray(timeSeriesData.resolved)) {
-      timeSeriesData.resolved.forEach((item: any) => {
-        resolvedByDay.set(item.date, item.count);
-      });
-    }
-    
-    const createdByDay = new Map<string, number>();
-    if (timeSeriesData.created && Array.isArray(timeSeriesData.created)) {
-      timeSeriesData.created.forEach((item: any) => {
-        createdByDay.set(item.date, item.count);
-      });
-    }
-    
-    // Combinar datos de ambos mapas
-    const allDates = new Set([...resolvedByDay.keys(), ...createdByDay.keys()]);
-    const sortedDates = Array.from(allDates).sort();
-    
-    // Si no hay fechas, generar datos predeterminados
-    if (sortedDates.length === 0) {
-      return this.generateDefaultProductivityData();
-    }
-    
-    // Trabajar con las fechas disponibles
-    sortedDates.forEach(dateStr => {
-      // Convertir la cadena de fecha a objeto Date de forma segura
-      let date: Date;
-      try {
-        // Asegurarse de que la fecha se interpreta correctamente 
-        // añadiendo hora para evitar problemas de zona horaria
-        date = new Date(`${dateStr}T12:00:00Z`);
-        if (isNaN(date.getTime())) {
-          throw new Error(`Fecha inválida: ${dateStr}`);
-        }
-      } catch (error) {
-        console.error('Error al analizar fecha:', dateStr, error);
-        return; // Omitir esta fecha
-      }
-      
-      // Obtener nombre del día utilizando nuestro método mejorado
-      const dayName = this.getDayName(date);
-      const ticketsResolved = resolvedByDay.get(dateStr) || 0;
-      const ticketsAssigned = createdByDay.get(dateStr) || 0;
-      
-      // Solo agregar entradas con datos válidos
-      result.push({
-        day: dayName,
-        ticketsAssigned,
-        ticketsResolved,
-        // Calcular tiempo de respuesta de manera determinista para pruebas
-        avgResponseTime: ticketsResolved > 0 ? Math.max(20, ticketsAssigned * 5) : 0
-      });
-    });
-    
-    return result;
-  }
-  
-  // Método auxiliar para generar datos por defecto
-  private generateDefaultProductivityData(): ProductivityItem[] {
-    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    return days.map(day => ({
-      day,
-      ticketsAssigned: 0,
-      ticketsResolved: 0,
-      avgResponseTime: 0
-    }));
-  }
-  
-  /**
-   * Obtiene el nombre del día de la semana de forma fiable y consistente
-   * utilizando la fecha en UTC para evitar problemas de zona horaria
-   */
-  private getDayName(date: Date): string {
-    // Asegurar que trabajamos con una instancia de Date válida
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-      console.warn('Fecha inválida recibida:', date);
-      return 'Desconocido';
-    }
-
-    // Crear una fecha UTC estricta para evitar inconsistencias por zona horaria
-    const utcDate = new Date(Date.UTC(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      12, 0, 0 // Mediodía UTC para evitar problemas en cambios de hora
-    ));
-    
-    // Determinar el día de la semana utilizando el método getUTCDay()
-    const dayIndex = utcDate.getUTCDay();
-    
-    // Array de días de la semana en orden correcto (0 = domingo)
-    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    
-    // Validación adicional para mayor seguridad
-    if (dayIndex >= 0 && dayIndex < days.length) {
-      return days[dayIndex];
+  ordenarResolucion(columna: ColumnaResolucion): void {
+    if (this.ordenColumnaResolucion() === columna) {
+      const siguiente: DireccionOrden = this.ordenDireccionResolucion() === 'asc' ? 'desc' : null;
+      this.ordenDireccionResolucion.set(siguiente);
+      if (!siguiente) this.ordenColumnaResolucion.set(null);
     } else {
-      console.error(`Índice de día inválido: ${dayIndex}`, utcDate);
-      return 'Desconocido';
+      this.ordenColumnaResolucion.set(columna);
+      this.ordenDireccionResolucion.set('asc');
     }
+    this.paginaResolucion.set(1);
+  }
+
+  ordenarProductividad(columna: ColumnaProductividad): void {
+    if (this.ordenColumnaProductividad() === columna) {
+      const siguiente: DireccionOrden = this.ordenDireccionProductividad() === 'asc' ? 'desc' : null;
+      this.ordenDireccionProductividad.set(siguiente);
+      if (!siguiente) this.ordenColumnaProductividad.set(null);
+    } else {
+      this.ordenColumnaProductividad.set(columna);
+      this.ordenDireccionProductividad.set('asc');
+    }
+    this.paginaProductividad.set(1);
+  }
+
+  iconoOrdenResolucion(columna: ColumnaResolucion): string {
+    if (this.ordenColumnaResolucion() !== columna) return '↕';
+    return this.ordenDireccionResolucion() === 'asc' ? '↑' : '↓';
+  }
+
+  iconoOrdenProductividad(columna: ColumnaProductividad): string {
+    if (this.ordenColumnaProductividad() !== columna) return '↕';
+    return this.ordenDireccionProductividad() === 'asc' ? '↑' : '↓';
+  }
+
+  // ──────────── Paginación ────────────
+
+  paginaAnteriorResolucion(): void {
+    if (this.paginaResolucion() > 1) this.paginaResolucion.update(p => p - 1);
+  }
+
+  paginaSiguienteResolucion(): void {
+    if (this.paginaResolucion() < this.totalPaginasResolucion()) this.paginaResolucion.update(p => p + 1);
+  }
+
+  paginaAnteriorProductividad(): void {
+    if (this.paginaProductividad() > 1) this.paginaProductividad.update(p => p - 1);
+  }
+
+  paginaSiguienteProductividad(): void {
+    if (this.paginaProductividad() < this.totalPaginasProductividad()) this.paginaProductividad.update(p => p + 1);
+  }
+
+  // ──────────── Utilidades ────────────
+
+  hasOnlyEmptyProductivityData(): boolean {
+    const datos = this.performanceData().productivityData;
+    if (!datos || datos.length === 0) return true;
+    if (datos.length === 1) {
+      const item = datos[0];
+      return (item.noDataPeriod === true) || (item.ticketsAssigned === 0 && item.ticketsResolved === 0);
+    }
+    return datos.every(item => item.ticketsAssigned === 0 && item.ticketsResolved === 0);
+  }
+
+  clasePrioridad(priority: string): string {
+    const mapa: { [key: string]: string } = {
+      Baja: 'bg-green-100 text-green-800',
+      Media: 'bg-blue-100 text-blue-800',
+      Alta: 'bg-orange-100 text-orange-800',
+      Crítica: 'bg-red-100 text-red-800',
+    };
+    return mapa[priority] ?? 'bg-gray-100 text-gray-800';
+  }
+
+  claseEficiencia(resolved: number, assigned: number): string {
+    if (assigned === 0) return 'bg-gray-100 text-gray-700';
+    const ef = (resolved / assigned) * 100;
+    if (ef >= 90) return 'bg-green-100 text-green-800';
+    if (ef >= 75) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  }
+
+  colorBarraEficiencia(resolved: number, assigned: number): string {
+    if (assigned === 0) return 'bg-gray-300';
+    const ef = (resolved / assigned) * 100;
+    if (ef >= 90) return 'bg-green-500';
+    if (ef >= 75) return 'bg-yellow-500';
+    return 'bg-red-500';
+  }
+
+  anchoBarraEficiencia(resolved: number, assigned: number): string {
+    if (assigned === 0) return '0%';
+    return `${Math.min(100, Math.round((resolved / assigned) * 100))}%`;
+  }
+
+  claseIndicadorSatisfaccion(valor: number): string {
+    if (valor >= 90) return 'bg-green-500';
+    if (valor >= 75) return 'bg-yellow-500';
+    return 'bg-red-500';
   }
 
   formatTime(minutes: number): string {
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-
+    if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-
-    if (hours < 24) {
-      return `${hours}h ${remainingMinutes}m`;
-    }
-
+    const mins = minutes % 60;
+    if (hours < 24) return `${hours}h ${mins}m`;
     const days = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
+    const remainHours = hours % 24;
+    return `${days}d ${remainHours}h ${mins}m`;
+  }
 
-    return `${days}d ${remainingHours}h ${remainingMinutes}m`;
+  formatTimeShort(minutes: number): string {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
+  }
+
+  getShortPriority(priority: string): string {
+    const mapa: { [key: string]: string } = {
+      Baja: 'B', Media: 'M', Alta: 'A', Crítica: 'C', 'N/A': '-',
+    };
+    return mapa[priority] ?? priority.charAt(0);
   }
 
   formatDateForInput(date: Date): string {
     return date.toISOString().split('T')[0];
   }
 
-  getEfficiencyColor(resolved: number, assigned: number): string {
-    if (assigned === 0) return '#6B7280'; // gray-500 para cuando no hay asignados
-    
-    const efficiency = (resolved / assigned) * 100;
-    if (efficiency >= 90) return '#10B981'; // green-500
-    if (efficiency >= 75) return '#F59E0B'; // amber-500
-    return '#EF4444'; // red-500
+  private fechaHaceNDias(n: number): Date {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d;
   }
 
-  formatTimeShort(minutes: number): string {
-    if (minutes < 60) {
-      return `${minutes}m`;
+  private processPerformanceData(data: any, supportAgent: string | null): PerformanceData {
+    try {
+      const { userMetrics, ticketMetrics, timeSeriesData } = data;
+
+      if (!userMetrics || userMetrics.length === 0) {
+        return {
+          resolvedTickets: ticketMetrics?.resolvedTickets || 0,
+          avgResolutionTime: ticketMetrics?.avgResolutionTime || 0,
+          customerSatisfaction: 0,
+          resolutionTimes: [],
+          productivityData: this.generateProductivityData(timeSeriesData, supportAgent),
+        };
+      }
+
+      const filteredUserMetrics = supportAgent
+        ? userMetrics.filter((u: any) => u.userId === supportAgent)
+        : userMetrics;
+
+      if (filteredUserMetrics.length === 0 && supportAgent) {
+        return { resolvedTickets: 0, avgResolutionTime: 0, customerSatisfaction: 0, resolutionTimes: [], productivityData: [] };
+      }
+
+      const resolvedTickets =
+        filteredUserMetrics.reduce((total: number, user: any) => total + user.ticketsResolved, 0) ||
+        ticketMetrics?.resolvedTickets || 0;
+
+      const avgResolutionTime =
+        filteredUserMetrics.length > 0
+          ? filteredUserMetrics.reduce((total: number, user: any) =>
+              total + user.avgResolutionTime * user.ticketsResolved, 0) / (resolvedTickets || 1)
+          : ticketMetrics?.avgResolutionTime || 0;
+
+      const customerSatisfaction =
+        ticketMetrics?.resolvedTickets > 0
+          ? Math.round((ticketMetrics.resolvedOnTime / ticketMetrics.resolvedTickets) * 100)
+          : 0;
+
+      return {
+        resolvedTickets: resolvedTickets || 0,
+        avgResolutionTime: Math.round(avgResolutionTime) || 0,
+        customerSatisfaction,
+        resolutionTimes: this.getResolutionTimes(data),
+        productivityData: this.generateProductivityData(timeSeriesData, supportAgent),
+      };
+    } catch {
+      return { resolvedTickets: 1, avgResolutionTime: 0, customerSatisfaction: 100, resolutionTimes: [], productivityData: [] };
+    }
+  }
+
+  private getResolutionTimes(data: any): ResolutionTimeItem[] {
+    if (data.ticketMetrics?.totalTickets > 0 && Array.isArray(data.tickets)) {
+      const resolved = data.tickets.filter((t: any) => t.status === 'resuelto' || t.status === 'cerrado');
+      if (resolved.length > 0) {
+        return resolved.map((ticket: any) => {
+          const created = new Date(ticket.createdAt);
+          const resolvedDate = new Date(ticket.resolvedAt || new Date());
+          const resolutionTime = Math.round((resolvedDate.getTime() - created.getTime()) / 60000);
+          const slaMap: { [k: string]: number } = { critica: 240, alta: 480, media: 1440, baja: 2880 };
+          const targetTime = slaMap[ticket.priority] ?? 2880;
+          return {
+            ticketId: ticket.id ?? `TKT-${Math.floor(Math.random() * 10000)}`,
+            title: ticket.title ?? 'Sin título',
+            priority: this.formatPriority(ticket.priority ?? 'media'),
+            resolutionTime,
+            slaCompliance: resolutionTime <= targetTime,
+          };
+        });
+      }
+    }
+    return [{ ticketId: 'N/A', title: 'No hay tickets resueltos en el período seleccionado', priority: 'N/A', resolutionTime: 0, slaCompliance: true }];
+  }
+
+  private formatPriority(p: string): string {
+    const m: { [k: string]: string } = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica' };
+    return m[p] ?? p;
+  }
+
+  private generateProductivityData(timeSeriesData: any, _supportAgent: string | null): ProductivityItem[] {
+    if (!timeSeriesData ||
+        (!timeSeriesData.created?.length && !timeSeriesData.resolved?.length)) {
+      return [{ day: 'Sin datos', ticketsAssigned: 0, ticketsResolved: 0, avgResponseTime: 0, noDataPeriod: true }];
     }
 
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-      return `${hours}h`;
+    const resolvedByDay = new Map<string, number>();
+    timeSeriesData.resolved?.forEach((item: any) => resolvedByDay.set(item.date, item.count));
+
+    const createdByDay = new Map<string, number>();
+    timeSeriesData.created?.forEach((item: any) => createdByDay.set(item.date, item.count));
+
+    const allDates = Array.from(new Set([...resolvedByDay.keys(), ...createdByDay.keys()])).sort();
+
+    if (allDates.length === 0) {
+      return this.generateDefaultProductivityData();
     }
 
-    const days = Math.floor(hours / 24);
-    return `${days}d`;
+    return allDates.map(dateStr => {
+      const date = new Date(`${dateStr}T12:00:00Z`);
+      const ticketsResolved = resolvedByDay.get(dateStr) ?? 0;
+      const ticketsAssigned = createdByDay.get(dateStr) ?? 0;
+      return {
+        day: this.getDayName(date),
+        ticketsAssigned,
+        ticketsResolved,
+        avgResponseTime: ticketsResolved > 0 ? Math.max(20, ticketsAssigned * 5) : 0,
+      };
+    });
   }
 
-  getShortPriority(priority: string): string {
-    const map: {[key: string]: string} = {
-      'Baja': 'B',
-      'Media': 'M', 
-      'Alta': 'A',
-      'Crítica': 'C',
-      'N/A': '-'
-    };
-    
-    return map[priority] || priority.charAt(0);
+  private generateDefaultProductivityData(): ProductivityItem[] {
+    return ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => ({
+      day, ticketsAssigned: 0, ticketsResolved: 0, avgResponseTime: 0,
+    }));
   }
 
-  // Añadir este método a la clase
-  hasOnlyEmptyProductivityData(): boolean {
-    if (!this.performanceData.productivityData || this.performanceData.productivityData.length === 0) {
-      return true;
-    }
-    
-    // Si solo hay un registro y tiene la propiedad noDataPeriod o todos tienen 0 tickets
-    if (this.performanceData.productivityData.length === 1) {
-      const item = this.performanceData.productivityData[0];
-      return (item.noDataPeriod === true) || 
-             (item.ticketsAssigned === 0 && item.ticketsResolved === 0);
-    }
-    
-    // Si todos los elementos tienen 0 tickets
-    return this.performanceData.productivityData.every(
-      item => item.ticketsAssigned === 0 && item.ticketsResolved === 0
-    );
-  }
-
-  getEfficiencyBgColor(resolved: number, assigned: number): string {
-    if (assigned === 0) return '#F3F4F6'; // gray-100
-    
-    const efficiency = (resolved / assigned) * 100;
-    if (efficiency >= 90) return '#D1FAE5'; // green-100
-    if (efficiency >= 75) return '#FEF3C7'; // amber-100
-    return '#FEE2E2'; // red-100
-  }
-
-  getEfficiencyTextColor(resolved: number, assigned: number): string {
-    if (assigned === 0) return '#6B7280'; // gray-500
-    
-    const efficiency = (resolved / assigned) * 100;
-    if (efficiency >= 90) return '#047857'; // green-800
-    if (efficiency >= 75) return '#92400E'; // amber-800
-    return '#B91C1C'; // red-800
+  private getDayName(date: Date): string {
+    if (!(date instanceof Date) || isNaN(date.getTime())) return 'Desconocido';
+    const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return days[utcDate.getUTCDay()] ?? 'Desconocido';
   }
 }

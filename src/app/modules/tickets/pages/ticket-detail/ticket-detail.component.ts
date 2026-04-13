@@ -1,26 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, map, switchMap, tap } from 'rxjs';
 
 import { Ticket, TicketStatus, IArchivo } from '../../../../core/models/ticket.model';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserService } from '../../../../core/services/user.service';
+import { NotificacionService } from '../../../../core/services/notificacion.service';
 import { UserProfile } from '../../../../core/models/user.model';
 import { TicketTimelineComponent } from '../../components/ticket-timeline/ticket-timeline.component';
 import { TicketCommentFormComponent } from '../../components/ticket-comment-form/ticket-comment-form.component';
@@ -33,81 +21,88 @@ import { TicketFilesComponent } from '../../components/ticket-files/ticket-files
   imports: [
     CommonModule,
     RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatDividerModule,
-    MatIconModule,
-    MatMenuModule,
-    MatProgressSpinnerModule,
-    MatTabsModule,
-    MatTooltipModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatSnackBarModule,
     TicketTimelineComponent,
     TicketCommentFormComponent,
     TicketCommentsListComponent,
-    TicketFilesComponent
+    TicketFilesComponent,
   ],
   templateUrl: './ticket-detail.component.html',
-  styleUrls: ['./ticket-detail.component.scss']
+  styleUrl: './ticket-detail.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TicketDetailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private ticketService = inject(TicketService);
+  private authService = inject(AuthService);
+  private userService = inject(UserService);
+  private fb = inject(FormBuilder);
+  private notificaciones = inject(NotificacionService);
+  private cdr = inject(ChangeDetectorRef);
+
   ticket: Ticket | null = null;
   currentUser$: Observable<UserProfile | null>;
   supportUsers$: Observable<UserProfile[]>;
-  supportUsers: UserProfile[] = []; // Lista de usuarios de soporte para el dropdown
+  supportUsers: UserProfile[] = [];
   isLoading = true;
-  isUpdating = false; // Para controlar estados de carga durante actualización
+  isUpdating = false;
   errorMessage: string | null = null;
 
   // Formularios
-  statusForm: FormGroup;
-  assignForm: FormGroup;
+  statusForm = this.fb.group({
+    status: ['', Validators.required],
+    statusNote: [''],
+  });
+
+  assignForm = this.fb.group({
+    assignedTo: ['', Validators.required],
+    assignNote: [''],
+  });
 
   // Tab activo
-  activeTab = 'comments'; // Valor por defecto: 'comments', 'timeline', 'files'
+  activeTab = 'comments';
 
   // Opciones de estado disponibles
-  availableStatuses: { value: TicketStatus, label: string }[] = [
+  availableStatuses: { value: TicketStatus; label: string }[] = [
     { value: 'nuevo', label: 'Nuevo' },
     { value: 'asignado', label: 'Asignado' },
     { value: 'en_proceso', label: 'En Proceso' },
     { value: 'en_espera', label: 'En Espera' },
     { value: 'resuelto', label: 'Resuelto' },
-    { value: 'cerrado', label: 'Cerrado' }
+    { value: 'cerrado', label: 'Cerrado' },
   ];
 
-  // Alias para compatibility con el template
   get availableStatusOptions() {
     return this.availableStatuses;
   }
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private ticketService: TicketService,
-    private authService: AuthService,
-    private userService: UserService,
-    private fb: FormBuilder,
-    private snackBar: MatSnackBar
-  ) {
+  constructor() {
     this.currentUser$ = this.authService.getCurrentUser();
     this.supportUsers$ = this.userService.getUsersByRole('support');
+  }
 
-    // Inicializar formularios
-    this.statusForm = this.fb.group({
-      status: ['', Validators.required],
-      statusNote: ['']
-    });
+  // Métodos helper para clases de badges (evitar [ngClass])
+  protected claseBadgeEstado(estado: string): string {
+    const mapa: { [key: string]: string } = {
+      nuevo:     'bg-gray-100 text-gray-800',
+      asignado:  'bg-blue-100 text-blue-800',
+      en_proceso:'bg-yellow-100 text-yellow-800',
+      en_espera: 'bg-orange-100 text-orange-800',
+      resuelto:  'bg-green-100 text-green-800',
+      cerrado:   'bg-red-100 text-red-800',
+    };
+    return mapa[estado] ?? 'bg-gray-100 text-gray-800';
+  }
 
-    this.assignForm = this.fb.group({
-      assignedTo: ['', Validators.required],
-      assignNote: ['']
-    });
+  protected claseBadgePrioridad(prioridad: string): string {
+    const mapa: { [key: string]: string } = {
+      baja:   'bg-green-100 text-green-800',
+      media:  'bg-yellow-100 text-yellow-800',
+      alta:   'bg-red-100 text-red-800',
+      critica:'bg-purple-100 text-purple-800',
+    };
+    return mapa[prioridad] ?? 'bg-gray-100 text-gray-800';
   }
 
   ngOnInit(): void {
@@ -118,7 +113,7 @@ export class TicketDetailComponent implements OnInit {
       if (this.ticket) {
         // Inicializar el formulario de estado con el valor actual
         this.statusForm.patchValue({
-          status: this.ticket.estado
+          status: this.ticket.estado,
         });
 
         // Cargar información extendida del ticket
@@ -128,7 +123,10 @@ export class TicketDetailComponent implements OnInit {
       // Cargar lista de usuarios de soporte
       this.supportUsers$.subscribe(users => {
         this.supportUsers = users;
+        this.cdr.markForCheck();
       });
+
+      this.cdr.markForCheck();
     });
   }
 
@@ -141,13 +139,13 @@ export class TicketDetailComponent implements OnInit {
     const { status, statusNote } = this.statusForm.value;
 
     if (status === this.ticket.estado) {
-      this.snackBar.open('No se detectaron cambios para actualizar', 'Cerrar', { duration: 3000 });
+      this.notificaciones.advertencia('No se detectaron cambios para actualizar');
       return;
     }
 
     this.isUpdating = true;
 
-    this.ticketService.updateTicketStatus(this.ticket.id, status, statusNote)
+    this.ticketService.updateTicketStatus(this.ticket.id, status as TicketStatus, statusNote ?? '')
       .subscribe({
         next: () => {
           this.handleSuccess('Estado actualizado correctamente');
@@ -167,13 +165,13 @@ export class TicketDetailComponent implements OnInit {
     const { assignedTo, assignNote } = this.assignForm.value;
 
     if (assignedTo === this.ticket.asignadoAUid) {
-      this.snackBar.open('El ticket ya está asignado a este técnico', 'Cerrar', { duration: 3000 });
+      this.notificaciones.advertencia('El ticket ya está asignado a este técnico');
       return;
     }
 
     this.isUpdating = true;
 
-    this.userService.getUserById(assignedTo).pipe(
+    this.userService.getUserById(assignedTo!).pipe(
       switchMap(user => {
         if (!user) throw new Error('Usuario no encontrado');
         return this.ticketService.asignarTicket(this.ticket!.id, user.uid, user.displayName || user.email || 'Usuario');
@@ -310,11 +308,13 @@ export class TicketDetailComponent implements OnInit {
       next: (ticketActualizado) => {
         this.ticket = ticketActualizado;
         this.isUpdating = false;
-        this.snackBar.open('Archivo eliminado correctamente', 'Cerrar', { duration: 3000 });
+        this.notificaciones.exito('Archivo eliminado correctamente');
+        this.cdr.markForCheck();
       },
       error: (err: Error) => {
         this.isUpdating = false;
-        this.snackBar.open(`Error al eliminar el archivo: ${err.message}`, 'Cerrar', { duration: 5000 });
+        this.notificaciones.error(`Error al eliminar el archivo: ${err.message}`);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -372,16 +372,15 @@ export class TicketDetailComponent implements OnInit {
   private handleSuccess(message: string): void {
     this.refreshTicket().subscribe(() => {
       this.isUpdating = false;
-      this.snackBar.open(message, 'Cerrar', { duration: 3000 });
+      this.notificaciones.exito(message);
+      this.cdr.markForCheck();
     });
   }
 
-  /**
-   * Maneja un error
-   */
   private handleError(err: Error): void {
     this.isUpdating = false;
-    this.snackBar.open(`Error: ${err.message}`, 'Cerrar', { duration: 5000 });
+    this.notificaciones.error(`Error: ${err.message}`);
+    this.cdr.markForCheck();
   }
 
   /**

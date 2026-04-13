@@ -1,60 +1,38 @@
-import { Component, EventEmitter, Output } from '@angular/core';
-
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-
+import { Component, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FileUploadComponent } from '../../../../shared/components/file-upload/file-upload.component';
 
 @Component({
   selector: 'app-ticket-comment-form',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
-    FileUploadComponent
-],
+  imports: [ReactiveFormsModule, FileUploadComponent],
   templateUrl: './ticket-comment-form.component.html',
-  styleUrls: ['./ticket-comment-form.component.scss']
+  styleUrl: './ticket-comment-form.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TicketCommentFormComponent {
-  @Output() commentSubmitted = new EventEmitter<{comment: string, files: File[]}>();
+  private fb = inject(FormBuilder);
 
-  commentForm: FormGroup;
-  isSubmitting = false;
-  selectedFiles: File[] = [];
+  commentSubmitted = output<{ comment: string; files: File[] }>();
 
-  constructor(private fb: FormBuilder) {
-    this.commentForm = this.fb.group({
-      comment: ['', Validators.required]
-    });
+  protected commentForm = this.fb.group({
+    comment: ['', Validators.required],
+  });
+  protected isSubmitting = signal(false);
+  protected selectedFiles = signal<File[]>([]);
+
+  protected onFilesSelected(files: File[]): void {
+    this.selectedFiles.set(files);
   }
 
-  onFilesSelected(files: File[]): void {
-    this.selectedFiles = files;
-  }
-
-  onSubmit(): void {
+  protected onSubmit(): void {
     if (this.commentForm.invalid) return;
 
-    this.isSubmitting = true;
-    const comment = this.commentForm.value.comment;
-
-    this.commentSubmitted.emit({
-      comment,
-      files: this.selectedFiles
-    });
-
-    // Reset form
+    this.isSubmitting.set(true);
+    const comment = this.commentForm.value.comment ?? '';
+    this.commentSubmitted.emit({ comment, files: this.selectedFiles() });
     this.commentForm.reset();
-    this.selectedFiles = [];
-    this.isSubmitting = false;
+    this.selectedFiles.set([]);
+    this.isSubmitting.set(false);
   }
 }

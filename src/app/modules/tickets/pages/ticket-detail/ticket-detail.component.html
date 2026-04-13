@@ -42,24 +42,12 @@
               </button>
               <div class="flex space-x-2">
                 <span
-                [ngClass]="{
-                  'bg-gray-100 text-gray-800': ticket.estado === 'nuevo',
-                  'bg-blue-100 text-blue-800': ticket.estado === 'asignado',
-                  'bg-yellow-100 text-yellow-800': ticket.estado === 'en_proceso',
-                  'bg-orange-100 text-orange-800': ticket.estado === 'en_espera',
-                  'bg-green-100 text-green-800': ticket.estado === 'resuelto',
-                  'bg-red-100 text-red-800': ticket.estado === 'cerrado'
-                }"
+                [class]="claseBadgeEstado(ticket.estado)"
                   class="px-2.5 py-1 text-xs font-medium rounded-full">
                   {{ getStatusLabel(ticket.estado) }}
                 </span>
                 <span
-                [ngClass]="{
-                  'bg-green-100 text-green-800': ticket.prioridad === 'baja',
-                  'bg-yellow-100 text-yellow-800': ticket.prioridad === 'media',
-                  'bg-red-100 text-red-800': ticket.prioridad === 'alta',
-                  'bg-purple-100 text-purple-800': ticket.prioridad === 'critica'
-                }"
+                [class]="claseBadgePrioridad(ticket.prioridad)"
                   class="px-2.5 py-1 text-xs font-medium rounded-full">
                   {{ getPriorityLabel(ticket.prioridad) }}
                 </span>
@@ -129,7 +117,8 @@
                   [routerLink]="['/tickets/editar', ticket.id]"
                   [disabled]="ticket.estado === 'resuelto' || ticket.estado === 'cerrado'"
                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  [ngClass]="{'opacity-50 cursor-not-allowed': ticket.estado === 'resuelto' || ticket.estado === 'cerrado'}">
+                  [class.opacity-50]="ticket.estado === 'resuelto' || ticket.estado === 'cerrado'"
+                  [class.cursor-not-allowed]="ticket.estado === 'resuelto' || ticket.estado === 'cerrado'">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                   </svg>

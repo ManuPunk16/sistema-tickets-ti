@@ -1,33 +1,33 @@
-<div class="comments-list">
-  <h3 class="text-lg font-medium mb-4">Comentarios ({{ comments.length }})</h3>
+<div>
+  <h3 class="text-lg font-medium mb-4">Comentarios ({{ comments().length }})</h3>
 
-  @if (comments.length === 0) {
+  @if (comments().length === 0) {
     <div class="text-center py-8 bg-gray-50 rounded-lg">
-      <mat-icon class="text-gray-400 text-5xl">chat</mat-icon>
-      <p class="mt-2 text-gray-500">No hay comentarios aún</p>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+      </svg>
+      <p class="text-gray-500 text-sm">No hay comentarios aún</p>
     </div>
   }
 
   @for (comment of sortedComments; track comment; let last = $last) {
-    <div class="comment mb-4">
+    <div class="mb-4">
       <div class="flex items-start">
-        <div class="comment-avatar mr-3">
-          <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center">
-            {{ comment.autorNombre[0].toUpperCase() }}
-          </div>
+        <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center mr-3 flex-shrink-0 font-medium">
+          {{ comment.autorNombre[0].toUpperCase() }}
         </div>
-        <div class="comment-content flex-1">
+        <div class="flex-1">
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex justify-between items-center mb-2">
-              <h4 class="font-medium">{{ comment.autorNombre }}</h4>
+              <h4 class="font-medium text-gray-900 text-sm">{{ comment.autorNombre }}</h4>
               <span class="text-xs text-gray-500">{{ formatDate(comment.creadoEn) }}</span>
             </div>
-            <p class="text-gray-700 whitespace-pre-line">{{ comment.texto }}</p>
+            <p class="text-gray-700 whitespace-pre-line text-sm">{{ comment.texto }}</p>
           </div>
         </div>
       </div>
       @if (!last) {
-        <mat-divider class="my-4"></mat-divider>
+        <div class="border-t border-gray-100 my-4"></div>
       }
     </div>
   }

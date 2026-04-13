@@ -1,40 +1,61 @@
-<div class="timeline">
+<div>
   <h3 class="text-lg font-medium mb-4">Historial del ticket</h3>
 
-  <div class="timeline-events">
-    @for (event of timelineEvents; track event; let first = $first; let last = $last) {
-      <div class="timeline-event">
-        <div class="flex">
-          <div class="timeline-icon mr-4">
-            <div [ngClass]="getIconBgClass(event.type)"
-              class="w-10 h-10 rounded-full flex items-center justify-center">
-              <mat-icon class="text-white">{{ event.icon }}</mat-icon>
-            </div>
-            @if (!last) {
-              <div class="timeline-line"></div>
+  <div class="space-y-0">
+    @for (evento of eventosTimeline; track evento; let last = $last) {
+      <div class="flex">
+        <!-- Columna: ícono + línea vertical -->
+        <div class="flex flex-col items-center mr-4">
+          <div [class]="getClaseIcono(evento.type) + ' w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0'">
+            @switch (evento.icon) {
+              @case ('add_circle') {
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              }
+              @case ('person') {
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              }
+              @case ('comment') {
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              }
+              @case ('check_circle') {
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              @default {
+                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              }
             }
           </div>
-          <div class="timeline-content">
-            <div class="text-sm text-gray-500 mb-1">{{ formatDate(event.timestamp) }}</div>
-            <p class="font-medium">{{ event.text }}</p>
-            @if (event.user) {
-              <p class="text-sm text-gray-600">Por {{ event.user }}</p>
-            }
-            @if (event.details) {
-              <p class="mt-1 text-gray-700 whitespace-pre-line">{{ event.details }}</p>
-            }
-          </div>
+          @if (!last) {
+            <div class="w-0.5 flex-1 bg-gray-200 my-1"></div>
+          }
         </div>
-        @if (!last) {
-          <div class="mt-2"></div>
-        }
+        <!-- Contenido del evento -->
+        <div class="pb-5 flex-1">
+          <div class="text-xs text-gray-500 mb-1">{{ formatearFecha(evento.timestamp) }}</div>
+          <p class="font-medium text-sm text-gray-900">{{ evento.text }}</p>
+          @if (evento.user) {
+            <p class="text-xs text-gray-600 mt-0.5">Por {{ evento.user }}</p>
+          }
+          @if (evento.details) {
+            <p class="mt-1 text-sm text-gray-700 whitespace-pre-line">{{ evento.details }}</p>
+          }
+        </div>
       </div>
     }
 
-    <!-- Empty State -->
-    @if (timelineEvents.length === 0) {
+    @if (eventosTimeline.length === 0) {
       <div class="text-center py-6">
-        <p class="text-gray-500">No hay eventos registrados para este ticket</p>
+        <p class="text-gray-500 text-sm">No hay eventos registrados para este ticket</p>
       </div>
     }
   </div>
