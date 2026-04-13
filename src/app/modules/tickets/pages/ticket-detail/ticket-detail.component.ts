@@ -17,7 +17,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Observable, map, switchMap, tap } from 'rxjs';
 
-import { Ticket, TicketStatus } from '../../../../core/models/ticket.model';
+import { Ticket, TicketStatus, IArchivo } from '../../../../core/models/ticket.model';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserService } from '../../../../core/services/user.service';
@@ -294,8 +294,33 @@ export class TicketDetailComponent implements OnInit {
            (user.role === 'support' && this.ticket.asignadoAUid === user.uid);
   }
 
-  /** Extrae los URLs de un array de IArchivo para el componente ticket-files */
-  obtenerUrlsArchivos(archivos: import('../../../../core/models/ticket.model').IArchivo[] | undefined): string[] {
+  /** Verifica si el usuario puede eliminar archivos adjuntos del ticket */
+  puedeEliminarArchivo(user: UserProfile | null): boolean {
+    if (!user || !this.ticket) return false;
+    return user.role === 'admin' ||
+           user.role === 'support' ||
+           this.ticket.creadoPorUid === user.uid;
+  }
+
+  /** Elimina un archivo adjunto de Firebase Storage y de MongoDB */
+  eliminarArchivo(archivo: IArchivo): void {
+    if (!this.ticket) return;
+    this.isUpdating = true;
+    this.ticketService.eliminarArchivoDeTicket(this.ticket.id, archivo).subscribe({
+      next: (ticketActualizado) => {
+        this.ticket = ticketActualizado;
+        this.isUpdating = false;
+        this.snackBar.open('Archivo eliminado correctamente', 'Cerrar', { duration: 3000 });
+      },
+      error: (err: Error) => {
+        this.isUpdating = false;
+        this.snackBar.open(`Error al eliminar el archivo: ${err.message}`, 'Cerrar', { duration: 5000 });
+      },
+    });
+  }
+
+  /** @deprecated Ya no es necesario; el componente recibe IArchivo[] directamente */
+  obtenerUrlsArchivos(archivos: IArchivo[] | undefined): string[] {
     return (archivos ?? []).map(a => a.url);
   }
 

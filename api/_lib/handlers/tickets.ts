@@ -49,6 +49,7 @@ export default async function ticketsHandler(
   const { pathname } = new URL(req.url || '', `http://${req.headers.host}`);
 
   // Extraer segmentos: /api/tickets/:id y /api/tickets/:id/comentarios, etc.
+  const matchArchivoAccion = pathname.match(/^\/api\/tickets\/([^/]+)\/archivos\/([^/]+)$/);
   const matchAccion = pathname.match(/^\/api\/tickets\/([^/]+)\/(comentarios|archivos|asignar|estado|satisfaccion)$/);
   const matchBase   = pathname.match(/^\/api\/tickets\/([^/]+)$/);
   const id     = matchAccion?.[1] ?? matchBase?.[1] ?? null;
@@ -349,7 +350,37 @@ export default async function ticketsHandler(
 
       return R.ok(res, { mensaje: `Ticket #${ticket.numero} eliminado` });
     }
+    // ── DELETE /api/tickets/:id/archivos/:archivoId ───────────────────────────
+if (matchArchivoAccion && req.method === 'DELETE') {
+      if (!limitadorEscritura(req, res)) return;
+      const [, ticketId, archivoId] = matchArchivoAccion;
 
+      const ctx = await verificarUsuarioActivo(req, res);
+      if (!ctx) return;
+      logRequest(req, ctx.uid);
+
+      const ticket = await Ticket.findById(ticketId);
+      if (!ticket) return R.noEncontrado(res, 'Ticket');
+
+      // Solo el creador del ticket o soporte/admin pueden eliminar archivos
+      const esCreador  = ticket.creadoPorUid === ctx.uid;
+      const esSoporte  = ctx.role === 'admin' || ctx.role === 'support';
+      if (!esCreador && !esSoporte) {
+        return R.prohibido(res, 'No tienes permiso para eliminar archivos de este ticket');
+      }
+
+      const indiceArchivo = ticket.archivos.findIndex(
+        // Los sub-documentos Mongoose siempre tienen _id en tiempo de ejecución
+        // aunque la interfaz IArchivo no lo declare explícitamente
+        (a) => (a as unknown as { _id: { toString(): string } })._id.toString() === archivoId
+      );
+      if (indiceArchivo === -1) return R.noEncontrado(res, 'Archivo adjunto');
+
+      ticket.archivos.splice(indiceArchivo, 1);
+      await ticket.save();
+
+      return R.ok(res, { ticket });
+    }
     R.error(res, 'Ruta de tickets no encontrada', 404);
   } catch (err) {
     logError('ticketsHandler', err);

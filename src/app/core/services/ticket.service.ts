@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, from, of, forkJoin, map } from 'rxjs';
+import { Observable, from, of, forkJoin, map, catchError, switchMap } from 'rxjs';
 import {
   Storage,
   deleteObject,
@@ -215,6 +215,20 @@ export class TicketService {
     const archivoRef = ref(this.storage, ruta);
     const resultado  = await uploadBytes(archivoRef, archivo);
     return getDownloadURL(resultado.ref);
+  }
+
+  eliminarArchivoDeTicket(ticketId: string, archivo: IArchivo): Observable<Ticket> {
+    const archivoId = archivo._id ?? archivo.id ?? '';
+    // Intenta borrar de Firebase Storage; si ya no existe, continúa de todas formas
+    const borrarStorage$ = from(deleteObject(ref(this.storage, archivo.url))).pipe(
+      catchError(() => of(undefined))
+    );
+    return borrarStorage$.pipe(
+      switchMap(() =>
+        this.http.delete<RespuestaTicket>(`${this.apiUrl}/${ticketId}/archivos/${archivoId}`)
+      ),
+      map(res => this.mapearTicket(res.ticket))
+    );
   }
 
   deleteAttachment(url: string): Observable<void> {

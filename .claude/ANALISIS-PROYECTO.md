@@ -1,7 +1,7 @@
 # 📊 Análisis del Sistema de Tickets TI
 
 > **Generado:** Análisis completo del estado actual, capacidades, limitaciones y roadmap de trabajo.  
-> **Última actualización:** 10 de Abril de 2026 — Fase 1 (Estabilización) completada.  
+> **Última actualización:** 14 de Abril de 2026 — Fase 2 en progreso. Windows Server Storage en planificación.  
 > **Propósito:** Guía de referencia para tomar decisiones técnicas y de priorización.
 
 ---
@@ -103,8 +103,10 @@
 
 | Componente | Módulos Material problemáticos |
 |---|---|
-| `ticket-list` | `MatTableDataSource`, `MatPaginator`, `MatSort` (12+ imports) |
+| `ticket-list` | ✅ **MIGRADO** — Signals + computed paginación + Tailwind. Sin `MatTable` ni `MatPaginator` |
 | `ticket-form` | ✅ **MIGRADO** — Angular Material eliminado, Signals + Tailwind |
+| `login` | ✅ **MIGRADO** — Signals + inject() + Tailwind. Sin `MatSnackBar` |
+| `forgot-password` | ✅ **MIGRADO** — Signals + inject() + Tailwind. Sin `MatCard` ni `MatFormField` |
 | `ticket-detail` | MatSnackBar, MatTabs, MatChips, MatMenu |
 | `ticket-timeline` | `MatIconModule` |
 | `ticket-comments-list` | `MatCard`, `MatIcon`, `MatDivider` |
@@ -112,14 +114,13 @@
 | `department-form` | `MatFormField`, `MatSnackBar` |
 | `performance-report` | `MatTableDataSource`, `MatPaginator`, `MatSort` |
 | `system-settings` | `MatSnackBar`, `MatSlideToggle`, `MatTabs` |
-| `login` | `MatSnackBar` vía constructor injection (patrón legacy) |
+| `file-upload` | `MatButtonModule`, `MatIconModule`, `MatProgressBarModule`, `MatChipsModule`, `MatTooltipModule` |
 
-**Total:** ~9 componentes con Angular Material activo.  
+**Total migrados:** 4 / 11 componentes. **Pendientes:** 7 componentes con Angular Material activo.  
 **Impacto visual:** Inconsistencia entre los componentes ya migrados a Tailwind y los que usan Material.
 
 #### 🟡 IMPORTANTE — Patrones legacy en componentes viejos
-- `login.component.ts` usa constructor injection en lugar de `inject()`
-- Varios componentes usan `@Input()`/`@Output()` en lugar de `input()`/`output()`
+- Varios componentes aún usan `@Input()`/`@Output()` en lugar de `input()`/`output()`
 - Algunos componentes tienen `*ngIf`/`*ngFor` en lugar del control flow nativo
 - No se usa `ChangeDetectionStrategy.OnPush` en componentes con Material
 
@@ -178,12 +179,9 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 | Tarea | Dificultad | Componente |
 |---|---|---|
-| Crear `NotificacionService` personalizado (reemplaza MatSnackBar) | ✅ Hecho | Core |
+| Migrar `file-upload` (reemplaza 5 módulos Material) | Media | Shared |
 | Migrar `department-form` | Baja | Departamentos |
 | Migrar `department-list` | Media | Departamentos |
-| Migrar `login.component` a Signals + inject() + Tailwind | ✅ Hecho | Auth |
-| ~~Migrar `ticket-form`~~ | ✅ Hecho | Tickets |
-| Migrar `ticket-list` (tabla, paginación, filtros) | ✅ Hecho | Tickets |
 | Migrar `ticket-detail` y sub-componentes | Alta | Tickets |
 | Migrar `performance-report` (tabla con paginación) | Media | Reportes |
 | Migrar `system-settings` | Media | Configuración |
@@ -193,7 +191,45 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 
 ---
 
-### Fase 3 — Mejoras de UX (Prioridad Media) 🟡
+### Fase 2.5 — Integración Almacenamiento en Windows Server (Prioridad Alta) 🟠
+> **Objetivo:** Reemplazar Firebase Storage (1 GB / 5 GB descarga/mes) con el servidor físico Windows Server propio. Sin límite de almacenamiento, compresor de imágenes automático.
+> **Documento de análisis completo:** `.claude/context/almacenamiento-archivos.md`
+
+#### Sub-tarea A — Upload Service en Windows Server (Node.js)
+
+| Tarea | Dificultad | Notas |
+|---|---|---|
+| Instalar Node.js y pm2 en Windows Server | Baja | Prerrequisito del servidor |
+| Crear servicio Express `upload-service` | Media | multer + sharp + file-type + firebase-admin |
+| Configurar HTTPS (Let’s Encrypt o certificado corporativo) | Media | Obligatorio para que el token no viaje en claro |
+| Configurar Windows Firewall (regla de entrada en puerto elegido) | Baja | Abrir solo el puerto del servicio |
+| Registrar como servicio de Windows con pm2 (`pm2 startup`) | Baja | Reinicio automático al encender el servidor |
+| Definir carpeta de destino (`D:\tickets-adjuntos\`) sin permisos de ejecución | Baja | Seguridad OWASP |
+
+#### Sub-tarea B — Migración en Angular
+
+| Tarea | Dificultad | Notas |
+|---|---|---|
+| Migrar `file-upload.component` a Tailwind (eliminar 5 módulos Material) | Media | Drag & drop, barra de progreso real con `reportProgress: true` |
+| Actualizar `ticket.service.ts`: reemplazar llamadas Firebase Storage por HTTP POST al Windows Server | Media | El URL del archivo se sigue guardando en MongoDB como string |
+| Agregar `uploadUrl` a `environment.ts` y `environment.prod.ts` | Baja | `uploadUrl: 'https://[servidor]/upload'` |
+| Validar formatos permitidos en cliente: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG | Baja | Lista blanca de 9 extensiones + MIME types |
+
+#### Estado actual
+
+| Componente | Estado |
+|---|---|
+| `file-upload.component.ts` | ⚠️ Pendiente — usa 5 módulos Angular Material, sin restricción de formatos |
+| `ticket.service.ts` | ⚠️ Pendiente — usa Firebase Storage SDK |
+| Windows Server Upload Service | ❌ No creado — requiere info del servidor |
+| `environment.ts` | ❌ Falta campo `uploadUrl` |
+
+**Prerrequisito para implementar:** El usuario debe proporcionar la información del servidor detallada en `.claude/context/almacenamiento-archivos.md` (IP, versión Windows Server, espacio en disco, puerto disponible, SSL).  
+**Formatos permitidos tras la migración:** PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG (9 formatos, validación por magic bytes en servidor).  
+**Compresor:** `sharp` aplica automáticamente calidad 80% a JPG/PNG. Documentos Office no se comprimen (ya son ZIP internamente).
+
+---
+
 > **Objetivo:** Experiencia de usuario más fluida y profesional
 
 | Tarea | Dificultad |
@@ -241,11 +277,12 @@ Crear un `ErrorInterceptor` HTTP que capture errores 401 (sesión expirada), 403
 | Backend API (Vercel Functions) | ✅ 90% completo | Implementar endpoint `/api/configuracion` |
 | Autenticación (Firebase Auth) | ✅ Completo | Nada |
 | Servicios frontend | ✅ **100%** migrado (excepto `config.service.ts`) | Solo falta endpoint backend |
-| Componentes UI | ⚠️ ~60% Tailwind | Eliminar Angular Material de ~8 componentes restantes |
+| Componentes UI | ⚠️ ~45% Tailwind | Migrar 7 componentes restantes (ticket-detail, departments, performance-report, system-settings, file-upload) |
 | Modelos MongoDB | ✅ Completo | |
 | Seguridad API | ✅ Completo | |
 | Tests | ❌ 0% | Crear suite mínima |
-| Notificaciones | ❌ No existe | Email + NotificacionService personalizado |
+| Notificaciones toast | ✅ `NotificacionService` implementado | Pendiente solo notificaciones por email |
+| Almacenamiento archivos | ⚠️ Firebase Storage (1 GB límite) | Migrar a Windows Server Upload Service (análisis en `.claude/context/almacenamiento-archivos.md`) |
 | Monitoreo | ❌ No existe | Error tracking |
 
 **Conclusión:** El sistema tiene una base sólida y arquitectura correcta. Los problemas actuales son de migración incompleta, no de diseño. La prioridad absoluta es cerrar la brecha entre los dos almacenamientos de datos (Firestore vs MongoDB) antes de poner el sistema en producción real.

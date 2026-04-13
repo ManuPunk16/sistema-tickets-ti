@@ -28,6 +28,7 @@ export interface IComentario {
 export type TicketComment = IComentario;
 
 export interface IArchivo {
+  _id?: string;  // ID del sub-documento MongoDB (viene como _id del servidor)
   id?: string;
   nombre: string;
   url: string;

@@ -188,7 +188,11 @@
             <!-- Tab de Archivos -->
             @if (activeTab === 'files' && ticket.archivos && ticket.archivos.length > 0) {
               <div>
-                <app-ticket-files [files]="obtenerUrlsArchivos(ticket.archivos)"></app-ticket-files>
+                <app-ticket-files
+                  [archivos]="ticket.archivos || []"
+                  [puedeEliminar]="puedeEliminarArchivo(currentUser$ | async)"
+                  (archivoEliminado)="eliminarArchivo($event)">
+                </app-ticket-files>
               </div>
             }
           </div>

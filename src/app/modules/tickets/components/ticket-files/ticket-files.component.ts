@@ -1,93 +1,78 @@
-import { Component, Input, OnChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-
-interface FileInfo {
-  url: string;
-  name: string;
-  extension: string;
-  icon: string;
-}
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { IArchivo } from '../../../../core/models/ticket.model';
 
 @Component({
   selector: 'app-ticket-files',
   standalone: true,
-  imports: [
-    CommonModule,
-    MatIconModule,
-    MatButtonModule
-  ],
+  imports: [],
   templateUrl: './ticket-files.component.html',
-  styleUrls: ['./ticket-files.component.scss']
+  styleUrl: './ticket-files.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TicketFilesComponent implements OnChanges {
-  @Input() files: string[] = [];
+export class TicketFilesComponent {
+  // Recibe el array completo de IArchivo (antes solo URLs)
+  archivos       = input<IArchivo[]>([]);
+  // Si true, se muestra el botón de eliminar por archivo
+  puedeEliminar  = input<boolean>(false);
+  // Emite el archivo que el usuario confirmó eliminar
+  archivoEliminado = output<IArchivo>();
 
-  fileInfos: FileInfo[] = [];
+  // ID del archivo con confirmación de borrado activa
+  protected archivoAConfirmar = signal<string | null>(null);
 
-  ngOnChanges(): void {
-    this.processFiles();
+  protected cantidadArchivos = computed(() => this.archivos().length);
+
+  protected confirmarEliminacion(id: string): void {
+    this.archivoAConfirmar.set(id);
   }
 
-  private processFiles(): void {
-    this.fileInfos = this.files.map(url => {
-      const name = this.getFileName(url);
-      const extension = this.getFileExtension(name);
-      const icon = this.getFileIcon(extension);
-
-      return { url, name, extension, icon };
-    });
+  protected cancelarEliminacion(): void {
+    this.archivoAConfirmar.set(null);
   }
 
-  getFileName(url: string): string {
-    // Extraer el nombre del archivo de la URL
-    const fragments = url.split('/');
-    return fragments[fragments.length - 1];
+  protected ejecutarEliminacion(archivo: IArchivo): void {
+    this.archivoAConfirmar.set(null);
+    this.archivoEliminado.emit(archivo);
   }
 
-  getFileExtension(fileName: string): string {
-    const parts = fileName.split('.');
-    if (parts.length === 1) return '';
-    return parts[parts.length - 1].toLowerCase();
+  protected getIdArchivo(archivo: IArchivo): string {
+    return (archivo._id ?? archivo.id ?? '');
   }
 
-  getFileIcon(extension: string): string {
-    switch (extension) {
-      case 'pdf': return 'picture_as_pdf';
-      case 'doc':
-      case 'docx': return 'description';
-      case 'xls':
-      case 'xlsx': return 'table_chart';
-      case 'ppt':
-      case 'pptx': return 'slideshow';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif': return 'image';
-      case 'zip':
-      case 'rar': return 'folder_zip';
-      case 'txt': return 'article';
-      default: return 'insert_drive_file';
-    }
+  protected getExtension(nombre: string): string {
+    return nombre.split('.').pop()?.toLowerCase() ?? '';
   }
 
-  getIconColor(extension: string): string {
-    switch (extension) {
-      case 'pdf': return 'text-red-600';
-      case 'doc':
-      case 'docx': return 'text-blue-600';
-      case 'xls':
-      case 'xlsx': return 'text-green-600';
-      case 'ppt':
-      case 'pptx': return 'text-orange-600';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif': return 'text-purple-600';
-      case 'zip':
-      case 'rar': return 'text-yellow-600';
-      default: return 'text-gray-600';
-    }
+  protected getIconoArchivo(extension: string): string {
+    if (extension === 'pdf')                          return 'pdf';
+    if (['doc', 'docx'].includes(extension))          return 'word';
+    if (['xls', 'xlsx'].includes(extension))          return 'excel';
+    if (['ppt', 'pptx'].includes(extension))          return 'ppt';
+    if (['jpg', 'jpeg', 'png'].includes(extension))   return 'image';
+    return 'file';
+  }
+
+  protected getColorIcono(extension: string): string {
+    if (extension === 'pdf')                          return 'text-red-500';
+    if (['doc', 'docx'].includes(extension))          return 'text-blue-600';
+    if (['xls', 'xlsx'].includes(extension))          return 'text-green-600';
+    if (['ppt', 'pptx'].includes(extension))          return 'text-orange-500';
+    if (['jpg', 'jpeg', 'png'].includes(extension))   return 'text-purple-500';
+    return 'text-gray-500';
+  }
+
+  protected formatearTamanio(bytes: number): string {
+    if (!bytes || bytes === 0) return '';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
 }
