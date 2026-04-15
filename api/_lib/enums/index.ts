@@ -54,3 +54,50 @@ export const SLA_HORAS: Record<Prioridad, number> = {
 // ─── Roles que pueden gestionar tickets de otros ──────────────────────────────
 export const ROLES_SOPORTE: Rol[] = [ROL.Admin, ROL.Support];
 export const ROLES_ACTIVOS: Rol[] = [ROL.Admin, ROL.Support, ROL.User];
+
+// ─── Acciones de auditoría ────────────────────────────────────────────────────
+export const ACCION_AUDITORIA = {
+  // Autenticación
+  Login:                   'auth.login',
+  LoginFallido:            'auth.login_fallido',
+  Logout:                  'auth.logout',
+  RegistroNuevo:           'auth.registro',
+  // Tickets
+  TicketCreado:            'ticket.creado',
+  TicketActualizado:       'ticket.actualizado',
+  TicketEstadoCambiado:    'ticket.estado_cambiado',
+  TicketAsignado:          'ticket.asignado',
+  TicketComentario:        'ticket.comentario_agregado',
+  TicketArchivoSubido:     'ticket.archivo_subido',
+  TicketArchivoEliminado:  'ticket.archivo_eliminado',
+  TicketSatisfaccion:      'ticket.satisfaccion_registrada',
+  // Usuarios
+  UsuarioCreado:           'usuario.creado',
+  UsuarioActualizado:      'usuario.actualizado',
+  UsuarioRolCambiado:      'usuario.rol_cambiado',
+  UsuarioAprobado:         'usuario.aprobado',
+  UsuarioDesactivado:      'usuario.desactivado',
+  // Departamentos
+  DepartamentoCreado:      'departamento.creado',
+  DepartamentoActualizado: 'departamento.actualizado',
+  DepartamentoEliminado:   'departamento.eliminado',
+  // Configuración
+  ConfiguracionActualizada:'configuracion.actualizada',
+  // Reportes
+  ReporteGenerado:         'reporte.generado',
+  // Auditoría
+  AuditoriaConsultada:     'auditoria.consultada',
+} as const;
+export type AccionAuditoria = (typeof ACCION_AUDITORIA)[keyof typeof ACCION_AUDITORIA];
+
+// ─── Recursos auditables ──────────────────────────────────────────────────────
+export const RECURSO_AUDITORIA = {
+  Autenticacion: 'autenticacion',
+  Ticket:        'ticket',
+  Usuario:       'usuario',
+  Departamento:  'departamento',
+  Configuracion: 'configuracion',
+  Reporte:       'reporte',
+  Auditoria:     'auditoria',
+} as const;
+export type RecursoAuditoria = (typeof RECURSO_AUDITORIA)[keyof typeof RECURSO_AUDITORIA];

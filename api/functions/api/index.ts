@@ -5,6 +5,7 @@ import ticketsHandler from '../../_lib/handlers/tickets.js';
 import departamentosHandler from '../../_lib/handlers/departamentos.js';
 import reportesHandler from '../../_lib/handlers/reportes.js';
 import configuracionHandler from '../../_lib/handlers/configuracion.js';
+import auditoriaHandler from '../../_lib/handlers/auditoria.js';
 import { limitadorGeneral } from '../../_lib/middleware/rateLimiter.js';
 
 const ORIGENES_PERMITIDOS = [
@@ -50,6 +51,7 @@ export default async (req: VercelRequest, res: VercelResponse) => {
     if (pathname.startsWith('/api/departamentos'))  return await departamentosHandler(req, res);
     if (pathname.startsWith('/api/reportes'))       return await reportesHandler(req, res);
     if (pathname.startsWith('/api/configuracion'))  return await configuracionHandler(req, res);
+    if (pathname.startsWith('/api/auditoria'))      return await auditoriaHandler(req, res);
 
     res.status(404).json({ error: 'Ruta no encontrada', pathname });
   } catch (error) {

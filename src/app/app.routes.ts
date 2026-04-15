@@ -47,6 +47,12 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         data: { roles: ['admin'] }
       },
+      {
+        path: 'auditoria',
+        loadChildren: () => import('./modules/auditoria/auditoria.routes').then(mod => mod.AUDITORIA_ROUTES),
+        canActivate: [adminGuard],
+        data: { roles: ['admin'] }
+      },
       { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
     ]
   },

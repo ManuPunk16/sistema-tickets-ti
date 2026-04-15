@@ -10,11 +10,14 @@ import {
 import { limitadorEscritura } from '../middleware/rateLimiter.js';
 import * as R from '../utils/respuestas.js';
 import { logRequest, logError } from '../utils/logger.js';
+import { registrarAuditoria } from '../utils/registrarAuditoria.js';
 import {
   ESTADO_TICKET,
   PRIORIDAD,
   CATEGORIA_TICKET,
   SLA_HORAS,
+  ACCION_AUDITORIA,
+  RECURSO_AUDITORIA,
   EstadoTicket,
 } from '../enums/index.js';
 
@@ -145,6 +148,19 @@ export default async function ticketsHandler(
         etiquetas:        etiquetas ?? [],
       });
 
+      // Registrar creación de ticket en auditoría
+      await registrarAuditoria({
+        uid:           ctx.uid,
+        email:         ctx.email,
+        nombreUsuario: ctx.displayName,
+        rolActor:      ctx.role,
+        accion:        ACCION_AUDITORIA.TicketCreado,
+        recurso:       RECURSO_AUDITORIA.Ticket,
+        recursoId:     String(ticket._id),
+        detalle:       { titulo: ticket.titulo, categoria: ticket.categoria, prioridad: ticket.prioridad, departamento: ticket.departamento },
+        req,
+      });
+
       return R.creado(res, { ticket });
     }
 
@@ -253,6 +269,20 @@ export default async function ticketsHandler(
       }
 
       await ticket.save();
+
+      // Registrar cambio de estado en auditoría
+      await registrarAuditoria({
+        uid:           ctx.uid,
+        email:         ctx.email,
+        nombreUsuario: ctx.displayName,
+        rolActor:      ctx.role,
+        accion:        ACCION_AUDITORIA.TicketEstadoCambiado,
+        recurso:       RECURSO_AUDITORIA.Ticket,
+        recursoId:     String(ticket._id),
+        detalle:       { estadoAntes: ticket.historial.at(-1)?.valorAntes ?? '', estadoDespues: estado },
+        req,
+      });
+
       return R.ok(res, { ticket });
     }
 
@@ -281,6 +311,20 @@ export default async function ticketsHandler(
       if (ticket.estado === 'nuevo') ticket.estado = ESTADO_TICKET.Asignado;
 
       await ticket.save();
+
+      // Registrar asignación en auditoría
+      await registrarAuditoria({
+        uid:           ctx.uid,
+        email:         ctx.email,
+        nombreUsuario: ctx.displayName,
+        rolActor:      ctx.role,
+        accion:        ACCION_AUDITORIA.TicketAsignado,
+        recurso:       RECURSO_AUDITORIA.Ticket,
+        recursoId:     String(ticket._id),
+        detalle:       { asignadoAUid, asignadoANombre: agente.displayName || agente.email },
+        req,
+      });
+
       return R.ok(res, { ticket });
     }
 

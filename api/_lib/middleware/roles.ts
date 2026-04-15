@@ -4,9 +4,10 @@ import { Usuario } from '../models/Usuario.js';
 import type { Rol } from '../enums/index.js';
 
 export interface ContextoAutenticado {
-  uid:     string;
-  role:    Rol;
-  email:   string;
+  uid:          string;
+  role:         Rol;
+  email:        string;
+  displayName:  string;
 }
 
 /**
@@ -22,7 +23,7 @@ export async function verificarRol(
   const token = await verificarToken(req, res);
   if (!token) return null;
 
-  const usuario = await Usuario.findOne({ uid: token.uid }).select('role email');
+  const usuario = await Usuario.findOne({ uid: token.uid }).select('role email displayName');
   if (!usuario) {
     res.status(401).json({ error: 'Usuario no encontrado en el sistema' });
     return null;
@@ -45,7 +46,12 @@ export async function verificarRol(
     return null;
   }
 
-  return { uid: token.uid, role: usuario.role as Rol, email: usuario.email };
+  return {
+    uid:         token.uid,
+    role:        usuario.role as Rol,
+    email:       usuario.email,
+    displayName: usuario.displayName ?? '',
+  };
 }
 
 /** Atajo: cualquier usuario activo */

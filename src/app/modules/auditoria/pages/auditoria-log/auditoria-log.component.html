@@ -1,0 +1,296 @@
+<div class="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen">
+
+  <!-- ── Encabezado ─────────────────────────────────────────────────────────── -->
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">🔍 Auditoría del Sistema</h1>
+    <p class="text-sm text-gray-500 mt-1">Registro completo de accesos, cambios y eventos del sistema.</p>
+  </div>
+
+  <!-- ── KPIs / Resumen ─────────────────────────────────────────────────────── -->
+  @if (cargandoResumen()) {
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 animate-pulse">
+          <div class="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
+          <div class="h-7 bg-gray-200 rounded w-1/3"></div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (resumen(); as r) {
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">Total registros</p>
+        <p class="text-2xl font-bold text-gray-900">{{ r.totalGeneral | number }}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">Últimas 24h</p>
+        <p class="text-2xl font-bold text-indigo-600">{{ r.ultimas24h | number }}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">Última semana</p>
+        <p class="text-2xl font-bold text-blue-600">{{ r.ultimaSemana | number }}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">Fallos 24h</p>
+        <p class="text-2xl font-bold" [class.text-red-600]="r.fallos24h > 0" [class.text-gray-400]="r.fallos24h === 0">
+          {{ r.fallos24h | number }}
+        </p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">Logins fallidos 24h</p>
+        <p class="text-2xl font-bold" [class.text-red-600]="r.loginsFallidos > 0" [class.text-gray-400]="r.loginsFallidos === 0">
+          {{ r.loginsFallidos | number }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Top actores -->
+    @if (r.topActores && r.topActores.length > 0) {
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p class="text-sm font-semibold text-gray-700 mb-3">👥 Usuarios más activos (últimas 24h)</p>
+        <div class="flex flex-wrap gap-2">
+          @for (actor of r.topActores; track actor.uid) {
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-800 text-xs font-medium">
+              {{ actor.nombre || actor.email }}
+              <span class="bg-indigo-200 text-indigo-900 rounded-full px-1.5 py-0.5">{{ actor.total }}</span>
+            </span>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ── Filtros ────────────────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+
+      <!-- Acción -->
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Acción</label>
+        <select
+          [ngModel]="filtroAccion()"
+          (ngModelChange)="filtroAccion.set($event)"
+          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+          <option value="">Todas las acciones</option>
+          @for (acc of acciones; track acc[0]) {
+            <option [value]="acc[0]">{{ acc[1] }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Recurso -->
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Recurso</label>
+        <select
+          [ngModel]="filtroRecurso()"
+          (ngModelChange)="filtroRecurso.set($event)"
+          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+          <option value="">Todos los recursos</option>
+          @for (rec of recursos; track rec[0]) {
+            <option [value]="rec[0]">{{ rec[1] }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Resultado -->
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Resultado</label>
+        <select
+          [ngModel]="filtroExito()"
+          (ngModelChange)="filtroExito.set($event === '' ? '' : $event === 'true')"
+          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+          <option value="">Todos</option>
+          <option value="true">✅ Exitoso</option>
+          <option value="false">❌ Fallido</option>
+        </select>
+      </div>
+
+      <!-- Desde -->
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+        <input
+          type="date"
+          [ngModel]="filtroDesde()"
+          (ngModelChange)="filtroDesde.set($event)"
+          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+      </div>
+
+      <!-- Hasta -->
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+        <input
+          type="date"
+          [ngModel]="filtroHasta()"
+          (ngModelChange)="filtroHasta.set($event)"
+          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500">
+      </div>
+
+      <!-- Botones -->
+      <div class="flex items-end gap-2">
+        <button
+          (click)="aplicarFiltros()"
+          class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
+          Buscar
+        </button>
+        <button
+          (click)="limpiarFiltros()"
+          class="px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-600 text-sm rounded-lg transition-colors">
+          Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Error ──────────────────────────────────────────────────────────────── -->
+  @if (errorMensaje()) {
+    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+      {{ errorMensaje() }}
+    </div>
+  }
+
+  <!-- ── Tabla de registros ──────────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+
+    <!-- Contador -->
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <p class="text-sm text-gray-500">
+        @if (!cargando()) {
+          <span class="font-semibold text-gray-900">{{ totalRegistros() | number }}</span> registros encontrados
+        } @else {
+          Cargando...
+        }
+      </p>
+    </div>
+
+    <!-- Spinner -->
+    @if (cargando()) {
+      <div class="flex justify-center items-center py-16">
+        <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-500 border-t-transparent"></div>
+      </div>
+    }
+
+    <!-- Sin resultados -->
+    @if (!cargando() && !hayRegistros()) {
+      <div class="flex flex-col items-center justify-center py-16 text-gray-400">
+        <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-sm">No hay registros con los filtros aplicados.</p>
+      </div>
+    }
+
+    <!-- Tabla (desktop) -->
+    @if (!cargando() && hayRegistros()) {
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-left">
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Recurso</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">IP</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Resultado</th>
+              <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Detalle</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            @for (reg of registros(); track reg._id) {
+              <tr class="hover:bg-gray-50 transition-colors">
+                <!-- Fecha -->
+                <td class="px-4 py-3 whitespace-nowrap">
+                  <p class="text-gray-900 font-medium">{{ reg.fechaAccion | date:'dd/MM/yyyy' }}</p>
+                  <p class="text-xs text-gray-400">{{ reg.fechaAccion | date:'HH:mm:ss' }}</p>
+                </td>
+                <!-- Usuario -->
+                <td class="px-4 py-3">
+                  <p class="font-medium text-gray-900 truncate max-w-[160px]">{{ reg.nombreUsuario || '—' }}</p>
+                  <p class="text-xs text-gray-400 truncate max-w-[160px]">{{ reg.email }}</p>
+                  <span class="inline-block mt-0.5 text-xs bg-gray-100 text-gray-600 rounded px-1.5 py-0.5">{{ reg.rolActor }}</span>
+                </td>
+                <!-- Acción -->
+                <td class="px-4 py-3">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold {{ claseAccion(reg.accion) }}">
+                    {{ etiquetaAccion(reg.accion) }}
+                  </span>
+                </td>
+                <!-- Recurso -->
+                <td class="px-4 py-3">
+                  <p class="text-gray-700 capitalize">{{ etiquetaRecurso(reg.recurso) }}</p>
+                  @if (reg.recursoId) {
+                    <p class="text-xs text-gray-400 font-mono truncate max-w-[100px]">{{ reg.recursoId }}</p>
+                  }
+                </td>
+                <!-- IP -->
+                <td class="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{{ reg.ip || '—' }}</td>
+                <!-- Resultado -->
+                <td class="px-4 py-3">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold {{ claseExito(reg.exito) }}">
+                    {{ reg.exito ? '✅ OK' : '❌ Error' }}
+                  </span>
+                  @if (reg.errorMensaje) {
+                    <p class="text-xs text-red-500 mt-0.5 max-w-[120px] truncate" [title]="reg.errorMensaje">
+                      {{ reg.errorMensaje }}
+                    </p>
+                  }
+                </td>
+                <!-- Detalle -->
+                <td class="px-4 py-3 max-w-[200px]">
+                  @if (reg.detalle && (reg.detalle | keyvalue).length > 0) {
+                    <details class="cursor-pointer">
+                      <summary class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Ver detalle</summary>
+                      <pre class="mt-1 text-xs bg-gray-50 rounded p-2 overflow-auto max-h-40 whitespace-pre-wrap break-all">{{ formatearDetalle(reg.detalle) }}</pre>
+                    </details>
+                  } @else {
+                    <span class="text-gray-400 text-xs">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginación -->
+      @if (totalPaginas() > 1) {
+        <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+          <p class="text-sm text-gray-500">
+            Página <span class="font-semibold">{{ paginaActual() }}</span> de
+            <span class="font-semibold">{{ totalPaginas() }}</span>
+          </p>
+          <div class="flex gap-1">
+            <button
+              (click)="irPagina(paginaActual() - 1)"
+              [disabled]="paginaActual() === 1"
+              class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              ← Anterior
+            </button>
+            @for (p of paginasArray(); track p) {
+              @if (p === 1 || p === totalPaginas() || (p >= paginaActual() - 2 && p <= paginaActual() + 2)) {
+                <button
+                  (click)="irPagina(p)"
+                  class="px-3 py-1.5 text-sm border rounded-lg transition-colors"
+                  [class.bg-indigo-600]="p === paginaActual()"
+                  [class.text-white]="p === paginaActual()"
+                  [class.border-indigo-600]="p === paginaActual()"
+                  [class.border-gray-300]="p !== paginaActual()"
+                  [class.hover:bg-gray-50]="p !== paginaActual()">
+                  {{ p }}
+                </button>
+              }
+            }
+            <button
+              (click)="irPagina(paginaActual() + 1)"
+              [disabled]="paginaActual() === totalPaginas()"
+              class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors">
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+</div>

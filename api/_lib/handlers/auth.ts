@@ -2,6 +2,8 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { verificarToken } from '../middleware/autenticacion.js';
 import { Usuario } from '../models/Usuario.js';
 import { conectarMongoDB } from '../config/database.js';
+import { registrarAuditoria } from '../utils/registrarAuditoria.js';
+import { ACCION_AUDITORIA, RECURSO_AUDITORIA } from '../enums/index.js';
 
 export default async function authHandler(
   req: VercelRequest,
@@ -63,12 +65,24 @@ export default async function authHandler(
       return;
     }
 
-    // Actualizar último login
-    usuario.lastLogin = new Date();
-    if (picture && !usuario.photoURL) usuario.photoURL = picture;
-    await usuario.save();
+      // Actualizar último login
+      usuario.lastLogin = new Date();
+      if (picture && !usuario.photoURL) usuario.photoURL = picture;
+      await usuario.save();
 
-    res.status(200).json({ ok: true, usuario, esNuevo: false });
+      // Registrar login exitoso en auditoría
+      await registrarAuditoria({
+        uid:           usuario.uid,
+        email:         usuario.email,
+        nombreUsuario: usuario.displayName,
+        rolActor:      usuario.role,
+        accion:        ACCION_AUDITORIA.Login,
+        recurso:       RECURSO_AUDITORIA.Autenticacion,
+        detalle:       { authProvider },
+        req,
+      });
+
+      res.status(200).json({ ok: true, usuario, esNuevo: false });
     return;
   }
 
