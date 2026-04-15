@@ -169,7 +169,9 @@
                     }
                   }
                 </div>
-                <!-- Archivos adjuntos -->
+                <!-- ADJUNTOS TEMPORALMENTE DESHABILITADOS -->
+                <!-- TODO: Reactivar cuando Firebase Storage esté habilitado -->
+                <!--
                 @if (!isEditMode) {
                   <div class="mt-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Archivos adjuntos (opcional)</label>
@@ -179,8 +181,10 @@
                     <p class="mt-1 text-xs text-gray-500">Formatos permitidos: PDF, DOC, DOCX, JPG, PNG, GIF</p>
                   </div>
                 }
+                -->
               </div>
-                <!-- Archivos seleccionados -->
+                <!-- ARCHIVOS SELECCIONADOS TEMPORALMENTE DESHABILITADOS -->
+                <!--
                 @if (selectedFiles.length > 0) {
                   <div class="mt-4">
                     <h4 class="text-sm font-medium text-gray-700 mb-2">Archivos a adjuntar</h4>
@@ -207,6 +211,7 @@
                     </ul>
                   </div>
                 }
+                -->
                 <!-- Botones de acción -->
                 <div class="flex justify-end mt-8 gap-4">
                   <button

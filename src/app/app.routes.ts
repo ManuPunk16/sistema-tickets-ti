@@ -37,7 +37,8 @@ export const routes: Routes = [
       {
         path: 'reportes',
         loadChildren: () => import('./modules/reportes/reportes.routes').then(mod => mod.REPORTES_ROUTES),
-        data: { roles: ['admin', 'support'] }
+        canActivate: [adminGuard],
+        data: { roles: ['admin'] }
       },
       {
         path: 'configuracion',

@@ -152,6 +152,9 @@
               [class.hover:text-gray-700]="tabActivo() !== 'timeline'">
               📋 Historial
             </button>
+            <!-- TAB ARCHIVOS TEMPORALMENTE DESHABILITADO -->
+            <!-- TODO: Reactivar cuando Firebase Storage esté habilitado -->
+            <!--
             @if (t.archivos && t.archivos.length > 0) {
               <button
                 (click)="tabActivo.set('archivos')"
@@ -164,6 +167,7 @@
                 📎 Archivos ({{ t.archivos.length }})
               </button>
             }
+            -->
           </div>
 
           <!-- Contenido de tabs -->
@@ -187,6 +191,9 @@
               <app-ticket-timeline [ticket]="t"></app-ticket-timeline>
             }
 
+            <!-- ARCHIVOS TEMPORALMENTE DESHABILITADOS -->
+            <!-- TODO: Reactivar cuando Firebase Storage esté habilitado -->
+            <!--
             @if (tabActivo() === 'archivos' && t.archivos && t.archivos.length > 0) {
               <app-ticket-files
                 [archivos]="t.archivos"
@@ -194,6 +201,7 @@
                 (archivoEliminado)="eliminarArchivo($event)">
               </app-ticket-files>
             }
+            -->
           </div>
         </div>
       </div>
