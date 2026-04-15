@@ -75,11 +75,11 @@ export class AuthService {
    * El backend verifica el token, crea/obtiene el usuario en MongoDB
    * y regresa el perfil con el rol real.
    */
-  verificarConAPI(): Observable<UserProfile> {
+  verificarConAPI(esRestauracion = false): Observable<UserProfile> {
     return this.http
       .post<{ ok: boolean; usuario: UserProfile; esNuevo: boolean }>(
         `${environment.apiUrl}/auth/verificar`,
-        {}
+        { esRestauracion }
       )
       .pipe(
         map(resp => {
@@ -272,7 +272,7 @@ export class AuthService {
         this.zone.run(() => {
           if (firebaseUser) {
             // Sesión activa (recarga de página): restaurar perfil desde API
-            this.verificarConAPI().subscribe({
+            this.verificarConAPI(true).subscribe({
               next: () => {
                 this.authInitialized = true;
                 observer.next();

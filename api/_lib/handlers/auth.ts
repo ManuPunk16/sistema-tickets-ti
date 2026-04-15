@@ -18,6 +18,7 @@ export default async function authHandler(
     const tokenDecodificado = await verificarToken(req, res);
     if (!tokenDecodificado) return;
 
+    const { esRestauracion } = req.body as { esRestauracion?: boolean };
     const { uid, email, name, picture, firebase } = tokenDecodificado;
     const authProvider = firebase.sign_in_provider === 'google.com' ? 'google' : 'email';
 
@@ -70,17 +71,20 @@ export default async function authHandler(
       if (picture && !usuario.photoURL) usuario.photoURL = picture;
       await usuario.save();
 
-      // Registrar login exitoso en auditoría
-      await registrarAuditoria({
-        uid:           usuario.uid,
-        email:         usuario.email,
-        nombreUsuario: usuario.displayName,
-        rolActor:      usuario.role,
-        accion:        ACCION_AUDITORIA.Login,
-        recurso:       RECURSO_AUDITORIA.Autenticacion,
-        detalle:       { authProvider },
-        req,
-      });
+      // Registrar login en auditoría solo cuando es un login explícito del usuario
+      // (esRestauracion=true indica recarga de página, no se debe registrar como nuevo login)
+      if (!esRestauracion) {
+        await registrarAuditoria({
+          uid:           usuario.uid,
+          email:         usuario.email,
+          nombreUsuario: usuario.displayName,
+          rolActor:      usuario.role,
+          accion:        ACCION_AUDITORIA.Login,
+          recurso:       RECURSO_AUDITORIA.Autenticacion,
+          detalle:       { authProvider },
+          req,
+        });
+      }
 
       res.status(200).json({ ok: true, usuario, esNuevo: false });
     return;
